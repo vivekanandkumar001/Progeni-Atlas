@@ -1,0 +1,18 @@
+{
+  "name": "@talentpulse/types",
+  "version": "1.0.0",
+  "description": "Synchronized Zod schemas & TypeScript type definitions for TalentPulse AI platform",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

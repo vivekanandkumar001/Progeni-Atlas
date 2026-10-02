@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "declaration": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "mongoose": ["../frontend/web/node_modules/mongoose"],
+      "@aws-sdk/client-s3": ["../frontend/web/node_modules/@aws-sdk/client-s3"],
+      "@aws-sdk/s3-request-presigner": ["../frontend/web/node_modules/@aws-sdk/s3-request-presigner"]
+    },
+    "typeRoots": ["../frontend/web/node_modules/@types"],
+    "types": ["node"]
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "**/*.py"]
+}

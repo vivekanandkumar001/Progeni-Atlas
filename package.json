@@ -1,0 +1,14 @@
+{
+  "name": "swami-interviewer",
+  "version": "1.0.0",
+  "description": "TalentPulse AI & Swami Technical Interviewer Platform",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend/web run dev",
+    "dev:web": "npm --prefix frontend/web run dev",
+    "dev:backend": "python backend/app.py",
+    "dev:mobile": "npm --prefix frontend/mobile-app start",
+    "build": "npm --prefix frontend/web run build",
+    "start": "npm --prefix frontend/web start"
+  }
+}
