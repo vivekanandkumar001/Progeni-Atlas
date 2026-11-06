@@ -53,3 +53,4 @@ Thumbs.db
 *.tsbuildinfo
 .opencode/
 
+.env*
