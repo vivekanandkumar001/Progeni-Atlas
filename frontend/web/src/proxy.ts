@@ -120,7 +120,10 @@ export async function proxy(request: NextRequest) {
   // Seamless session rotation: if access token is missing or expired, attempt refresh via tp_refresh
   if ((!token || isExpired || !payload || (payload.type && payload.type !== 'access') || !payload.role) && refreshToken) {
     try {
-      const flaskBase = (process.env.NEXT_PUBLIC_API_URL?.split(',')[0] || '').replace(/\/+$/, '') || 'http://127.0.0.1:5000';
+      const defaultBackend = process.env.NODE_ENV === 'production'
+        ? 'https://api.progeni.live'
+        : 'http://127.0.0.1:5000';
+      const flaskBase = (process.env.NEXT_PUBLIC_API_URL?.split(',')[0] || '').replace(/\/+$/, '') || defaultBackend;
       const cookieHeader = `tp_refresh=${encodeURIComponent(refreshToken)}${token ? `; tp_session=${encodeURIComponent(token)}` : ''}`;
       const refreshRes = await fetch(`${flaskBase}/api/auth/refresh`, {
         method: 'POST',

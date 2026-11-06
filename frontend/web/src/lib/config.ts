@@ -7,7 +7,11 @@
 
 export const FRONTEND_CONFIG = {
   /** Backend API proxy target (used for Next.js server-side rewrites and direct API calls) */
-  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000',
+  apiUrl:
+    process.env.NEXT_PUBLIC_API_URL ||
+    (process.env.NODE_ENV === 'production'
+      ? 'https://api.progeni.live'
+      : 'http://127.0.0.1:5000'),
 
   /** Base origin URL for companion app / pairing links */
   publicBaseUrl:
