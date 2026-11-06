@@ -270,7 +270,8 @@ export function useInterviewerSpeech({
           restoreMicrophoneTrack();
           if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.rate = clampRate;
+            utterance.rate = 0.98;
+            utterance.pitch = 1.02;
             const femaleVoice = getFemaleVoice();
             if (femaleVoice) utterance.voice = femaleVoice;
             utterance.onend = () => {
