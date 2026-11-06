@@ -146,7 +146,7 @@ export default function CandidateLobbyPage() {
           >
             Return to Candidate Dashboard
           </Link>
-        </div>
+        </main>
       </div>
     );
   }
