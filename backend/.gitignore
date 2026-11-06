@@ -1,0 +1,77 @@
+# Python bytecode & compilation cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment variables & secret keys (NEVER COMMIT SECRETS)
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+.env.test
+!.env.example
+!.env.template
+env.txt
+env_*.txt
+*.pem
+*.key
+*.cert
+*.crt
+id_rsa
+id_rsa.pub
+
+# Backups and temporary files
+*.bak
+*.tmp
+*.swp
+*.swo
+*~
+app.py.bak
+
+# Uploads, recordings, audio & persistent runtime data
+uploads/*
+!uploads/.gitkeep
+recordings/*
+!recordings/.gitkeep
+data/*
+!data/.gitkeep
+transcripts/
+scratch/
+_audit_*.py
+
+# Process & logs
+*.log
+logs/
+*.pid
+
+# Testing, typing & coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+test-results/
+.nyc_output/
+*.test.db
+test.db
+test_*.db
+*test*.log
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

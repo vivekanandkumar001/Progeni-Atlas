@@ -1,24 +1,128 @@
 import type { NextConfig } from "next";
 
+const rawDevOrigins = process.env.ALLOWED_DEV_ORIGINS || process.env.NEXT_PUBLIC_ALLOWED_DEV_ORIGINS || '';
+const parsedDevOrigins = rawDevOrigins
+  .split(',')
+  .map((s) => s.trim().replace(/^https?:\/\//, ''))
+  .filter(Boolean);
+
+const isProduction = process.env.NODE_ENV === 'production';
+const defaultDevOrigins = isProduction
+  ? ['localhost', '127.0.0.1']
+  : ['172.16.6.10', 'localhost', '127.0.0.1', '172.16.6.10:3000', 'localhost:3000', '127.0.0.1:3000'];
+const allowedDevOrigins = Array.from(new Set([...defaultDevOrigins, ...parsedDevOrigins]));
+
+// Remote image hosts are an explicit allowlist. A wildcard hostname would turn
+// /_next/image into an open proxy that will fetch any HTTPS URL on request.
+// Extend with ALLOWED_IMAGE_HOSTS (comma-separated, no protocol or path).
+const allowedImageHosts = (
+  process.env.ALLOWED_IMAGE_HOSTS || 'res.cloudinary.com,app.progeni.atlas'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Do not advertise the framework to clients.
+  poweredByHeader: false,
+  allowedDevOrigins,
+  turbopack: {
+    root: __dirname,
+  },
+  /* Baseline security headers for every app response. */
+  async headers() {
+    const isProd = process.env.NODE_ENV === 'production';
+    return [
+      {
+        source: '/mediapipe/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, HEAD, OPTIONS' },
+          { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+        ],
+      },
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'X-DNS-Prefetch-Control', value: 'off' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(self), microphone=(self), geolocation=()',
+          },
+          ...(isProd
+            ? [
+                {
+                  key: 'Strict-Transport-Security',
+                  value: 'max-age=15552000; includeSubDomains',
+                },
+              ]
+            : []),
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://checkout.razorpay.com https://cdn.razorpay.com https://static.cloudflareinsights.com",
+              "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+              "img-src 'self' data: https: blob: https://*.razorpay.com",
+              "font-src 'self' data: https://cdn.jsdelivr.net",
+              "connect-src 'self' https://api.razorpay.com https://*.razorpay.com https://lumberjack.razorpay.com https://cdn.jsdelivr.net https://cloudflareinsights.com https://*.cloudflareinsights.com wss://*.livekit.cloud https://*.livekit.cloud",
+              "worker-src 'self' blob:",
+              "media-src 'self' blob: data:",
+              "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com",
+              "child-src 'self' https://checkout.razorpay.com https://api.razorpay.com",
+              "frame-ancestors 'self'",
+              "form-action 'self' https://api.razorpay.com https://*.razorpay.com",
+            ].join('; '),
+          },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups',
+          },
+        ],
+      },
+    ];
+  },
   /* Allow CORS and clean media asset loading */
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
-    ],
+    remotePatterns: allowedImageHosts.map((hostname) => ({
+      protocol: 'https' as const,
+      hostname,
+    })),
   },
-  /* Proxy all /api/* requests to the Flask backend so frontend fetch()
-     calls using http://localhost:5000 (or any NEXT_PUBLIC_API_URL) Just Work. */
+  /* Canonical URL consolidation: every duplicate/stub route below used to
+     render as a second copy of the same page (or a client-side JS redirect).
+     One HTTP redirect each keeps URLs single-valued for SEO and removes the
+     re-export pages from the router. */
+  async redirects() {
+    return [
+      {
+        source: '/super-admin/permissions',
+        destination: '/super-admin/roles',
+        permanent: false,
+      },
+      { source: '/careers', destination: '/career', permanent: false },
+      { source: '/pay-us-now', destination: '/pricing', permanent: false },
+      { source: '/candidate/dashboard/interviews', destination: '/candidate/interviews', permanent: false },
+      { source: '/candidate/dashboard/practice', destination: '/candidate/practice', permanent: false },
+      { source: '/candidate/dashboard/skills', destination: '/candidate/skills', permanent: false },
+      { source: '/recruiter/dashboard/dossiers', destination: '/recruiter/dossiers', permanent: false },
+      { source: '/recruiter/dashboard/profile', destination: '/recruiter/profile', permanent: false },
+      { source: '/recruiter/dashboard/rubrics', destination: '/recruiter/rubrics', permanent: false },
+      { source: '/super-admin/transactions', destination: '/super-admin/billing?tab=ledger', permanent: false },
+      { source: '/super-admin/billing-audit', destination: '/super-admin/billing?tab=ledger', permanent: false },
+    ];
+  },
+  /* Proxy all /api/* requests to the Flask backend (port 5000) */
   async rewrites() {
-    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const flaskBase = (process.env.NEXT_PUBLIC_API_URL?.split(',')[0] || '').replace(/\/+$/, '') || 'http://127.0.0.1:5000';
     return [
       {
         source: '/api/:path*',
-        destination: `${base}/api/:path`,
+        destination: `${flaskBase}/api/:path*`,
       },
     ];
   },

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Play, Code2, Terminal, CheckCircle2, RefreshCw, Copy } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 const LANGUAGE_TEMPLATES: Record<string, string> = {
   python: `class SlidingWindowRateLimiter:
@@ -110,47 +110,76 @@ interface CodeWorkspaceProps {
 
 export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({ sessionId }) => {
   const [language, setLanguage] = useState<string>('python');
-  const [code, setCode] = useState<string>(LANGUAGE_TEMPLATES.python);
+  const [code, setCode] = useState<string>('');
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [terminalOutput, setTerminalOutput] = useState<string | null>(null);
 
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
-    setCode(LANGUAGE_TEMPLATES[lang] || `// Code workspace for ${lang}`);
+    setTerminalOutput(null);
   };
 
   const handleRunCode = async () => {
     setIsRunning(true);
     setTerminalOutput(null);
     try {
-      const res = await fetch(getApiUrl(`/api/v1/interview-sessions/${sessionId}/code-run`), {
+      const res = await apiFetch(`/api/v1/interview-sessions/${sessionId}/code-run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, language })
+        body: JSON.stringify({ code, language }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setTerminalOutput(data.stdout);
-      } else {
-        setTerminalOutput('⚡ Execution Error: Code compiled with 0 errors. All test cases passed!');
+      if (!res) {
+        setTerminalOutput('Failed to connect to backend API server.');
+        return;
       }
-    } catch (e) {
-      setTerminalOutput(
-        `⚡ Executing ${language.toUpperCase()} code in TalentPulse Isolated Sandbox...\n[Test Case 1] Rate limit test with 1,000 requests in 1s window... PASSED (0.42ms avg)\n[Test Case 2] Sliding window boundary check... PASSED\n[Test Case 3] Distributed fallback under network partition... PASSED\n--------------------------------------------------\n✅ All 3 Test Cases Executed Successfully (Execution Time: 48ms, Memory: 14.2 MB)`
-      );
+
+      const data = await res.json().catch(() => null);
+      if (!data) {
+        setTerminalOutput('Invalid response from code runner.');
+        return;
+      }
+
+      if (data.configured === false || data.status === 'Code runner not configured') {
+        setTerminalOutput('Code runner not configured');
+        return;
+      }
+
+      if (data.error) {
+        setTerminalOutput(`⚡ Error: ${data.error}`);
+        return;
+      }
+
+      let output = '';
+      if (data.stdout) output += data.stdout;
+      if (data.stderr) {
+        if (output) output += '\n--- Stderr / Compilation ---\n';
+        output += data.stderr;
+      }
+
+      if (!output.trim()) {
+        output = `[Execution finished with no output. Status: ${data.status || 'Done'}]`;
+      }
+
+      if (data.time) {
+        output += `\n\n[Execution Time: ${data.time}s | Status: ${data.status || 'OK'}]`;
+      }
+
+      setTerminalOutput(output);
+    } catch (e: any) {
+      setTerminalOutput(`Execution error: ${e?.message || 'Could not execute code'}`);
     } finally {
       setIsRunning(false);
     }
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+    <div className="w-full h-full flex flex-col bg-inset rounded-2xl border border-line overflow-hidden shadow-2xl">
       
       {/* EDITOR TOOLBAR */}
-      <div className="p-3 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+      <div className="p-3 bg-surface border-b border-line flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-400">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-accent-cyan">
             <Code2 className="w-4 h-4" />
             <span>Interactive Code Sandbox</span>
           </div>
@@ -159,14 +188,14 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({ sessionId }) => {
           <select
             value={language}
             onChange={(e) => handleLanguageChange(e.target.value)}
-            className="px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs font-mono cursor-pointer focus:outline-none focus:border-cyan-500"
+            className="px-3 py-1 rounded-lg bg-inset border border-line text-ink text-xs font-mono cursor-pointer focus:outline-none focus:border-cyan-500"
           >
             <option value="python">Python 3.11</option>
             <option value="typescript">TypeScript 5.0</option>
             <option value="javascript">JavaScript ESNext</option>
             <option value="java">Java 21</option>
             <option value="cpp">C++ 20</option>
-            <option value="sql">PostgreSQL SQL</option>
+            <option value="sql">SQL Query</option>
           </select>
         </div>
 
@@ -182,32 +211,32 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({ sessionId }) => {
       </div>
 
       {/* CODE TEXTAREA EDITOR */}
-      <div className="flex-1 relative bg-slate-950 p-4 font-mono text-xs sm:text-sm text-slate-200 overflow-auto">
+      <div className="flex-1 relative bg-inset p-4 font-mono text-xs sm:text-sm text-ink overflow-auto">
         <textarea
           value={code}
           onChange={(e) => setCode(e.target.value)}
           spellCheck={false}
-          className="w-full h-full min-h-[300px] bg-transparent text-slate-200 font-mono focus:outline-none resize-none leading-relaxed"
+          className="w-full h-full min-h-[300px] bg-transparent text-ink font-mono focus:outline-none resize-none leading-relaxed"
         />
       </div>
 
       {/* TERMINAL OUTPUT DRAWER */}
       {terminalOutput && (
-        <div className="border-t border-slate-800 bg-slate-900/90 p-4 font-mono text-xs space-y-2 animate-fadeIn">
-          <div className="flex items-center justify-between text-slate-400 pb-1 border-b border-slate-800">
-            <span className="flex items-center gap-1.5 text-cyan-400 font-bold">
+        <div className="border-t border-line bg-surface p-4 font-mono text-xs space-y-2 animate-fadeIn">
+          <div className="flex items-center justify-between text-ink-muted pb-1 border-b border-line">
+            <span className="flex items-center gap-1.5 text-accent-cyan font-bold">
               <Terminal className="w-3.5 h-3.5" />
               <span>Sandbox Execution Console</span>
             </span>
             <button
               type="button"
               onClick={() => setTerminalOutput(null)}
-              className="text-slate-500 hover:text-slate-300 cursor-pointer"
+              className="text-ink-muted hover:text-ink cursor-pointer"
             >
               Close
             </button>
           </div>
-          <pre className="text-emerald-400 whitespace-pre-wrap leading-relaxed">
+          <pre className="text-accent-emerald whitespace-pre-wrap leading-relaxed">
             {terminalOutput}
           </pre>
         </div>

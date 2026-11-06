@@ -8,8 +8,8 @@ export interface MongoConfig {
 }
 
 const DEFAULT_CONFIG: MongoConfig = {
-  uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/talentpulse_docs',
-  dbName: process.env.MONGODB_DB_NAME || 'talentpulse_docs',
+  uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/progeni_atlas_docs',
+  dbName: process.env.MONGODB_DB_NAME || 'progeni_atlas_docs',
   maxPoolSize: 20,
   serverSelectionTimeoutMS: 5000,
 };

@@ -1,155 +1,269 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Bell, Menu, X, LayoutDashboard, Users, FileCheck, Building, ChevronRight, ShieldCheck } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CreditCard,
+  FileCheck,
+  LayoutDashboard,
+  ShieldCheck,
+  Users,
+  Video,
+  Workflow,
+} from 'lucide-react';
+import { AppHeader } from '@/components/dashboard/AppHeader';
+import {
+  fetchRecruiterNotifications,
+  logout,
+  markRecruiterNotificationsAsRead,
+  type RecruiterNotification,
+} from '@/lib/api';
 
-interface NavItem {
-  name: string;
-  href: string;
-  icon: React.ElementType;
+function formatRelativeTime(isoString: string): string {
+  try {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diffSec < 60) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDays = Math.floor(diffHr / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return 'Recently';
+  }
 }
 
-const recruiterNavItems: NavItem[] = [
-  { name: 'Dashboard', href: '/recruiter/dashboard', icon: LayoutDashboard },
-  { name: 'Candidate Dossiers', href: '/recruiter/dossiers', icon: Users },
-  { name: 'Evaluation Rubrics', href: '/recruiter/rubrics', icon: FileCheck },
-  { name: 'Organization & Profile', href: '/recruiter/profile', icon: Building },
-];
+function getNotificationVisuals(type: string) {
+  const t = (type || '').toUpperCase();
+  if (t.includes('COMPLETE') || t.includes('PASS') || t.includes('EVAL')) {
+    return {
+      icon: CheckCircle2,
+      badge: 'border-emerald-500/30 bg-emerald-500/10 text-accent-emerald',
+    };
+  }
+  if (t.includes('FLAG') || t.includes('ALERT') || t.includes('VIOLATION')) {
+    return {
+      icon: AlertTriangle,
+      badge: 'border-rose-500/30 bg-rose-500/10 text-accent-rose',
+    };
+  }
+  if (t.includes('INTERVIEW') || t.includes('SESSION')) {
+    return {
+      icon: Video,
+      badge: 'border-cyan-500/30 bg-cyan-500/10 text-accent-cyan',
+    };
+  }
+  if (t.includes('BILLING') || t.includes('WALLET') || t.includes('CREDIT')) {
+    return {
+      icon: CreditCard,
+      badge: 'border-violet-500/30 bg-violet-500/10 text-accent-violet',
+    };
+  }
+  return {
+    icon: ShieldCheck,
+    badge: 'border-blue-500/30 bg-blue-500/10 text-blue-600',
+  };
+}
 
 export const RecruiterHeader: React.FC = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const pathname = usePathname();
+  const router = useRouter();
+  const [userName, setUserName] = useState('Recruiter');
+  const [userInitials, setUserInitials] = useState('RC');
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<RecruiterNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load user details
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem('tp_user') : null;
+      if (raw) {
+        const u = JSON.parse(raw);
+        const name = (u.fullName || u.name || u.email?.split('@')[0] || 'Recruiter').trim();
+        setUserName(name);
+        const initials =
+          name
+            .split(' ')
+            .filter(Boolean)
+            .map((n: string) => n[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase() || 'RC';
+        setUserInitials(initials);
+      }
+    } catch {}
+  }, []);
+
+  // Fetch real notifications from backend
+  const loadNotifications = useCallback(async () => {
+    try {
+      const data = await fetchRecruiterNotifications();
+      setNotifications(data);
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadNotifications();
+    // 30-second live polling for new interview evaluations
+    const interval = setInterval(() => {
+      void loadNotifications();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
+
+  // Mark unread notifications as read when popover opens
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    const unread = notifications.filter((n) => !n.is_read);
+    if (unread.length === 0) return;
+
+    const timer = setTimeout(() => {
+      const ids = unread.map((n) => n.id);
+      void markRecruiterNotificationsAsRead(ids);
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [notificationsOpen, notifications]);
+
+  const handleMarkAllRead = async () => {
+    const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
+    if (unreadIds.length > 0) {
+      await markRecruiterNotificationsAsRead(unreadIds);
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    }
+  };
+
+  const handleItemClick = (item: RecruiterNotification) => {
+    setNotificationsOpen(false);
+    const actionUrl = item.payload?.action_url;
+    if (actionUrl) {
+      router.push(actionUrl);
+    } else if (item.payload?.session_id) {
+      router.push(`/recruiter/interview/${item.payload.session_id}/recording`);
+    } else {
+      router.push('/recruiter/dossiers');
+    }
+  };
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const navLinks = [
+    { name: 'Dashboard', href: '/recruiter/dashboard', icon: LayoutDashboard },
+    { name: 'Candidate Dossiers', href: '/recruiter/dossiers', icon: Users },
+    { name: 'Evaluation Rubrics', href: '/recruiter/rubrics', icon: FileCheck },
+    { name: 'ATS Integrations', href: '/recruiter/integrations', icon: Workflow },
+    { name: 'Billing & Wallet', href: '/recruiter/billing', icon: CreditCard },
+  ];
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {}
+    window.location.href = '/login';
+  };
 
   return (
-    <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-slate-950/85 border-b border-slate-800 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          
-          {/* LEFT: BRAND & ENTERPRISE BADGE */}
-          <div className="flex items-center gap-3">
-            <Link className="flex items-center gap-2.5 group" href="/recruiter/dashboard">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
-              </span>
-              <span className="font-bold text-slate-100 tracking-tight text-base sm:text-lg">
-                TalentPulse<span className="text-indigo-400">.AI</span>
-              </span>
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300">
-                <ShieldCheck className="w-3 h-3 text-indigo-400" /> Enterprise
-              </span>
-            </Link>
-          </div>
+    <AppHeader
+      brandHref="/recruiter/dashboard"
+      brandBadge="Enterprise"
+      navLinks={navLinks}
+      onNotificationsOpenChange={setNotificationsOpen}
+      notificationIndicator={
+        unreadCount > 0 ? (
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-surface animate-pulse">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        ) : null
+      }
+      notificationTitle="Recruiter Notifications"
+      notificationHeaderClassName="pb-2.5"
+      notificationBodyClassName="max-h-84 overflow-y-auto space-y-1.5"
+      notificationBody={
+        <>
+          {unreadCount > 0 && (
+            <div className="flex justify-end pb-1">
+              <button
+                type="button"
+                onClick={handleMarkAllRead}
+                className="text-[11px] font-semibold text-blue-600 hover:underline cursor-pointer"
+              >
+                Mark all as read
+              </button>
+            </div>
+          )}
 
-          {/* CENTER: DESKTOP NAVIGATION TABS */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800/80">
-            {recruiterNavItems.map((item) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
+          {loading ? (
+            <div className="py-6 text-center text-xs text-ink-muted">Loading notifications...</div>
+          ) : notifications.length === 0 ? (
+            <div className="rounded-xl border border-line bg-surface-2 p-4 text-center text-xs text-ink-muted">
+              You have no new notifications.
+            </div>
+          ) : (
+            notifications.map((item) => {
+              const visuals = getNotificationVisuals(item.notification_type);
+              const Icon = visuals.icon;
+
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all shadow-sm ${
-                    isActive
-                      ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                <div
+                  key={item.id}
+                  onClick={() => handleItemClick(item)}
+                  className={`group relative flex items-start gap-3 rounded-xl border p-3 text-left transition-all cursor-pointer ${
+                    item.is_read
+                      ? 'border-line bg-surface hover:bg-surface-2'
+                      : 'border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10'
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
+                  <span
+                    className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${visuals.badge}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
 
-          {/* RIGHT: NOTIFICATIONS, PROFILE LINK & HAMBURGER */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Notification Bell */}
-            <button
-              type="button"
-              aria-label="View notifications"
-              className="relative p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-indigo-400 hover:border-slate-700 transition-colors cursor-pointer"
-            >
-              <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-slate-950"></span>
-            </button>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-1">
+                      <p className="text-xs font-semibold text-ink group-hover:text-blue-600 transition-colors">
+                        {item.title}
+                      </p>
+                      {!item.is_read && (
+                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" />
+                      )}
+                    </div>
 
-            {/* Recruiter Profile Strip (Clickable Link to /recruiter/profile) */}
-            <Link
-              href="/recruiter/profile"
-              className="flex items-center gap-2.5 pl-1 sm:pl-2 hover:opacity-90 transition-opacity cursor-pointer group"
-              title="Manage Organization & Recruiter Profile"
-            >
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-500 flex items-center justify-center font-bold text-white text-xs sm:text-sm shadow-md shadow-indigo-500/10 group-hover:ring-2 group-hover:ring-indigo-400 transition-all">
-                SJ
-              </div>
+                    {item.body && (
+                      <p className="mt-0.5 text-xs text-ink-muted line-clamp-2">{item.body}</p>
+                    )}
 
-              <div className="hidden lg:flex flex-col text-left">
-                <span className="font-semibold text-slate-200 text-xs sm:text-sm leading-tight group-hover:text-indigo-300 transition-colors">
-                  Sarah Jenkins
-                </span>
-                <span className="text-slate-400 font-mono text-[11px] leading-tight">
-                  CloudScale Systems
-                </span>
-              </div>
-            </Link>
-
-            {/* HAMBURGER TOGGLE BUTTON (MOBILE ONLY) */}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle mobile menu"
-              className="md:hidden p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-indigo-400 hover:border-slate-700 transition-colors ml-1 cursor-pointer"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-
-        </div>
-      </div>
-
-      {/* MOBILE ACCORDION / DRAWER MENU */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-800 bg-slate-950/95 backdrop-blur-xl px-4 py-4 space-y-2 animate-fadeIn">
-          <div className="p-3 mb-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-500 flex items-center justify-center font-bold text-white text-sm">
-              SJ
-            </div>
-            <div>
-              <p className="font-semibold text-slate-100 text-sm">Sarah Jenkins</p>
-              <p className="text-indigo-400 font-mono text-xs">Director of TA • CloudScale Systems</p>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            {recruiterNavItems.map((item) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
-                      : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-4 h-4 text-indigo-400" />
-                    <span>{item.name}</span>
+                    <p className="mt-1 text-[10px] text-ink-faint">
+                      {formatRelativeTime(item.created_at)}
+                    </p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-600" />
-                </Link>
+                </div>
               );
-            })}
-          </div>
-        </div>
-      )}
-    </header>
+            })
+          )}
+        </>
+      }
+      profileHref="/recruiter/profile"
+      profileTitle="Manage Organization Profile"
+      profileAvatarClassName="bg-[#185adb]"
+      profileInitials={userInitials}
+      profileName={userName}
+      profileSubtitle="Workspace"
+      profileSubtitleClassName="font-mono"
+      drawerProfileSubtitle="Enterprise Workspace"
+      drawerProfileSubtitleClassName="font-mono text-xs"
+      logoutLabel="Sign Out"
+      onLogout={handleLogout}
+    />
   );
 };

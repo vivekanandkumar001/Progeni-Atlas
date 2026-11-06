@@ -1,78 +1,140 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { FileCheck, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { FileCheck, CheckCircle2, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
+import { fetchCandidateInterviews, fetchSessionScorecard, type InterviewSession, type SessionScorecard } from '@/lib/api';
 
 export const FeedbackDossier: React.FC = () => {
+  const [scorecard, setScorecard] = useState<SessionScorecard | null>(null);
+  const [session, setSession] = useState<InterviewSession | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const sessions = await fetchCandidateInterviews();
+      if (cancelled) return;
+
+      const sessionList: any[] = Array.isArray(sessions) ? sessions : Array.isArray((sessions as any)?.completed) ? (sessions as any).completed : [];
+      const latest = sessionList
+        .filter((s: any) => s.status === 'completed' || s.completedAt)
+        .sort((a: any, b: any) => new Date(b.scheduled_at || b.completedAt || 0).getTime() - new Date(a.scheduled_at || a.completedAt || 0).getTime())[0];
+
+      if (latest) {
+        const card = await fetchSessionScorecard(latest.id);
+        if (cancelled) return;
+        setSession(latest);
+        setScorecard(card);
+      }
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const strengths = scorecard?.strengths ?? [];
+  const concerns = scorecard?.concerns ?? [];
+  const sessionDate = session ? new Date(session.scheduled_at).toLocaleDateString() : null;
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 1, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.3 }}
-      className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-2xl backdrop-blur-md flex flex-col justify-between space-y-5"
+      className="p-6 rounded-2xl bg-surface border border-line shadow-2xl backdrop-blur-md flex flex-col justify-between space-y-5"
     >
       <div>
         <div className="flex items-center space-x-2 mb-1">
-          <FileCheck className="w-5 h-5 text-emerald-400" />
-          <h3 className="text-lg font-bold text-white tracking-tight">Verified Feedback Dossier</h3>
+          <FileCheck className="w-5 h-5 text-accent-emerald" />
+          <h3 className="text-lg font-bold text-ink tracking-tight">Verified Feedback Dossier</h3>
         </div>
-        <p className="text-xs text-slate-400">Extracted automatically from your previous video interview responses.</p>
+        <p className="text-xs text-ink-muted">
+          {sessionDate
+            ? `From your interview on ${sessionDate}.`
+            : 'Extracted automatically from your previous video interview responses.'}
+        </p>
       </div>
 
-      <div className="space-y-4">
-        {/* Strengths Section */}
-        <div className="space-y-2">
-          <span className="text-xs font-mono font-semibold text-emerald-400 uppercase tracking-wider block">
-            KEY STRENGTHS
-          </span>
+      {loading ? (
+        <div className="flex items-center gap-2 py-6 text-sm text-ink-muted">
+          <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
+          LOADING_EVALUATION
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Strengths Section */}
           <div className="space-y-2">
-            <div className="p-3 rounded-xl bg-slate-950/80 border border-emerald-500/20 flex items-start space-x-2.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-slate-200 leading-normal">
-                "Articulated database sharding tradeoffs with precise real-world examples."
-              </p>
+            <span className="text-xs font-mono font-semibold text-accent-emerald uppercase tracking-wider block">
+              KEY STRENGTHS
+            </span>
+            <div className="space-y-2">
+              {strengths.length === 0 ? (
+                <p className="text-xs text-ink-muted">
+                  No strengths have been recorded yet.
+                </p>
+              ) : (
+                strengths.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-xl bg-inset/80 border border-emerald-500/20 flex items-start space-x-2.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-accent-emerald shrink-0 mt-0.5" />
+                    <p className="text-xs text-ink leading-normal">{item}</p>
+                  </div>
+                ))
+              )}
             </div>
-            <div className="p-3 rounded-xl bg-slate-950/80 border border-emerald-500/20 flex items-start space-x-2.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-slate-200 leading-normal">
-                "Clean mental model during async event-driven architecture questions."
-              </p>
+          </div>
+
+          {/* Growth Recommendations */}
+          <div className="space-y-2">
+            <span className="text-xs font-mono font-semibold text-accent-amber uppercase tracking-wider block">
+              GROWTH OPPORTUNITIES
+            </span>
+            <div className="space-y-2">
+              {concerns.length === 0 ? (
+                <p className="text-xs text-ink-muted">
+                  No growth areas have been recorded yet.
+                </p>
+              ) : (
+                concerns.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-xl bg-inset/80 border border-amber-500/20 flex items-start space-x-2.5"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-accent-amber shrink-0 mt-0.5" />
+                    <p className="text-xs text-ink leading-normal">{item}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
-
-        {/* Growth Recommendations */}
-        <div className="space-y-2">
-          <span className="text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider block">
-            GROWTH OPPORTUNITIES
-          </span>
-          <div className="space-y-2">
-            <div className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/20 flex items-start space-x-2.5">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-slate-300 leading-normal">
-                "Spend more time explaining time complexity before writing solution code."
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/20 flex items-start space-x-2.5">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-slate-300 leading-normal">
-                "Elaborate on disaster recovery failover steps in distributed scenarios."
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Action Link */}
-      <Link
-        href="/candidate/interviews"
-        className="inline-flex items-center space-x-1 text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors pt-1 group"
-      >
-        <span>View Full Comprehensive Evaluation Report</span>
-        <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" />
-      </Link>
+      {session ? (
+        <Link
+          href={`/candidate/interview/${session.id}/report`}
+          className="inline-flex items-center space-x-1 text-xs font-semibold text-accent-cyan transition-colors pt-1 group"
+        >
+          <span>View Full Comprehensive Evaluation Report</span>
+          <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" />
+        </Link>
+      ) : (
+        <Link
+          href="/candidate/interviews"
+          className="inline-flex items-center space-x-1 text-xs font-semibold text-accent-cyan transition-colors pt-1 group"
+        >
+          <span>View your interviews</span>
+          <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" />
+        </Link>
+      )}
     </motion.div>
   );
 };

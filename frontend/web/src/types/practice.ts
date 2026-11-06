@@ -33,6 +33,7 @@ export interface MicroFeedbackReport {
 }
 
 export interface DrillTurnEvaluation {
+  receipt?: string;
   turnIndex: number;
   question: string;
   userAnswer: string;

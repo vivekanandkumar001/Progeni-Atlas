@@ -4,7 +4,9 @@ import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, ArrowRight, RefreshCw, KeyRound, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
+import { apiFetch, persistSession } from '@/lib/api';
+import { AuthCard, buttonClass, inputClass } from '@/components/ui';
+import { RESEND_CODE } from '@/constants/ui_strings';
 
 function VerifyOtpContent() {
   const router = useRouter();
@@ -14,8 +16,16 @@ function VerifyOtpContent() {
   // Only the 6 user-typed digits (for submission) exist in component state.
 
 
-  const email = searchParams.get('email') || 'candidate@example.com';
+  const rawEmail = searchParams.get('email');
+  const email = (rawEmail || '').trim().toLowerCase();
   const purpose = searchParams.get('purpose') || 'REGISTRATION_VERIFY';
+
+  // Redirect to /register if email query param is missing
+  useEffect(() => {
+    if (!email) {
+      router.replace('/register?error=' + encodeURIComponent('Please register or provide your email to verify your account.'));
+    }
+  }, [email, router]);
 
   const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -32,11 +42,12 @@ function VerifyOtpContent() {
   // Sync timers with server truth on mount (fixes stale 02:00 display when
   // the OTP already expired server-side, and unblocks resend correctly).
   useEffect(() => {
+    if (!email) return;
     let cancelled = false;
     const sync = async () => {
       try {
-        const res = await fetch(
-          getApiUrl(`/api/auth/otp-status?email=${encodeURIComponent(email)}&purpose=${encodeURIComponent(purpose)}`),
+        const res = await apiFetch(
+          `/api/auth/otp-status?email=${encodeURIComponent(email)}&purpose=${encodeURIComponent(purpose)}`,
           { cache: 'no-store' }
         );
         if (!res.ok) return;
@@ -128,7 +139,7 @@ function VerifyOtpContent() {
     setSuccessMsg('');
 
     try {
-      const res = await fetch(getApiUrl('/api/auth/verify-otp'), {
+      const res = await apiFetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp: code, purpose }),
@@ -144,13 +155,30 @@ function VerifyOtpContent() {
         throw new Error(data.error || 'Verification failed.');
       }
 
+      // A REGISTRATION_VERIFY OTP is what completes signup, so the response now
+      // carries the minted access/refresh pair. It has to be persisted here or the
+      // redirect target immediately bounces back to /login for lack of a session.
+      // A FORGOT_PASSWORD OTP deliberately returns no session — that user must log
+      // in with the new password.
+      if (purpose === 'REGISTRATION_VERIFY') {
+        const token = data.access_token || data.token;
+        if (token || data.user) {
+          persistSession(token, undefined, data.user || {});
+        }
+      }
+
       setSuccessMsg('Email verified successfully! Redirecting...');
       setOtp(Array(6).fill(''));
       setTimeout(() => {
-        router.push(data.redirectUrl || '/candidate/dashboard');
-      }, 1200);
+        const dest = data.redirectUrl || '/candidate/dashboard';
+        if (typeof window !== 'undefined') {
+          window.location.assign(dest);
+        } else {
+          router.push(dest);
+        }
+      }, 1000);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Verification failed. Please try again.');
+      setErrorMsg(err?.message || 'Verification failed. Please try again.');
     } finally {
       setIsVerifying(false);
     }
@@ -165,7 +193,7 @@ function VerifyOtpContent() {
     setSuccessMsg('');
 
     try {
-      const res = await fetch(getApiUrl('/api/auth/resend-otp'), {
+      const res = await apiFetch('/api/auth/resend-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, purpose }),
@@ -183,12 +211,12 @@ function VerifyOtpContent() {
       // Success is shown ONLY after the backend confirms provider handoff.
       setSuccessMsg('A new 6-digit code has been sent to your email.');
       setCountdown(typeof data.expiresInSec === 'number' ? data.expiresInSec : 120);
-      setCooldown(typeof data.cooldownSec === 'number' ? data.cooldownSec : 30);
+      setCooldown(typeof data.cooldownSec === 'number' ? data.cooldownSec : 120);
       setIsExpired(false);
       setOtp(Array(6).fill(''));
       inputRefs.current[0]?.focus();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Could not resend code. Please try again.');
+      setErrorMsg(err?.message || 'Could not resend code. Please try again.');
     } finally {
       setIsResending(false);
     }
@@ -200,46 +228,60 @@ function VerifyOtpContent() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  if (!email) {
+    return (
+      <div className="min-h-screen bg-canvas text-ink flex flex-col justify-center items-center p-4">
+        <AuthCard className="max-w-md" innerClassName="text-center space-y-4">
+          <AlertCircle className="w-10 h-10 text-accent-amber mx-auto" />
+          <h2 className="text-xl font-bold text-ink">Verification Email Required</h2>
+          <p className="text-sm text-ink-muted">
+            No email address was provided for verification. Redirecting to registration...
+          </p>
+        </AuthCard>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-canvas text-ink flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans selection:bg-cyan-500/30 selection:text-accent-cyan">
       {/* Ambient Radial Background Glows */}
       <div className="fixed top-1/4 left-1/3 w-[30rem] h-[30rem] bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="fixed bottom-1/4 right-1/3 w-[25rem] h-[25rem] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
       {/* Main Glassmorphic Form Card */}
-      <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+      <AuthCard className="max-w-md" innerClassName="space-y-6">
         {/* Top Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl text-cyan-400 mb-2 shadow-inner">
+          <div className="inline-flex items-center justify-center p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl text-accent-cyan mb-2 shadow-inner">
             <KeyRound className="w-6 h-6" />
           </div>
-          <h1 className="text-heading text-2xl font-bold text-slate-100 tracking-tight">
+          <h1 className="text-heading text-2xl font-bold text-ink tracking-tight">
             {purpose === 'FORGOT_PASSWORD' ? 'Reset Password Verification' : 'Verify Your Email'}
           </h1>
-          <p className="text-body text-sm text-slate-400 max-w-xs mx-auto">
+          <p className="text-body text-sm text-ink-muted max-w-xs mx-auto">
             We sent a 6-digit numeric verification code to{' '}
-            <span className="text-slate-200 font-semibold underline decoration-cyan-500/40">{email}</span>.
+            <span className="text-ink font-semibold underline decoration-cyan-500/40">{email}</span>.
           </p>
         </div>
 
         {/* Status Alerts */}
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-accent-rose text-xs flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-accent-rose shrink-0 mt-0.5" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {(isExpired || countdown <= 0) && (
-          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-accent-amber text-xs flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-accent-amber shrink-0 mt-0.5" />
             <span>Verification code has expired. Please click &quot;Resend New 6-Digit Code&quot; below.</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-start gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-accent-emerald text-xs flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-accent-emerald shrink-0 mt-0.5" />
             <span>{successMsg}</span>
           </div>
         )}
@@ -261,16 +303,16 @@ function VerifyOtpContent() {
                 onChange={(e) => handleChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
                 disabled={isExpired || countdown <= 0}
-                className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold font-mono bg-slate-950/70 border border-slate-800 rounded-xl text-cyan-300 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 transition-all shadow-inner disabled:opacity-40"
+                className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold font-mono bg-inset border border-line rounded-xl text-accent-cyan focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 transition-all shadow-inner disabled:opacity-40"
               />
             ))}
           </div>
 
           {/* Timers Row */}
-          <div className="flex items-center justify-between text-caption text-xs font-mono pt-1 text-slate-400">
+          <div className="flex items-center justify-between text-caption text-xs font-mono pt-1 text-ink-muted">
             <div className="flex items-center gap-1.5">
               <span>Code expires in:</span>
-              <span className={`font-semibold ${countdown < 30 ? 'text-rose-400 animate-pulse' : 'text-cyan-400'}`}>
+              <span className={`font-semibold ${countdown < 30 ? 'text-accent-rose animate-pulse' : 'text-accent-cyan'}`}>
                 {formatTime(countdown)}
               </span>
             </div>
@@ -282,7 +324,7 @@ function VerifyOtpContent() {
           type="button"
           onClick={() => handleVerify()}
           disabled={isVerifying || otp.some((d) => !d) || countdown <= 0 || isExpired}
-          className="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold text-sm tracking-wide transition-all shadow-lg hover:shadow-cyan-500/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+          className={buttonClass('primary', 'lg', 'pill', 'w-full disabled:opacity-50 disabled:cursor-not-allowed')}
         >
           {isVerifying ? (
             <span>Verifying Code...</span>
@@ -295,19 +337,19 @@ function VerifyOtpContent() {
         </button>
 
         {/* Resend Code Section */}
-        <div className="pt-2 border-t border-slate-800/80 text-center space-y-2">
-          <p className="text-body text-xs text-slate-400">
+        <div className="pt-2 border-t border-line text-center space-y-2">
+          <p className="text-body text-xs text-ink-muted">
             Didn&apos;t receive the code or expired?
           </p>
           <button
             type="button"
             onClick={handleResend}
             disabled={cooldown > 0 || isResending}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400 hover:text-cyan-300 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-cyan disabled:text-ink-faint disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isResending ? 'animate-spin' : ''}`} />
             {cooldown > 0 ? (
-              <span>Resend Code in {formatTime(cooldown)}</span>
+              <span>{RESEND_CODE} in {formatTime(cooldown)}</span>
             ) : (
               <span>Resend New 6-Digit Code</span>
             )}
@@ -318,12 +360,12 @@ function VerifyOtpContent() {
         <div className="text-center pt-1">
           <Link
             href="/login"
-            className="inline-flex items-center gap-1 text-caption text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            className="inline-flex items-center gap-1 text-caption text-xs text-ink-muted hover:text-ink transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
           </Link>
         </div>
-      </div>
+      </AuthCard>
     </div>
   );
 }
@@ -332,8 +374,8 @@ export default function VerifyOtpPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#020617] flex items-center justify-center text-slate-400 text-sm">
-          Loading verification...
+        <div className="min-h-screen bg-canvas flex items-center justify-center text-ink-muted text-sm">
+          LOADING_VERIFICATION
         </div>
       }
     >
