@@ -25,8 +25,10 @@ export const InterviewStatusBanner: React.FC<InterviewStatusBannerProps> = ({
   onEnableInterviewerAudio,
   onRetryStage,
   onRetryPreflight,
+  remainingSeconds = null,
+  questionRemainingSeconds = null,
 }) => {
-  if (!proctoringAlertBanner && !apiError && audioUnlocked) {
+  if (!proctoringAlertBanner && !apiError && audioUnlocked && remainingSeconds === null && questionRemainingSeconds === null) {
     return null;
   }
 
