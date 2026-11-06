@@ -75,7 +75,7 @@ export const LiveClosedCaptions: React.FC<LiveClosedCaptionsProps> = ({ subtitle
             <div key={sub.id} className="flex items-start gap-2.5 text-xs">
               <span
                 className={`px-2 py-0.5 rounded text-[11px] font-mono shrink-0 font-medium ${
-                  sub.speaker === INTERVIEWER
+                  sub.speaker !== 'You' && sub.speaker !== 'Candidate'
                     ? 'text-accent-cyan bg-cyan-500/10'
                     : 'text-indigo-400 bg-indigo-500/10'
                 }`}
