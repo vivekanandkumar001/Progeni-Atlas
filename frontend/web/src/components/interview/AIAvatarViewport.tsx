@@ -154,32 +154,6 @@ export const AIAvatarViewport: React.FC<AIAvatarViewportProps> = ({
           ))}
         </div>
       </div>
-
-      {/* Embedded CSS for realistic video call micro-movement */}
-      <style jsx>{`
-        @keyframes humanPresence {
-          0% {
-            transform: scale(1.02) translateY(0px);
-          }
-          50% {
-            transform: scale(1.035) translateY(-2px);
-          }
-          100% {
-            transform: scale(1.02) translateY(0px);
-          }
-        }
-        @keyframes speakingMicroDynamics {
-          0% {
-            transform: scale(1.04) translateY(-1px);
-          }
-          50% {
-            transform: scale(1.055) translateY(-2.5px);
-          }
-          100% {
-            transform: scale(1.045) translateY(-1px);
-          }
-        }
-      `}</style>
     </div>
   );
 };
