@@ -373,7 +373,7 @@ export default function LiveInterviewRoomPage() {
       setAiState('speaking');
       setSubtitles((prev) => [
         ...prev,
-        { id: `conclusion-${Date.now()}`, speaker: 'AI Interviewer', text: thankYouSpoken },
+        { id: `conclusion-${Date.now()}`, speaker: 'Sarah Chen', text: thankYouSpoken },
       ]);
 
       stopCurrentPlayback('session_conclusion');
@@ -526,7 +526,7 @@ export default function LiveInterviewRoomPage() {
           const dialogueId = `${sessionId}:q:${data.turn_index ?? 0}:${textHash}`;
           logAudioEvent('QUESTION_RECEIVED', { dialogue_id: dialogueId, turn_index: data.turn_index, mode: effectiveMode, text_hash: textHash });
           setSubtitles([
-            { id: `q-${data.turn_index ?? 0}-${Date.now()}`, speaker: 'AI Interviewer', text: data.question },
+            { id: `q-${data.turn_index ?? 0}-${Date.now()}`, speaker: 'Sarah Chen', text: data.question },
           ]);
           if (audioUnlocked) void speakQuestionRef.current(data.question, dialogueId);
           else {
@@ -635,7 +635,7 @@ export default function LiveInterviewRoomPage() {
 
               stopCurrentPlayback('resume_effect_new_dialogue');
               setSubtitles([
-                { id: `q-${state.turn_index ?? 0}-${Date.now()}`, speaker: 'AI Interviewer', text: state.question },
+                { id: `q-${state.turn_index ?? 0}-${Date.now()}`, speaker: 'Sarah Chen', text: state.question },
               ]);
               if (audioUnlocked) void speakQuestionRef.current(state.question, dialogueId);
               else {
@@ -781,34 +781,37 @@ export default function LiveInterviewRoomPage() {
         applyContract(res);
         setPracticeFeedback(res.feedback ?? null);
 
-        if (res.interviewer_response) {
-          const textHash = safeHash(res.interviewer_response as string);
+        const ackText = typeof res.interviewer_response === 'string' ? res.interviewer_response.trim() : '';
+        const nextQText = res.next_question?.text ? res.next_question.text.trim() : '';
+
+        if (ackText) {
+          const textHash = safeHash(ackText);
           const dialogueId = `${sessionId}:r:${turnIndex}:${textHash}`;
           logAudioEvent('QUESTION_RECEIVED', { dialogue_id: dialogueId, type: 'interviewer_response', turn_index: turnIndex, text_hash: textHash });
           setSubtitles((prev) => [
             ...prev,
-            { id: `i-${turnIndex}-${Date.now()}`, speaker: 'AI Interviewer', text: res.interviewer_response as string },
+            { id: `i-${turnIndex}-${Date.now()}`, speaker: 'Sarah Chen', text: ackText },
           ]);
         }
 
-        if (res.next_question) {
-          const textHash = safeHash(res.next_question.text);
-          const dialogueId = `${sessionId}:q:${res.next_question.turn_index}:${textHash}`;
-          logAudioEvent('QUESTION_RECEIVED', { dialogue_id: dialogueId, type: 'next_question', turn_index: res.next_question.turn_index, text_hash: textHash });
+        if (nextQText) {
+          const textHash = safeHash(nextQText);
+          const dialogueId = `${sessionId}:q:${res.next_question!.turn_index}:${textHash}`;
+          logAudioEvent('QUESTION_RECEIVED', { dialogue_id: dialogueId, type: 'next_question', turn_index: res.next_question!.turn_index, text_hash: textHash });
           setSubtitles((prev) => [
             ...prev,
-            { id: `q-${res.next_question!.turn_index}-${Date.now()}`, speaker: 'AI Interviewer', text: res.next_question!.text },
+            { id: `q-${res.next_question!.turn_index}-${Date.now()}`, speaker: 'Sarah Chen', text: nextQText },
           ]);
-          if (audioUnlocked) await speakQuestion(res.next_question.text, dialogueId);
-          else {
-            setFlowState('LISTENING_FOR_ANSWER');
-            setAiState('listening');
-            isAnswerCaptureClosedRef.current = false;
-          }
-        } else if (res.interviewer_response) {
-          const textHash = safeHash(res.interviewer_response as string);
-          const dialogueId = `${sessionId}:r:${turnIndex}:${textHash}`;
-          if (audioUnlocked) await speakQuestion(res.interviewer_response as string, dialogueId);
+        }
+
+        // Natural human conversational flow: speak the acknowledgment followed by the next question!
+        const fullSpokenDialogue = ackText && nextQText
+          ? `${ackText} ... Now, ${nextQText}`
+          : (ackText || nextQText);
+
+        if (fullSpokenDialogue) {
+          const dialogueId = `${sessionId}:turn-${turnIndex}:${safeHash(fullSpokenDialogue)}`;
+          if (audioUnlocked) await speakQuestion(fullSpokenDialogue, dialogueId);
           else {
             setFlowState('LISTENING_FOR_ANSWER');
             setAiState('listening');
@@ -1033,7 +1036,7 @@ export default function LiveInterviewRoomPage() {
           const dialogueId = `${sessionId}:q:${result.turn_index ?? 0}:${textHash}`;
           setSubtitles((prev) => [
             ...prev,
-            { id: `q-${result.turn_index ?? 0}-${Date.now()}`, speaker: 'AI Interviewer', text: result.question! },
+            { id: `q-${result.turn_index ?? 0}-${Date.now()}`, speaker: 'Sarah Chen', text: result.question! },
           ]);
           if (audioUnlocked) await speakQuestion(result.question, dialogueId);
           else {

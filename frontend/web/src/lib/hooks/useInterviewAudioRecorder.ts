@@ -8,7 +8,7 @@ import type { AIState } from '@/components/interview/AIAvatarViewport';
 import type { CaptionEntry } from '@/components/interview/LiveClosedCaptions';
 import type { AnswerFlowState } from '@/app/candidate/interview/[id]/room/page';
 
-const AUTO_SUBMIT_DELAY_SECONDS = 12;
+const AUTO_SUBMIT_DELAY_SECONDS = 18;
 
 export interface UseInterviewAudioRecorderOptions {
   sessionId: string;
