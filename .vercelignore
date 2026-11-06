@@ -1,0 +1,12 @@
+backend/
+.env
+.env.*
+*.env
+*.env.*
+!frontend/web/.env.example
+*.pem
+*.key
+node_modules/
+.git/
+.vscode/
+.idea/
