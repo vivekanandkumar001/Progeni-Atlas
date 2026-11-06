@@ -2,15 +2,63 @@
 
 import React, { useState, useEffect } from 'react';
 import { PracticeDrillItem, MicroFeedbackReport, DrillTurnEvaluation } from '@/types/practice';
-import { getApiUrl } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import { AudioVoiceRecorder } from './AudioVoiceRecorder';
 import { MicroFeedbackDossier } from './MicroFeedbackDossier';
-import { X, Clock, Volume2, Sparkles, Send, MessageSquare } from 'lucide-react';
+import { X, Clock, Volume2, Sparkles, Send, AlertTriangle } from 'lucide-react';
 
 interface LiveDrillSessionModalProps {
   drill: PracticeDrillItem | null;
   onClose: () => void;
-  onFinalizeSession?: (drillId: string, turns: DrillTurnEvaluation[]) => void;
+  onFinalizeSession?: (
+    drillId: string,
+    turns: DrillTurnEvaluation[],
+    durationSeconds: number
+  ) => void;
+}
+
+/**
+ * Builds the end-of-drill report from the evaluations the LLM actually
+ * returned. Nothing here is invented: every bullet is either real evaluator
+ * feedback text or a concept the evaluator reported as missing.
+ */
+function buildMicroFeedbackReport(
+  drill: PracticeDrillItem,
+  turns: DrillTurnEvaluation[],
+  durationSeconds: number
+): MicroFeedbackReport {
+  const allScores = turns.flatMap((t) => Object.values(t.scores ?? {}));
+  const mean = allScores.length
+    ? allScores.reduce((a, b) => a + b, 0) / allScores.length
+    : 0;
+
+  const strengths = turns
+    .map((t) => t.feedback?.split('\n\n')[0]?.trim())
+    .filter((f): f is string => Boolean(f));
+
+  // The backend appends "Not yet covered: ..." when the evaluator reports
+  // missing concepts. Recover that line so it lands in the right column.
+  const omissions = turns
+    .flatMap((t) => t.feedback?.split('\n\n') ?? [])
+    .map((line) => line.trim())
+    .filter((line) => /^not yet covered:/i.test(line))
+    .map((line) => line.replace(/^not yet covered:\s*/i, ''));
+
+  return {
+    drillId: drill.id,
+    score: Math.round(mean * 10),
+    durationSeconds,
+    strengthsSummary:
+      strengths.length > 0
+        ? strengths
+        : ['The evaluator did not return narrative feedback for this attempt.'],
+    omissionsAndMistakes:
+      omissions.length > 0 ? omissions : ['No missing concepts were flagged by the evaluator.'],
+    modelAnswerOverview:
+      turns[turns.length - 1]?.feedback?.trim() ||
+      'No model answer breakdown was returned for this attempt.',
+    suggestedFollowUpTopics: drill.coreSkillsTested,
+  };
 }
 
 export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
@@ -18,10 +66,8 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
   onClose,
   onFinalizeSession
 }) => {
-  if (!drill) return null;
-
   const [currentTurnIndex, setCurrentTurnIndex] = useState<number>(1);
-  const [currentQuestion, setCurrentQuestion] = useState<string>(drill.sampleStarterQuestion);
+  const [currentQuestion, setCurrentQuestion] = useState<string>(drill?.sampleStarterQuestion || '');
   const [candidateAnswer, setCandidateAnswer] = useState<string>('');
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [mode, setMode] = useState<'voice' | 'text'>('voice');
@@ -30,16 +76,22 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
 
   const [turns, setTurns] = useState<DrillTurnEvaluation[]>([]);
   const [finalReport, setFinalReport] = useState<MicroFeedbackReport | null>(null);
+  const [turnError, setTurnError] = useState<string | null>(null);
 
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(drill.estimatedMinutes * 60);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>((drill?.estimatedMinutes ?? 10) * 60);
+
+  // The parent keys this component by drill id, so switching drills remounts it
+  // and every field above resets to its initial value. An effect that mirrored
+  // `drill` back into state would instead cause an extra render pass per switch.
 
   // Timer countdown
   useEffect(() => {
+    if (!drill) return;
     const timer = setInterval(() => {
       setRemainingSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [drill]);
 
   const formatTimer = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -53,125 +105,91 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
   };
 
   const handleToggleRecording = () => {
-    if (isRecording) {
-      setIsRecording(false);
-    } else {
-      setIsRecording(true);
-      if (!candidateAnswer) {
-        if (currentTurnIndex === 1) {
-          setCandidateAnswer(
-            'I would utilize sticky partition assignors to maximize consumer batching efficiency and minimize rebalance latencies across consumer group members...'
-          );
-        } else {
-          setCandidateAnswer(
-            'To handle node failover, Patroni leverages Raft consensus to automatically promote a read-replica standby while preventing split-brain conditions...'
-          );
-        }
-      }
-    }
+    setIsRecording((prev) => !prev);
   };
 
   const handleSubmitTurn = async () => {
-    if (!candidateAnswer.trim() || isSubmittingTurn) return;
+    if (!drill || !candidateAnswer.trim() || isSubmittingTurn) return;
 
     setIsSubmittingTurn(true);
+    setTurnError(null);
     try {
-      // Call turn evaluation backend API or simulated response
-      const res = await fetch(getApiUrl('/api/v1/practice/sessions/evaluate-turn'), {
+      const res = await apiFetch('/api/v1/practice/sessions/evaluate-turn', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           drillId: drill.id,
           turnIndex: currentTurnIndex,
-          candidateAnswer: candidateAnswer,
-          questionContext: currentQuestion
-        })
+          candidateAnswer,
+          questionContext: currentQuestion,
+        }),
       });
 
-      let turnEval: DrillTurnEvaluation;
-      if (res.ok) {
-        const data = await res.json();
-        turnEval = data.evaluation;
-      } else {
-        // Fallback multi-turn evaluation logic
-        turnEval = {
-          turnIndex: currentTurnIndex,
-          question: currentQuestion,
-          userAnswer: candidateAnswer,
-          scores: { relevance: 9.0, depth: 8.8, correctness: 9.2 },
-          feedback: 'Strong grasp of core concepts with clear structural reasoning.',
-          followUpQuestion:
-            currentTurnIndex < 2
-              ? 'Good start. How would you handle node failover during this rebalance phase?'
-              : undefined,
-          isFinalTurn: currentTurnIndex >= 2
-        };
+      const data = (await res.json().catch(() => null)) as
+        | { evaluation?: DrillTurnEvaluation; error?: string }
+        | null;
+
+      // No heuristic fallback here. A scoring failure must surface as an
+      // error, not as a fabricated score the candidate would be graded on.
+      if (!res.ok || !data?.evaluation) {
+        setTurnError(
+          data?.error || `Scoring failed (HTTP ${res.status}). Your answer was not graded.`
+        );
+        return;
       }
 
+      const turnEval: DrillTurnEvaluation = data.evaluation;
       const updatedTurns = [...turns, turnEval];
       setTurns(updatedTurns);
       setIsRecording(false);
       setCandidateAnswer('');
 
-      if (turnEval.followUpQuestion && currentTurnIndex < 2) {
+      if (turnEval.followUpQuestion && !turnEval.isFinalTurn) {
         setCurrentTurnIndex((prev) => prev + 1);
         setCurrentQuestion(turnEval.followUpQuestion);
       } else {
-        // Finalize Drill & generate micro-feedback report
-        const report: MicroFeedbackReport = {
-          drillId: drill.id,
-          score: 88,
-          durationSeconds: (drill.estimatedMinutes * 60) - remainingSeconds,
-          strengthsSummary: [
-            'Sticky Partitioning: Accurately detailed consumer group batching efficiency.',
-            'Failover Protocol: Demonstrated clear understanding of automated Patroni Raft consensus.'
-          ],
-          omissionsAndMistakes: [
-            'Disaster Recovery: Could explicitly detail read-replica replication lag limits during cross-region failover.'
-          ],
-          modelAnswerOverview:
-            'A senior response outlines StickyAssignor partition stability, highlights Raft consensus failover parameters, and explicitly details read-replica lag bounds.',
-          suggestedFollowUpTopics: ['Kafka Rebalance Protocol', 'PostgreSQL Patroni Cluster']
-        };
-        setFinalReport(report);
+        const elapsed = (drill.estimatedMinutes * 60) - remainingSeconds;
+        setFinalReport(buildMicroFeedbackReport(drill, updatedTurns, elapsed));
         if (onFinalizeSession) {
-          onFinalizeSession(drill.id, updatedTurns);
+          onFinalizeSession(drill.id, updatedTurns, elapsed);
         }
       }
     } catch (err) {
       console.error('Turn evaluation error:', err);
+      setTurnError('Could not reach the scoring service. Your answer was not graded.');
     } finally {
       setIsSubmittingTurn(false);
     }
   };
 
+  if (!drill) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-3xl rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-3xl rounded-2xl bg-surface border border-line p-6 space-y-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col">
         {/* Top Glow */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -mr-16 -mt-16"></div>
 
         {/* Modal Top Bar */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4 relative z-10 shrink-0">
+        <div className="flex items-center justify-between border-b border-line pb-4 relative z-10 shrink-0">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <h2 className="text-body font-bold text-slate-100 text-base">{drill.title}</h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono text-[10px]">
+              <h2 className="text-body font-bold text-ink text-base">{drill.title}</h2>
+              <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-accent-cyan font-mono text-[10px]">
                 Turn {currentTurnIndex} / 2
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-caption font-mono text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-caption font-mono text-xs text-accent-amber bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-accent-amber" />
               <span>{formatTimer(remainingSeconds)}</span>
             </span>
 
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 transition-colors cursor-pointer"
+              className="p-2 rounded-xl bg-inset hover:bg-surface-2 text-ink-muted hover:text-ink border border-line transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -194,10 +212,10 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
           ) : (
             <>
               {/* AI Question Prompt Card */}
-              <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                  <div className="flex items-center gap-2 text-cyan-400">
-                    <Sparkles className="w-4 h-4 text-cyan-400" />
+              <div className="p-5 rounded-xl bg-inset border border-line space-y-3">
+                <div className="flex items-center justify-between border-b border-line pb-2">
+                  <div className="flex items-center gap-2 text-accent-cyan">
+                    <Sparkles className="w-4 h-4 text-accent-cyan" />
                     <span className="text-xs font-bold font-mono uppercase tracking-wider">
                       AI Mock Evaluator (Turn #{currentTurnIndex})
                     </span>
@@ -206,14 +224,14 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
                   <button
                     type="button"
                     onClick={handlePlayQuestionAudio}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-cyan-300 text-xs font-mono transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface hover:bg-surface-2 border border-line text-accent-cyan text-xs font-mono transition-colors cursor-pointer"
                   >
-                    <Volume2 className={`w-3.5 h-3.5 ${isPlayingQuestionAudio ? 'animate-pulse text-cyan-400' : ''}`} />
+                    <Volume2 className={`w-3.5 h-3.5 ${isPlayingQuestionAudio ? 'animate-pulse text-accent-cyan' : ''}`} />
                     <span>{isPlayingQuestionAudio ? 'Speaking...' : 'Listen Audio'}</span>
                   </button>
                 </div>
 
-                <p className="text-xs text-slate-100 leading-relaxed font-medium">
+                <p className="text-xs text-ink leading-relaxed font-medium">
                   &quot;{currentQuestion}&quot;
                 </p>
               </div>
@@ -228,6 +246,13 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
                 onModeChange={setMode}
               />
 
+              {turnError && (
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-accent-amber/10 border border-accent-amber/25 text-accent-amber text-xs">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
+                  <span>{turnError}</span>
+                </div>
+              )}
+
               {/* Submit Button */}
               <div className="flex justify-end pt-2">
                 <button
@@ -238,7 +263,7 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
                 >
                   {isSubmittingTurn ? (
                     <>
-                      <Sparkles className="w-4 h-4 text-cyan-300 animate-spin" />
+                      <Sparkles className="w-4 h-4 text-accent-cyan animate-spin" />
                       <span>Evaluating Answer...</span>
                     </>
                   ) : (

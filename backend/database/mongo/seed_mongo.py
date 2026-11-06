@@ -12,7 +12,7 @@ def seed_mongo():
         print("No MONGO_URI provided.")
         return
     client = pymongo.MongoClient(mongo_uri, tlsCAFile=certifi.where())
-    db = client.get_database("talentpulse_docs")
+    db = client.get_database("progeni_atlas_docs")
 
     # 1. Seed Interview Transcript
     transcript_coll = db["interview_transcripts"]

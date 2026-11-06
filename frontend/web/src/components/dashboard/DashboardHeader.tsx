@@ -1,155 +1,274 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Bell, Menu, X, GraduationCap, Video, BarChart2, BookOpen, ChevronRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import {
+  Sparkles,
+  UserRound,
+  Briefcase,
+  Video,
+  Award,
+  Wallet,
+  CheckCircle2,
+  AlertTriangle,
+  Clock
+} from 'lucide-react';
+import { AppHeader } from '@/components/dashboard/AppHeader';
+import {
+  fetchCandidateNotifications,
+  markCandidateNotificationsAsRead,
+  fetchCandidateProfile,
+  logout,
+  initialsOf,
+  apiFetch,
+  type CandidateNotification,
+  type CandidateProfile,
+} from '@/lib/api';
 
-interface NavItem {
-  name: string;
-  href: string;
-  icon: React.ElementType;
+
+function formatRelativeTime(isoString: string): string {
+  try {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diffSec < 60) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDays = Math.floor(diffHr / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return 'Recently';
+  }
 }
 
-const navItems: NavItem[] = [
-  { name: 'Overview', href: '/candidate/dashboard', icon: BarChart2 },
-  { name: 'My Interviews', href: '/candidate/interviews', icon: Video },
-  { name: 'Skill Insights', href: '/candidate/skills', icon: GraduationCap },
-  { name: 'Practice Drills', href: '/candidate/practice', icon: BookOpen },
-];
+function getCandidateNotificationVisuals(type: string) {
+  const t = (type || '').toUpperCase();
+  if (t.includes('COMPLETE') || t.includes('PASS') || t.includes('SCORE') || t.includes('REPORT')) {
+    return { icon: CheckCircle2, badge: 'border-emerald-500/30 bg-emerald-500/10 text-accent-emerald' };
+  }
+  if (t.includes('INTERVIEW') || t.includes('INVITE') || t.includes('SESSION')) {
+    return { icon: Video, badge: 'border-cyan-500/30 bg-cyan-500/10 text-accent-cyan' };
+  }
+  if (t.includes('SKILL') || t.includes('BADGE')) {
+    return { icon: Award, badge: 'border-amber-500/30 bg-amber-500/10 text-accent-amber' };
+  }
+  return { icon: Sparkles, badge: 'border-blue-500/30 bg-blue-500/10 text-blue-600' };
+}
 
 export const DashboardHeader: React.FC = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const pathname = usePathname();
+  const router = useRouter();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profile, setProfile] = useState<CandidateProfile | null>(null);
+  const [notifications, setNotifications] = useState<CandidateNotification[] | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  const loadHeaderData = useCallback(() => {
+    void (async () => {
+      try {
+        const [record, items, walletRes] = await Promise.all([
+          fetchCandidateProfile(),
+          fetchCandidateNotifications(),
+          apiFetch('/api/billing/wallet').catch(() => null),
+        ]);
+        setProfile(record);
+        if (items) {
+          const seen = new Set<string>();
+          const deduped = items.filter((n) => {
+            const sessId = (n.payload as any)?.session_id || '';
+            const key = `${n.notification_type}-${sessId}-${n.title}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          setNotifications(deduped);
+        }
+        if (walletRes && walletRes.ok) {
+          const wData = (await walletRes.json()) as any;
+          if (wData.success && wData.wallet) {
+            setWalletBalance(Math.max(0, Number(wData.wallet.availableCredits ?? 0)));
+          }
+        }
+      } catch { }
+    })();
+  }, []);
+
+  // Mark notifications as read when dropdown opens and persist to backend
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    setNotifications((prev) => {
+      if (!prev || !prev.some((n) => !n.is_read)) return prev;
+      const unreadIds = prev.filter((n) => !n.is_read).map((n) => String(n.id));
+      if (unreadIds.length > 0) {
+        void markCandidateNotificationsAsRead(unreadIds);
+      }
+      return prev.map((notif) => ({ ...notif, is_read: true }));
+    });
+  }, [notificationsOpen]);
+
+  useEffect(() => {
+    loadHeaderData();
+    const interval = setInterval(() => {
+      loadHeaderData();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [loadHeaderData]);
+
+  const handleMarkAllCandidateRead = async () => {
+    if (!notifications) return;
+    const unread = notifications.filter((n) => !n.is_read).map((n) => String(n.id));
+    if (unread.length > 0) {
+      await markCandidateNotificationsAsRead(unread);
+      setNotifications((prev) => (prev ? prev.map((n) => ({ ...n, is_read: true })) : []));
+    }
+  };
+
+  const handleCandidateNotificationClick = (item: CandidateNotification) => {
+    setNotificationsOpen(false);
+    const actionUrl = (item.payload as any)?.action_url;
+    const sessId = (item.payload as any)?.session_id;
+    if (actionUrl) {
+      router.push(actionUrl);
+    } else if (sessId) {
+      router.push(`/candidate/interview/${sessId}/report`);
+    } else {
+      router.push('/candidate/interviews');
+    }
+  };
+
+  const unreadCount = (notifications ?? []).filter((item) => !item.is_read).length;
+  const displayName = profile?.full_name?.trim() || 'Candidate';
+  const subtitle = [profile?.course, profile?.academic_year].filter(Boolean).join(' • ') || 'Profile incomplete';
+
+  const navLinks = [
+    { name: 'Jobs', href: '/candidate/dashboard', icon: Briefcase },
+    { name: 'My Interviews', href: '/candidate/interviews', icon: Video },
+    { name: 'Skills', href: '/candidate/skills', icon: Award },
+  ];
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
+  const safeCredits = Math.max(0, walletBalance ?? 0);
 
   return (
-    <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-slate-950/85 border-b border-slate-800 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          
-          {/* LEFT: BRAND LOGO */}
-          <div className="flex items-center gap-3">
-            <Link className="flex items-center gap-2 group" href="/candidate/dashboard">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
-              </span>
-              <span className="text-body font-bold text-slate-100 tracking-tight text-base sm:text-lg">
-                TalentPulse<span className="text-cyan-400">.AI</span>
-              </span>
-            </Link>
-          </div>
+    <AppHeader
+      brandHref="/candidate/dashboard"
+      navLinks={navLinks}
+      walletBadge={
+        walletBalance !== null ? {
+          credits: safeCredits,
+          inr: safeCredits,
+          href: '/candidate/wallet',
+        } : undefined
+      }
+      onNotificationsOpenChange={setNotificationsOpen}
+      notificationIndicator={
+        unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-surface animate-pulse">
+            {unreadCount}
+          </span>
+        )
+      }
+      notificationTitle="Notifications"
+      notificationHeaderClassName="pb-2.5"
+      notificationBodyClassName="max-h-80 overflow-y-auto"
+      notificationBody={
+        <>
+          {unreadCount > 0 && (
+            <div className="flex justify-end pb-1">
+              <button
+                type="button"
+                onClick={handleMarkAllCandidateRead}
+                className="text-[11px] font-semibold text-blue-600 hover:underline cursor-pointer"
+              >
+                Mark all as read
+              </button>
+            </div>
+          )}
 
-          {/* CENTER: DESKTOP NAVIGATION TABS (HIDDEN ON MOBILE) */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800/80">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
+          {notifications === null ? (
+            <div className="rounded-xl border border-line bg-surface-2 p-3 text-xs text-ink-muted">
+              Notifications could not be loaded.
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="rounded-xl border border-line bg-surface-2 p-4 text-center text-xs text-ink-muted">
+              You have no new notifications.
+            </div>
+          ) : (
+            notifications.map((item) => {
+              const visuals = getCandidateNotificationVisuals(item.notification_type);
+              const Icon = visuals.icon;
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all shadow-sm ${
-                    isActive
-                      ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                <div
+                  key={item.id}
+                  onClick={() => handleCandidateNotificationClick(item)}
+                  className={`group relative flex items-start gap-3 rounded-xl border p-3 text-left transition-all cursor-pointer ${
+                    item.is_read
+                      ? 'border-line bg-surface hover:bg-surface-2'
+                      : 'border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10'
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* RIGHT: NOTIFICATIONS, PROFILE & MOBILE HAMBURGER */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Notification Bell */}
-            <button
-              type="button"
-              aria-label="View notifications"
-              className="relative p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-cyan-400 hover:border-slate-700 transition-colors cursor-pointer"
-            >
-              <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-500 ring-2 ring-slate-950"></span>
-            </button>
-
-            {/* Profile Strip (Clickable to /candidate/profile) */}
-            <Link
-              href="/candidate/profile"
-              className="flex items-center gap-2.5 pl-1 sm:pl-2 hover:opacity-90 transition-opacity cursor-pointer group"
-              title="View & Edit Candidate Profile"
-            >
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-white text-xs sm:text-sm shadow-md shadow-cyan-500/10 group-hover:ring-2 group-hover:ring-cyan-400 transition-all">
-                VK
-              </div>
-
-              {/* Name & Academic details hidden on mobile screen to prevent wrap */}
-              <div className="hidden lg:flex flex-col text-left">
-                <span className="text-body font-semibold text-slate-200 text-xs sm:text-sm leading-tight group-hover:text-cyan-300 transition-colors">
-                  Vivekanand Kumar
-                </span>
-                <span className="text-caption text-slate-400 text-[11px] leading-tight">
-                  B.Tech CSE • 4th Year
-                </span>
-              </div>
-            </Link>
-
-            {/* HAMBURGER TOGGLE BUTTON (MOBILE ONLY) */}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle mobile menu"
-              className="md:hidden p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-cyan-400 hover:border-slate-700 transition-colors ml-1 cursor-pointer"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-
-        </div>
-      </div>
-
-      {/* MOBILE ACCORDION / DRAWER MENU */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-800 bg-slate-950/95 backdrop-blur-xl px-4 py-4 space-y-2 animate-fadeIn">
-          {/* User mini strip inside mobile drawer */}
-          <div className="p-3 mb-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-white text-sm">
-              VK
-            </div>
-            <div>
-              <p className="text-body font-semibold text-slate-100 text-sm">Vivekanand Kumar</p>
-              <p className="text-caption text-cyan-400 text-xs">B.Tech CSE • 4th Year (Candidate)</p>
-            </div>
-          </div>
-
-          {/* Navigation Links */}
-          <div className="space-y-1">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-body text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
-                      : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-4 h-4 text-cyan-400" />
-                    <span>{item.name}</span>
+                  <span
+                    className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${visuals.badge}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-1">
+                      <p className="text-xs font-semibold text-ink group-hover:text-blue-600 transition-colors">
+                        {item.title}
+                      </p>
+                      {!item.is_read && (
+                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" />
+                      )}
+                    </div>
+                    {item.body && <p className="mt-0.5 text-xs text-ink-muted line-clamp-2">{item.body}</p>}
+                    <p className="mt-1 text-[10px] text-ink-faint">
+                      {formatRelativeTime(item.created_at)}
+                    </p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-600" />
-                </Link>
+                </div>
               );
-            })}
+            })
+          )}
+        </>
+      }
+      profileHref="/candidate/profile"
+      profileTitle="Candidate Profile"
+      profileAvatarClassName="bg-gradient-to-tr from-blue-600 to-cyan-500"
+      profileInitials={
+        profile?.full_name?.trim()
+          ? initialsOf(profile.full_name)
+          : <UserRound className="h-4 w-4" aria-hidden="true" />
+      }
+      profileName={displayName}
+      profileSubtitle={subtitle}
+      profileSubtitleClassName="truncate"
+      drawerProfileSubtitle={subtitle}
+      drawerProfileSubtitleClassName="text-xs truncate"
+      logoutLabel="Log Out"
+      onLogout={handleLogout}
+      drawerExtra={(closeMobileMenu) => (
+        <Link
+          href="/candidate/practice"
+          onClick={closeMobileMenu}
+          className="flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-ink hover:bg-slate-100 rounded-xl"
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#f04124]" />
+            <span>Practice Drill Lab</span>
           </div>
-        </div>
+          <span className="bg-[#f04124] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            1 ACTIVE
+          </span>
+        </Link>
       )}
-    </header>
+    />
   );
 };

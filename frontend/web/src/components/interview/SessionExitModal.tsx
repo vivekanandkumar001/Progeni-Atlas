@@ -7,42 +7,52 @@ interface SessionExitModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirmExit: () => void;
+  isConcluding?: boolean;
+  isPractice?: boolean;
 }
 
 export const SessionExitModal: React.FC<SessionExitModalProps> = ({
   isOpen,
   onClose,
-  onConfirmExit
+  onConfirmExit,
+  isConcluding = false,
+  isPractice = false,
 }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-md p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-5 shadow-2xl">
-        <div className="flex items-center gap-3 text-rose-400 border-b border-slate-800 pb-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-md p-6 rounded-2xl bg-surface border border-line space-y-5 shadow-2xl">
+        <div className="flex items-center gap-3 text-accent-rose border-b border-line pb-3">
           <AlertTriangle className="w-6 h-6" />
-          <h3 className="text-lg font-bold text-slate-100">Complete & Exit Interview Session?</h3>
+          <h3 className="text-lg font-bold text-ink">
+            {isPractice ? 'End Practice Drill?' : 'End Interview Session?'}
+          </h3>
         </div>
         
-        <p className="text-xs text-slate-300 leading-relaxed">
-          Are you sure you want to end your evaluation session? Your audio transcript, code snapshots, and architectural diagram state will be saved into your candidate evaluation dossier for recruiter review.
+        <p className="text-xs text-ink leading-relaxed">
+          {isPractice
+            ? 'Ending the drill will score your responses and generate your practice performance report.'
+            : 'Ending the session will submit your interview responses and telemetry to the recruitment team and redirect you to your dashboard. You will not be able to resume once ended.'}
         </p>
 
         <div className="flex items-center gap-3 pt-2">
           <button
             type="button"
+            disabled={isConcluding}
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
+            className="flex-1 py-2.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
           >
             Cancel & Resume
           </button>
           <button
             type="button"
+            disabled={isConcluding}
             onClick={onConfirmExit}
-            className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-lg shadow-rose-600/20 transition-colors cursor-pointer flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-on-brand text-xs font-semibold shadow-lg shadow-rose-600/20 transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <PhoneOff className="w-4 h-4" />
-            <span>Complete & Exit</span>
+            <span>{isConcluding ? 'Finalizing...' : 'End Session'}</span>
           </button>
         </div>
       </div>

@@ -12,7 +12,7 @@ export const PricingSection: React.FC = () => {
       price: 'Free',
       description: 'Perfect for candidates practicing and solo recruiters starting out.',
       features: [
-        '5 Free Video Interview Sessions',
+        '2 Free Video Interview Sessions',
         'Standard Role Questions',
         'Instant Candidate Feedback Report',
         'Basic Audio & Video Replays',
@@ -22,7 +22,7 @@ export const PricingSection: React.FC = () => {
     },
     {
       name: 'Growth',
-      price: '$149',
+      price: '₹8,999',
       period: '/ month',
       description: 'Ideal for fast-growing hiring teams scaling screening rounds.',
       features: [
@@ -52,16 +52,16 @@ export const PricingSection: React.FC = () => {
   ];
 
   return (
-    <section id="pricing" className="w-full py-16 px-6 bg-[#060b1b] relative z-10 scroll-mt-20 border-t border-[#1e293b]/50">
+    <section id="pricing" className="w-full py-16 px-6 bg-surface-deep relative z-10 scroll-mt-20 border-t border-line">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12">
-          <span className="text-xs font-sans font-bold text-[#10b981] uppercase tracking-wider block mb-2">
+          <span className="text-xs font-sans font-bold text-accent-emerald uppercase tracking-wider block mb-2">
             TRANSPARENT PLANS
           </span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-bold text-ink tracking-tight">
             Simple, Predictable Pricing
           </h2>
-          <p className="text-sm text-[#94a3b8] mt-2 max-w-xl mx-auto font-normal">
+          <p className="text-sm text-ink-muted mt-2 max-w-xl mx-auto font-normal">
             Choose the right plan to accelerate your technical hiring or practice your video interview skills.
           </p>
         </div>
@@ -70,12 +70,12 @@ export const PricingSection: React.FC = () => {
           {plans.map((plan, index) => (
             <motion.div
               key={index}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 1, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               viewport={{ once: true }}
-              className={`p-6 rounded-2xl bg-[#080e21] border ${
-                plan.popular ? 'border-[#38bdf8] shadow-[0_0_30px_rgba(56,189,248,0.2)] relative' : 'border-[#1e293b]'
+              className={`p-6 rounded-2xl bg-surface border ${
+                plan.popular ? 'border-accent-cyan shadow-[0_0_30px_rgba(56,189,248,0.2)] relative' : 'border-line'
               } flex flex-col justify-between`}
             >
               {plan.popular && (
@@ -85,18 +85,18 @@ export const PricingSection: React.FC = () => {
               )}
 
               <div>
-                <h3 className="text-lg font-bold text-white mb-1">{plan.name}</h3>
-                <p className="text-xs text-[#94a3b8] mb-4">{plan.description}</p>
+                <h3 className="text-lg font-bold text-ink mb-1">{plan.name}</h3>
+                <p className="text-xs text-ink-muted mb-4">{plan.description}</p>
 
                 <div className="mb-6">
-                  <span className="text-3xl font-extrabold text-white">{plan.price}</span>
-                  {plan.period && <span className="text-xs text-[#94a3b8] ml-1">{plan.period}</span>}
+                  <span className="text-3xl font-extrabold text-ink">{plan.price}</span>
+                  {plan.period && <span className="text-xs text-ink-muted ml-1">{plan.period}</span>}
                 </div>
 
                 <ul className="space-y-3 mb-6">
                   {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start space-x-2 text-xs text-[#94a3b8]">
-                      <Check className="w-4 h-4 text-[#10b981] shrink-0 mt-0.5" />
+                    <li key={idx} className="flex items-start space-x-2 text-xs text-ink-muted">
+                      <Check className="w-4 h-4 text-accent-emerald shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -107,8 +107,8 @@ export const PricingSection: React.FC = () => {
                 href="/register"
                 className={`w-full py-2.5 rounded-full text-xs font-bold transition-all text-center block ${
                   plan.popular
-                    ? 'btn-primary-gradient text-white shadow-lg'
-                    : 'bg-[#0b1329] border border-[#334155] text-white hover:bg-[#131f3d]'
+                    ? 'btn-primary-gradient text-on-brand shadow-lg'
+                    : 'bg-surface-deep border border-line-strong text-ink hover:bg-surface-3'
                 }`}
               >
                 {plan.cta}

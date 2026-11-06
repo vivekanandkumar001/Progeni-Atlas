@@ -9,13 +9,13 @@ export const ConsoleWindow: React.FC = () => {
   return (
     <section id="live-demo" className="w-full px-4 sm:px-6 py-6 flex justify-center z-10 scroll-mt-20">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 1, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.3 }}
-        className="w-full max-w-5xl rounded-2xl bg-[#080e21] border border-[#1e293b] shadow-[0_0_50px_rgba(56,189,248,0.12)] overflow-hidden"
+        className="w-full max-w-5xl rounded-2xl bg-surface border border-line shadow-[0_0_50px_rgba(56,189,248,0.12)] overflow-hidden"
       >
         {/* Window Header */}
-        <div className="px-5 py-3 bg-[#050917] border-b border-[#1e293b] flex items-center justify-between">
+        <div className="px-5 py-3 bg-surface-deep border-b border-line flex items-center justify-between">
           {/* MacOS Terminal Controls */}
           <div className="flex items-center space-x-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#f43f5e]" />
@@ -24,7 +24,7 @@ export const ConsoleWindow: React.FC = () => {
           </div>
 
           {/* Centered Monospace Tag */}
-          <div className="text-xs font-mono font-medium text-[#38bdf8] tracking-wider text-center">
+          <div className="text-xs font-mono font-medium text-accent-cyan tracking-wider text-center">
             INTERACTIVE AI VIDEO INTERVIEW ROOM // LIVE PREVIEW
           </div>
 
@@ -32,7 +32,7 @@ export const ConsoleWindow: React.FC = () => {
         </div>
 
         {/* Split-Screen Content Grid */}
-        <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-5 bg-[#060b1b]">
+        <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-5 bg-surface-deep">
           {/* Left Column: Candidate Video Feed (~65% width) */}
           <div className="md:col-span-7 flex flex-col justify-center">
             <VideoStreamMockup />

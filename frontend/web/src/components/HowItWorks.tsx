@@ -11,7 +11,7 @@ export const HowItWorks: React.FC = () => {
       title: 'Upload Role or Resume',
       description: 'Paste the job requirements or attach your CV to generate custom screening questions.',
       icon: Upload,
-      color: 'text-[#38bdf8]',
+      color: 'text-accent-cyan',
       borderColor: 'border-[#38bdf8]/40',
     },
     {
@@ -19,7 +19,7 @@ export const HowItWorks: React.FC = () => {
       title: 'Take 1-on-1 Video Interview',
       description: 'No scheduling conflicts; candidates take the natural video interview anytime from laptop or phone.',
       icon: Video,
-      color: 'text-[#10b981]',
+      color: 'text-accent-emerald',
       borderColor: 'border-[#10b981]/40',
     },
     {
@@ -27,22 +27,22 @@ export const HowItWorks: React.FC = () => {
       title: 'Instant Transparent Scorecard',
       description: 'Recruiters get a detailed competency report, direct video replays, and hiring verdicts within seconds.',
       icon: FileText,
-      color: 'text-[#818cf8]',
+      color: 'text-accent-indigo',
       borderColor: 'border-[#818cf8]/40',
     },
   ];
 
   return (
-    <section id="how-it-works" className="w-full py-16 px-6 bg-[#020617]/80 relative z-10 scroll-mt-20">
+    <section id="how-it-works" className="w-full py-16 px-6 bg-surface-deep/80 relative z-10 scroll-mt-20">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12">
-          <span className="text-xs font-sans font-bold text-[#38bdf8] uppercase tracking-wider block mb-2">
+          <span className="text-xs font-sans font-bold text-accent-cyan uppercase tracking-wider block mb-2">
             3-STEP VISUAL GUIDE
           </span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            How TalentPulse AI Works
+          <h2 className="text-2xl sm:text-3xl font-bold text-ink tracking-tight">
+            How Progeni Atlas Works
           </h2>
-          <p className="text-sm text-[#94a3b8] mt-2 max-w-xl mx-auto font-normal">
+          <p className="text-sm text-ink-muted mt-2 max-w-xl mx-auto font-normal">
             Streamline your technical screening from candidate invitation to final decision without extra overhead.
           </p>
         </div>
@@ -53,23 +53,23 @@ export const HowItWorks: React.FC = () => {
             return (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.15 }}
                 viewport={{ once: true }}
-                className={`p-6 rounded-2xl bg-[#091126] border ${item.borderColor} shadow-lg relative flex flex-col justify-between`}
+                className={`p-6 rounded-2xl bg-surface-deep border ${item.borderColor} shadow-lg relative flex flex-col justify-between`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-[#020617] flex items-center justify-center border border-slate-700/50">
+                    <div className="w-10 h-10 rounded-xl bg-surface-deep flex items-center justify-center border border-line-strong">
                       <IconComponent className={`w-5 h-5 ${item.color}`} />
                     </div>
-                    <span className="text-2xl font-extrabold text-slate-700 font-mono">
+                    <span className="text-2xl font-extrabold text-ink-faint font-mono">
                       {item.step}
                     </span>
                   </div>
-                  <h3 className="text-base font-bold text-white mb-2">{item.title}</h3>
-                  <p className="text-xs sm:text-sm text-[#94a3b8] leading-relaxed font-normal">
+                  <h3 className="text-base font-bold text-ink mb-2">{item.title}</h3>
+                  <p className="text-xs sm:text-sm text-ink-muted leading-relaxed font-normal">
                     {item.description}
                   </p>
                 </div>

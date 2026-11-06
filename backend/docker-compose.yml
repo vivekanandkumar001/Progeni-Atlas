@@ -1,0 +1,13 @@
+
+services:
+  vivekanand-backend-uat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vivekanand-backend-uat
+    restart: unless-stopped
+    network_mode: host
+
+    env_file:
+      - .env
+

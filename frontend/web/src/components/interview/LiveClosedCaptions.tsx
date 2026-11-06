@@ -3,9 +3,11 @@
 import React, { useState } from 'react';
 import { Sparkles, ChevronUp, ChevronDown, User, Bot, History } from 'lucide-react';
 
+export type CaptionSpeaker = 'AI Interviewer' | 'You';
+
 export interface CaptionEntry {
   id: string;
-  speaker: 'AI Evaluator' | 'You';
+  speaker: CaptionSpeaker;
   text: string;
   timestamp?: string;
 }
@@ -14,16 +16,17 @@ interface LiveClosedCaptionsProps {
   subtitles: CaptionEntry[];
 }
 
+const INTERVIEWER: CaptionSpeaker = 'AI Interviewer';
+
 export const LiveClosedCaptions: React.FC<LiveClosedCaptionsProps> = ({ subtitles }) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
-  const activeSubtitle = subtitles[subtitles.length - 1] || {
-    speaker: 'AI Evaluator',
-    text: 'Welcome to the interview session. Please begin by explaining your approach to the sliding window rate limiter.'
-  };
+  // No invented dialogue when there is nothing to show yet.
+  const activeSubtitle = subtitles[subtitles.length - 1];
+  const isInterviewerSpeaking = !activeSubtitle || activeSubtitle.speaker === INTERVIEWER;
 
   return (
-    <div className="w-full rounded-2xl bg-slate-900/90 border border-slate-800 backdrop-blur-md overflow-hidden shadow-2xl transition-all">
+    <div className="w-full rounded-2xl bg-surface border border-line backdrop-blur-md overflow-hidden shadow-2xl transition-all">
       
       {/* HEADER / SINGLE LINE LIVE STRIP */}
       <div className="p-3 px-4 flex items-center justify-between gap-3">
@@ -31,22 +34,22 @@ export const LiveClosedCaptions: React.FC<LiveClosedCaptionsProps> = ({ subtitle
           {/* Speaker Tag */}
           <span
             className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium shrink-0 flex items-center gap-1.5 ${
-              activeSubtitle.speaker === 'AI Evaluator'
-                ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
-                : 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
+              isInterviewerSpeaking
+                ? 'bg-cyan-500/15 text-accent-cyan border border-cyan-500/30'
+                : 'bg-indigo-500/15 text-accent-indigo border border-indigo-500/30'
             }`}
           >
-            {activeSubtitle.speaker === 'AI Evaluator' ? (
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            {isInterviewerSpeaking ? (
+              <Sparkles className="w-3.5 h-3.5 text-accent-cyan" />
             ) : (
               <User className="w-3.5 h-3.5 text-indigo-400" />
             )}
-            <span>{activeSubtitle.speaker}</span>
+            <span>{activeSubtitle?.speaker ?? INTERVIEWER}</span>
           </span>
 
           {/* Subtitle Text */}
-          <p className="text-xs text-slate-100 font-medium truncate flex-1 leading-tight">
-            &quot;{activeSubtitle.text}&quot;
+          <p className="text-xs text-ink font-medium truncate flex-1 leading-tight">
+            {activeSubtitle ? `“${activeSubtitle.text}”` : 'Waiting for interviewer…'}
           </p>
         </div>
 
@@ -54,7 +57,7 @@ export const LiveClosedCaptions: React.FC<LiveClosedCaptionsProps> = ({ subtitle
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-cyan-300 text-xs font-mono transition-colors cursor-pointer shrink-0"
+          className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-inset border border-line hover:border-line-strong text-ink hover:text-accent-cyan text-xs font-mono transition-colors cursor-pointer shrink-0"
         >
           <History className="w-3.5 h-3.5" />
           <span>{isExpanded ? 'Collapse' : 'Full Transcript'}</span>
@@ -64,19 +67,19 @@ export const LiveClosedCaptions: React.FC<LiveClosedCaptionsProps> = ({ subtitle
 
       {/* EXPANDED FULL TRANSCRIPT DRAWER */}
       {isExpanded && (
-        <div className="border-t border-slate-800 p-4 bg-slate-950/80 max-h-48 overflow-y-auto space-y-2.5 animate-fadeIn">
+        <div className="border-t border-line p-4 bg-inset max-h-48 overflow-y-auto space-y-2.5 animate-fadeIn">
           {subtitles.map((sub) => (
             <div key={sub.id} className="flex items-start gap-2.5 text-xs">
               <span
                 className={`px-2 py-0.5 rounded text-[11px] font-mono shrink-0 font-medium ${
-                  sub.speaker === 'AI Evaluator'
-                    ? 'text-cyan-400 bg-cyan-500/10'
+                  sub.speaker === INTERVIEWER
+                    ? 'text-accent-cyan bg-cyan-500/10'
                     : 'text-indigo-400 bg-indigo-500/10'
                 }`}
               >
                 {sub.speaker}:
               </span>
-              <p className="text-slate-300 flex-1 leading-relaxed">{sub.text}</p>
+              <p className="text-ink flex-1 leading-relaxed">{sub.text}</p>
             </div>
           ))}
         </div>

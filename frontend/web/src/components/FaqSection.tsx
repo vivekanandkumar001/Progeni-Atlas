@@ -18,7 +18,7 @@ export const FaqSection: React.FC = () => {
     },
     {
       question: 'How does anti-cheating work?',
-      answer: 'TalentPulse AI uses non-intrusive trust indicators including gaze alignment verification, single-voice detection, and tab-focus monitoring to ensure authentic performance without spyware.',
+      answer: 'Progeni Atlas uses non-intrusive trust indicators including gaze alignment verification, single-voice detection, and tab-focus monitoring to ensure authentic performance without spyware.',
     },
     {
       question: 'Can we customize the questions?',
@@ -27,13 +27,13 @@ export const FaqSection: React.FC = () => {
   ];
 
   return (
-    <section id="faq" className="w-full py-16 px-6 bg-[#020617] relative z-10 scroll-mt-20 border-t border-[#1e293b]/40">
+    <section id="faq" className="w-full py-16 px-6 bg-surface-deep relative z-10 scroll-mt-20 border-t border-line">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-10">
-          <span className="text-xs font-sans font-bold text-[#38bdf8] uppercase tracking-wider block mb-2">
+          <span className="text-xs font-sans font-bold text-accent-cyan uppercase tracking-wider block mb-2">
             FREQUENTLY ASKED QUESTIONS
           </span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-bold text-ink tracking-tight">
             Got Questions? We Have Answers
           </h2>
         </div>
@@ -44,15 +44,15 @@ export const FaqSection: React.FC = () => {
             return (
               <div
                 key={index}
-                className="rounded-xl bg-[#080e21] border border-[#1e293b] overflow-hidden transition-all"
+                className="rounded-xl bg-surface border border-line overflow-hidden transition-all"
               >
                 <button
                   onClick={() => setOpenIndex(isOpen ? null : index)}
-                  className="w-full p-4 text-left flex items-center justify-between font-semibold text-white text-sm hover:text-[#38bdf8] transition-colors"
+                  className="w-full p-4 text-left flex items-center justify-between font-semibold text-ink text-sm hover:text-accent-cyan transition-colors"
                 >
                   <span>{faq.question}</span>
                   <ChevronDown
-                    className={`w-4 h-4 text-[#38bdf8] transition-transform duration-300 ${
+                    className={`w-4 h-4 text-accent-cyan transition-transform duration-300 ${
                       isOpen ? 'rotate-180' : ''
                     }`}
                   />
@@ -65,7 +65,7 @@ export const FaqSection: React.FC = () => {
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="px-4 pb-4 text-xs text-[#94a3b8] leading-relaxed font-normal"
+                      className="px-4 pb-4 text-xs text-ink-muted leading-relaxed font-normal"
                     >
                       {faq.answer}
                     </motion.div>

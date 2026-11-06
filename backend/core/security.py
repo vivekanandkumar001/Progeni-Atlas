@@ -1,0 +1,747 @@
+"""
+Progeni Atlas — Security & Authentication Helpers
+===================================================
+Provides JWT decoding, request authentication, role-based authorization decorators,
+password hashing, OTP generation/verification, and transactional email dispatch.
+"""
+
+import os
+import time
+import sys
+import re
+import hmac
+import hashlib
+import secrets
+import smtplib
+import traceback
+from datetime import datetime, timezone
+from functools import wraps
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+import jwt
+from flask import request, jsonify, g
+from core.db import get_mongo_db
+
+SWAMI_SECRET_KEY = (
+    os.environ.get("SWAMI_SECRET_KEY")
+    or os.environ.get("JWT_SECRET")
+    or os.environ.get("SECRET_KEY")
+    or os.environ.get("FLASK_SECRET_KEY")
+    or "progeni_atlas_enterprise_jwt_secret_key"
+).strip()
+JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256").strip() or "HS256"
+
+# OTP security policy
+OTP_LENGTH = 6
+OTP_TTL_SEC = int(os.environ.get("OTP_TTL_SEC", 120))
+OTP_RESEND_COOLDOWN_SEC = int(os.environ.get("OTP_RESEND_COOLDOWN_SEC", 120))
+OTP_MAX_ATTEMPTS = 5
+OTP_RE = re.compile(r"^\d{6}$")
+
+# Modern Cryptographic Password Hasher (Argon2id - OWASP Recommended)
+try:
+    from argon2 import PasswordHasher
+    from argon2.exceptions import VerifyMismatchError, InvalidHashError
+    _ARGON2_HASHER = PasswordHasher(
+        time_cost=3,
+        memory_cost=65536,
+        parallelism=4,
+        hash_len=32
+    )
+except ImportError:
+    _ARGON2_HASHER = None
+
+
+def hash_password(password: str) -> str:
+    """
+    Hash password using state-of-the-art Argon2id (OWASP & Password Hashing Competition Winner).
+    Falls back to PBKDF2-HMAC-SHA256 with 100,000 rounds if Argon2 is unavailable.
+    """
+    if not password:
+        raise ValueError("Password cannot be empty.")
+    if _ARGON2_HASHER is not None:
+        return _ARGON2_HASHER.hash(password)
+    # Secure PBKDF2 fallback
+    salt = secrets.token_hex(16)
+    derived = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000)
+    return f"$pbkdf2$100000${salt}${derived.hex()}"
+
+
+def verify_password(password: str, stored_hash: str) -> tuple[bool, bool]:
+    """
+    Cryptographically verify password against stored hash with zero-downtime migration.
+    Returns: (is_valid: bool, needs_rehash: bool)
+    - If valid and legacy (SHA-256 or PBKDF2), needs_rehash is True so caller can
+      transparently upgrade the database record to Argon2id.
+    """
+    if not password or not stored_hash:
+        return False, False
+
+    stored = stored_hash.strip()
+
+    # 1. Argon2id (current standard)
+    if stored.startswith("$argon2"):
+        if _ARGON2_HASHER is not None:
+            try:
+                _ARGON2_HASHER.verify(stored, password)
+                needs_rehash = _ARGON2_HASHER.check_needs_rehash(stored)
+                return True, needs_rehash
+            except (VerifyMismatchError, InvalidHashError):
+                return False, False
+        return False, False
+
+    # 2. PBKDF2 fallback format ($pbkdf2$<rounds>$<salt>$<hex>)
+    if stored.startswith("$pbkdf2$"):
+        parts = stored.split("$")
+        if len(parts) == 5:
+            try:
+                rounds = int(parts[2])
+                salt = parts[3].encode("utf-8")
+                expected = parts[4]
+                derived = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, rounds).hex()
+                if hmac.compare_digest(derived, expected):
+                    return True, True  # Valid, upgrade to Argon2id
+            except Exception:
+                return False, False
+
+    # 3. Legacy unsalted SHA-256 (64 hex characters) — seamless upgrade path
+    if len(stored) == 64 and all(c in "0123456789abcdefABCDEF" for c in stored):
+        candidate = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        if hmac.compare_digest(candidate.lower(), stored.lower()):
+            return True, True  # Valid, upgrade to Argon2id immediately!
+
+    return False, False
+
+
+def validate_password_strength(password: str) -> tuple[bool, str | None]:
+    """Ensure password meets enterprise complexity standards."""
+    if not password or len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if len(password) > 128:
+        return False, "Password cannot exceed 128 characters."
+    return True, None
+
+
+def _as_aware_utc(dt) -> datetime:
+    """Normalize DB timestamps to tz-aware UTC for safe comparison."""
+    if dt is None:
+        return datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def hash_otp(otp_code: str) -> str:
+    """HMAC-SHA256 OTP hash peppered with the server secret."""
+    pepper = (
+        os.environ.get("OTP_PEPPER")
+        or os.environ.get("SWAMI_SECRET_KEY")
+        or os.environ.get("JWT_SECRET")
+        or "progeni_atlas_default_pepper"
+    )
+    return hmac.new(pepper.encode("utf-8"), otp_code.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def check_otp_hash(otp_code: str, stored_hash: str) -> bool:
+    """Verify an HMAC-SHA256 OTP hash using constant-time comparison."""
+    return hmac.compare_digest(hash_otp(otp_code), stored_hash)
+
+
+def generate_otp_code() -> str:
+    """Generate a cryptographically secure 6-digit numeric OTP."""
+    return f"{secrets.randbelow(900000) + 100000}"
+
+
+_LINKED_CACHE: dict[str, float] = {}
+
+def link_candidate_records_by_email(user_id: str, email: str) -> None:
+    """Link pre-existing orphan sessions, invitations, and notifications to candidate user_id."""
+    if not user_id or not email:
+        return
+    clean_email = email.strip().lower()
+    cache_key = f"{user_id}:{clean_email}"
+    now_ts = time.time()
+    if cache_key in _LINKED_CACHE and (now_ts - _LINKED_CACHE[cache_key]) < 1800:
+        return
+    _LINKED_CACHE[cache_key] = now_ts
+
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        # Check before updating to avoid write locks if no orphan records exist
+        has_orphan_sessions = db.interview_sessions.find_one({"candidate_email": clean_email, "candidate_id": {"$ne": user_id}}, {"_id": 1})
+        if has_orphan_sessions:
+            db.interview_sessions.update_many(
+                {"candidate_email": clean_email, "candidate_id": {"$ne": user_id}},
+                {"$set": {"candidate_id": user_id, "userId": user_id, "updated_at": now_iso}}
+            )
+
+        has_orphan_invites = db.interview_invitations.find_one({"candidate_email": clean_email, "candidate_id": {"$ne": user_id}}, {"_id": 1})
+        if has_orphan_invites:
+            db.interview_invitations.update_many(
+                {"candidate_email": clean_email, "candidate_id": {"$ne": user_id}},
+                {"$set": {"candidate_id": user_id, "updated_at": now_iso}}
+            )
+
+        has_orphan_notifs = db.candidate_notifications.find_one({"candidate_email": clean_email, "candidate_id": {"$ne": user_id}}, {"_id": 1})
+        if has_orphan_notifs:
+            db.candidate_notifications.update_many(
+                {"candidate_email": clean_email, "candidate_id": {"$ne": user_id}},
+                {"$set": {"candidate_id": user_id}}
+            )
+        print(f"[AUTO-CLAIM] Checked and linked orphan records for {clean_email} -> Candidate ID: {user_id}")
+    except Exception as e:
+        print(f"[AUTO-CLAIM WARNING] Failed linking records for {email}: {e}")
+
+
+def _decode_access_token(raw_token: str) -> dict | None:
+    """Return JWT claims or None if invalid/expired. Enforces strict cryptographic signature checks."""
+    secret = (os.environ.get("JWT_SECRET") or SWAMI_SECRET_KEY or "").strip()
+    if not raw_token or not secret:
+        return None
+
+    # Strip Bearer or quotes if present
+    token = raw_token.strip().strip('"').strip("'")
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+
+    claims = None
+    try:
+        from jose import jwt as jose_jwt
+        claims = jose_jwt.decode(token, secret, algorithms=[JWT_ALGORITHM, "HS256"])
+    except Exception:
+        pass
+
+    if not claims:
+        try:
+            claims = jwt.decode(token, secret, algorithms=[JWT_ALGORITHM, "HS256"])
+        except Exception:
+            return None
+
+    if not isinstance(claims, dict) or claims.get("type") == "refresh":
+        return None
+
+    # Expiry verification
+    exp = claims.get("exp")
+    if exp is not None:
+        try:
+            now_ts = datetime.now(timezone.utc).timestamp()
+            if float(exp) < now_ts:
+                return None
+        except (ValueError, TypeError):
+            return None
+
+    return claims
+
+
+def _authenticate_request() -> tuple[dict | None, tuple | None]:
+    """Resolve caller from Authorization header or tp_session cookie."""
+    header = request.headers.get("Authorization", "")
+    scheme, _, param = header.partition(" ")
+    raw_token = ""
+    clean_param = param.strip()
+    if scheme.lower() == "bearer" and clean_param and clean_param not in ("null", "undefined"):
+        raw_token = clean_param
+    elif request.cookies.get("tp_session"):
+        cookie_val = request.cookies.get("tp_session", "").strip()
+        if cookie_val and cookie_val not in ("null", "undefined"):
+            raw_token = cookie_val
+
+    if not raw_token:
+        return None, (jsonify({"success": False, "error": "Authentication required"}), 401)
+
+    claims = _decode_access_token(raw_token)
+    if not claims:
+        return None, (jsonify({"success": False, "error": "Invalid or expired credentials"}), 401)
+
+    return claims, None
+
+
+def resolve_user(user_id_or_conn, user_id=None) -> dict | None:
+    """Load the caller account document from MongoDB."""
+    target_id = user_id if user_id is not None else user_id_or_conn
+    if hasattr(target_id, 'headers') or hasattr(target_id, 'environ'):
+        try:
+            claims, _ = _authenticate_request()
+            target_id = claims.get("sub") or claims.get("email") if claims else None
+        except Exception:
+            target_id = None
+    if not target_id:
+        return None
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return None
+        s_id = str(target_id).strip()
+        or_conditions = [{"id": s_id}, {"_id": s_id}, {"email": s_id.lower()}]
+        try:
+            from bson import ObjectId
+            if ObjectId.is_valid(s_id):
+                or_conditions.append({"_id": ObjectId(s_id)})
+        except Exception:
+            pass
+        user = db.users.find_one({"$or": or_conditions})
+        if user:
+            user["id"] = str(user.get("id") or user.get("_id"))
+        return user
+    except Exception as e:
+        print(f"[resolve_user] MongoDB lookup warning: {e}")
+        return None
+
+
+def require_auth(view):
+    """Enforce authenticated user on route."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        claims, error = _authenticate_request()
+        if error:
+            return error
+
+        try:
+            user = resolve_user(claims.get("sub"))
+        except Exception:
+            traceback.print_exc()
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+
+        if user is None:
+            return jsonify({"success": False, "error": "Account not found"}), 401
+        if str(user.get("status", "")).lower() not in ("active", "1", "true"):
+            return jsonify({"success": False, "error": "Account is suspended"}), 403
+
+        g.user_claims = claims
+        g.user = dict(user)
+        return view(*args, **kwargs)
+
+    return wrapper
+
+
+def require_super_admin(view):
+    """Require active super-admin or admin privileges."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        authorization = request.headers.get("Authorization", "")
+        scheme, _, bearer = authorization.partition(" ")
+        token = bearer.strip() if scheme.lower() == "bearer" else ""
+        token = token or request.cookies.get("tp_session", "")
+        claims = _decode_access_token(token)
+        if not claims:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
+
+        role = str(claims.get("role", "")).lower()
+        if role not in ("super_admin", "admin"):
+            return jsonify({"success": False, "error": "Platform administrator access required"}), 403
+
+        user = resolve_user(claims.get("sub"))
+        if not user and claims.get("email"):
+            user = resolve_user(claims.get("email"))
+        if not user:
+            user = {
+                "id": str(claims.get("sub", "super-admin-root")),
+                "email": claims.get("email", "superadmin@progeni.atlas"),
+                "full_name": claims.get("name", "Super Administrator"),
+                "role": "super_admin",
+                "status": "active"
+            }
+
+        if str(user.get("status", "")).lower() not in ("active", "1", "true"):
+            return jsonify({"success": False, "error": "Account is suspended"}), 403
+
+        g.user_claims = claims
+        g.user = dict(user)
+        return view(*args, **kwargs)
+
+    return wrapper
+
+
+def send_otp_email_smtp(to_email: str, otp_code: str, purpose: str = "REGISTRATION_VERIFY") -> tuple[bool, str | None]:
+    """Dispatch email OTP via SMTP."""
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+    try:
+        smtp_port = int(os.environ.get("SMTP_PORT", 465))
+    except (ValueError, TypeError):
+        smtp_port = 465
+
+    smtp_user = os.environ.get("SMTP_USER", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASS", "").strip()
+    from_name = os.environ.get("SMTP_FROM_NAME", "Progeni Atlas").strip()
+    smtp_from = os.environ.get("SMTP_FROM", f'"{from_name}" <{smtp_user}>').strip()
+
+    subject = "Progeni Atlas — Verify Your Email Address"
+    if purpose == "FORGOT_PASSWORD":
+        subject = "Progeni Atlas — Password Reset Verification Code"
+
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; background-color: #020617; color: #f8fafc; padding: 32px; border-radius: 12px; max-width: 500px; margin: 0 auto; border: 1px solid #1e293b;">
+      <h2 style="color: #06b6d4; margin-bottom: 8px;">{from_name}</h2>
+      <p style="color: #94a3b8; font-size: 14px;">Verification Security Code</p>
+      <div style="background-color: #0f172a; border: 1px solid #334155; padding: 20px; border-radius: 8px; text-align: center; margin: 24px 0;">
+        <span style="font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #38bdf8;">{otp_code}</span>
+      </div>
+      <p style="color: #94a3b8; font-size: 12px; margin-bottom: 4px;">This single-use code is valid for <strong>2 minutes (120 seconds)</strong>.</p>
+      <p style="color: #64748b; font-size: 11px;">If you did not request this verification code, please ignore this message.</p>
+    </div>
+    """
+
+    if not smtp_user or not smtp_pass:
+        print("[OTP] Email delivery failed: SMTP_USER/SMTP_PASS not configured.")
+        return False, "Email service is not configured. Please set SMTP_USER and SMTP_PASS."
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = smtp_from
+        msg["To"] = to_email
+        msg.attach(MIMEText(html_content, "html"))
+
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [to_email], msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [to_email], msg.as_string())
+
+        print(f"[OTP] Email provider accepted message purpose={purpose} recipient={to_email}")
+        return True, None
+    except Exception as err:
+        print(f"[OTP] Email delivery failed for recipient={to_email}: {err}")
+        return False, f"Failed to deliver email: {str(err)}"
+
+
+def send_interview_invite_email_smtp(
+    to_email: str,
+    candidate_name: str,
+    role: str,
+    company_name: str,
+    invite_url: str,
+    interview_date: str = "",
+    interview_time: str = ""
+) -> tuple[bool, str | None]:
+    """Send an interview screening invitation email to candidate."""
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+    try:
+        smtp_port = int(os.environ.get("SMTP_PORT", 465))
+    except (ValueError, TypeError):
+        smtp_port = 465
+
+    smtp_user = os.environ.get("SMTP_USER", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASS", "").strip()
+    from_name = os.environ.get("SMTP_FROM_NAME", "Progeni Atlas").strip()
+    smtp_from = os.environ.get("SMTP_FROM", f'"{from_name}" <{smtp_user}>').strip()
+
+    if not smtp_user or not smtp_pass:
+        print(f"[INVITE EMAIL] SMTP not configured. Skipping email dispatch to {to_email}.")
+        return False, "SMTP not configured"
+
+    scheduled_text = f"Scheduled on {interview_date} at {interview_time} UTC" if (interview_date and interview_time) else "Ready to take anytime"
+    subject = f"Interview Invitation: {role} at {company_name}"
+
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; background-color: #020617; color: #f8fafc; padding: 32px; border-radius: 12px; max-width: 540px; margin: 0 auto; border: 1px solid #1e293b;">
+      <h2 style="color: #06b6d4; margin-bottom: 8px;">{company_name}</h2>
+      <p style="color: #94a3b8; font-size: 15px; margin-top: 0;">AI Technical Screening Assessment</p>
+      
+      <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6;">
+        Hello <strong>{candidate_name}</strong>,<br/>
+        You have been invited for a <strong>{role}</strong> interview session by {company_name}.
+      </p>
+
+      <div style="background-color: #0f172a; border: 1px solid #334155; padding: 18px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 4px 0; color: #94a3b8; font-size: 13px;">Role: <strong style="color: #f1f5f9;">{role}</strong></p>
+        <p style="margin: 4px 0; color: #94a3b8; font-size: 13px;">Schedule: <strong style="color: #38bdf8;">{scheduled_text}</strong></p>
+      </div>
+
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="{invite_url}" style="background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">
+          Start Your Interview &rarr;
+        </a>
+      </div>
+
+      <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
+        Alternatively, copy and paste this link in your browser:<br/>
+        <a href="{invite_url}" style="color: #06b6d4; word-break: break-all;">{invite_url}</a>
+      </p>
+    </div>
+    """
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = smtp_from
+        msg["To"] = to_email
+        msg.attach(MIMEText(html_content, "html"))
+
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [to_email], msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [to_email], msg.as_string())
+
+        print(f"[INVITE EMAIL] Successfully dispatched screening email to {to_email}")
+        return True, None
+    except Exception as err:
+        print(f"[INVITE EMAIL ERROR] Failed to send email to {to_email}: {err}")
+        return False, str(err)
+
+
+def send_candidate_decision_email_smtp(
+    to_email: str,
+    candidate_name: str,
+    role: str,
+    company_name: str,
+    decision: str,
+    notes: str = ""
+) -> tuple[bool, str | None]:
+    """Send automated polite email notification to candidate on hiring decision (shortlisted/selected or rejected)."""
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+    try:
+        smtp_port = int(os.environ.get("SMTP_PORT", 465))
+    except (ValueError, TypeError):
+        smtp_port = 465
+
+    smtp_user = os.environ.get("SMTP_USER", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASS", "").strip()
+    from_name = os.environ.get("SMTP_FROM_NAME", "Progeni Atlas").strip()
+    smtp_from = os.environ.get("SMTP_FROM", f'"{from_name}" <{smtp_user}>').strip()
+
+    decision_norm = str(decision).lower().strip()
+    is_positive = decision_norm in ("selected", "shortlisted", "advanced_to_panel", "hire", "strong_hire")
+
+    if not smtp_user or not smtp_pass:
+        print(f"[DECISION EMAIL] SMTP not configured. Logged decision '{decision_norm}' email for {to_email}.")
+        return False, "SMTP not configured"
+
+    if is_positive:
+        subject = f"Congratulations! Next Steps for {role} at {company_name}"
+        status_badge_bg = "#059669"
+        status_badge_text = "SHORTLISTED FOR NEXT ROUND"
+        intro_heading = "Congratulations on being shortlisted!"
+        main_message = f"""
+        We are thrilled to inform you that following your AI technical assessment, our recruiting team at <strong>{company_name}</strong> has shortlisted your profile for the <strong>{role}</strong> position.
+        <br/><br/>
+        Your technical depth, problem-solving clarity, and practical approach throughout the interview demonstrated strong alignment with our engineering standards.
+        """
+        next_steps_block = f"""
+        <div style="background-color: #0f172a; border-left: 4px solid #10b981; padding: 16px; border-radius: 6px; margin: 20px 0;">
+          <h4 style="margin: 0 0 6px 0; color: #34d399; font-size: 14px;">Next Steps in the Hiring Process</h4>
+          <p style="margin: 0; color: #cbd5e1; font-size: 13px; line-height: 1.5;">
+            Our hiring coordinator will contact you shortly with scheduling details for your technical panel interview. Please ensure your contact details remain up to date.
+          </p>
+        </div>
+        """
+    else:
+        subject = f"Update regarding your application for {role} at {company_name}"
+        status_badge_bg = "#475569"
+        status_badge_text = "APPLICATION STATUS UPDATE"
+        intro_heading = "Thank you for your time and participation"
+        main_message = f"""
+        Thank you for taking the time to participate in our technical interview screening for the <strong>{role}</strong> position at <strong>{company_name}</strong>.
+        <br/><br/>
+        We truly appreciated learning more about your technical background and experience. After careful evaluation of all submissions against our immediate team requirements, we have decided not to advance your application to the next round at this time.
+        """
+        next_steps_block = f"""
+        <div style="background-color: #0f172a; border-left: 4px solid #64748b; padding: 16px; border-radius: 6px; margin: 20px 0;">
+          <h4 style="margin: 0 0 6px 0; color: #94a3b8; font-size: 14px;">Future Opportunities with Us</h4>
+          <p style="margin: 0; color: #cbd5e1; font-size: 13px; line-height: 1.5;">
+            This was an extremely competitive applicant pool. We will keep your verified technical profile in our active talent pool for future openings that match your skill set.
+          </p>
+        </div>
+        """
+
+    feedback_block = ""
+    if notes:
+        feedback_block = f"""
+        <div style="background-color: #1e293b; border: 1px solid #334155; padding: 14px 18px; border-radius: 8px; margin: 16px 0;">
+          <p style="margin: 0 0 4px 0; color: #94a3b8; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Notes from Hiring Team:</p>
+          <p style="margin: 0; color: #f1f5f9; font-size: 13px; font-style: italic; line-height: 1.5;">&ldquo;{notes}&rdquo;</p>
+        </div>
+        """
+
+    html_content = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #090d16; color: #f8fafc; padding: 36px 20px; max-width: 580px; margin: 0 auto; border-radius: 14px; border: 1px solid #1e293b;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 18px; margin-bottom: 24px;">
+        <div>
+          <h2 style="color: #38bdf8; margin: 0; font-size: 20px; font-weight: 700;">{company_name}</h2>
+          <span style="color: #64748b; font-size: 12px;">Powered by Progeni Atlas</span>
+        </div>
+        <div style="text-align: right;">
+          <span style="background-color: {status_badge_bg}; color: #ffffff; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">
+            {status_badge_text}
+          </span>
+        </div>
+      </div>
+
+      <h3 style="color: #f1f5f9; font-size: 17px; margin-top: 0; margin-bottom: 12px;">{intro_heading}</h3>
+
+      <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6; margin-top: 0;">
+        Hello <strong>{candidate_name}</strong>,
+      </p>
+
+      <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+        {main_message}
+      </div>
+
+      <div style="background-color: #0c1322; border: 1px solid #1e293b; border-radius: 10px; padding: 14px 18px; margin: 20px 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <tr>
+            <td style="color: #64748b; padding: 4px 0;">Position:</td>
+            <td style="color: #f1f5f9; font-weight: 600; text-align: right; padding: 4px 0;">{role}</td>
+          </tr>
+          <tr>
+            <td style="color: #64748b; padding: 4px 0;">Organization:</td>
+            <td style="color: #38bdf8; font-weight: 600; text-align: right; padding: 4px 0;">{company_name}</td>
+          </tr>
+          <tr>
+            <td style="color: #64748b; padding: 4px 0;">Decision Status:</td>
+            <td style="color: {'#34d399' if is_positive else '#94a3b8'}; font-weight: 700; text-align: right; padding: 4px 0;">
+              {'Shortlisted / Selected' if is_positive else 'Not Selected'}
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      {feedback_block}
+
+      {next_steps_block}
+
+      <div style="border-top: 1px solid #1e293b; padding-top: 20px; margin-top: 24px; color: #64748b; font-size: 12px; line-height: 1.5;">
+        <p style="margin: 0 0 6px 0;">Best regards,</p>
+        <p style="margin: 0; font-weight: 600; color: #94a3b8;">The Hiring Team at {company_name}</p>
+        <p style="margin: 4px 0 0 0; color: #475569; font-size: 11px;">Progeni Atlas Autonomous Screening &bull; Verified Evaluation Notification</p>
+      </div>
+    </div>
+    """
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = smtp_from
+        msg["To"] = to_email
+        msg.attach(MIMEText(html_content, "html"))
+
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [to_email], msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [to_email], msg.as_string())
+
+        print(f"[DECISION EMAIL] Successfully dispatched decision email ('{decision_norm}') to {to_email}")
+        return True, None
+    except Exception as err:
+        print(f"[DECISION EMAIL ERROR] Failed to send decision email to {to_email}: {err}")
+        return False, str(err)
+
+
+
+def send_interview_completion_email_smtp(
+    to_email: str,
+    candidate_name: str,
+    role: str,
+    company_name: str,
+    overall_score: int | float | None = None
+) -> tuple[bool, str | None]:
+    """Send automated email notification to candidate confirming successful interview submission & AI evaluation."""
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+    try:
+        smtp_port = int(os.environ.get("SMTP_PORT", 465))
+    except (ValueError, TypeError):
+        smtp_port = 465
+
+    smtp_user = os.environ.get("SMTP_USER", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASS", "").strip()
+    from_name = os.environ.get("SMTP_FROM_NAME", "Progeni Atlas").strip()
+    smtp_from = os.environ.get("SMTP_FROM", f'"{from_name}" <{smtp_user}>').strip()
+
+    if not smtp_user or not smtp_pass:
+        print(f"[COMPLETION EMAIL] SMTP not configured. Logged completion email for {to_email}.")
+        return False, "SMTP not configured"
+
+    subject = f"Technical Assessment Completed: {role} at {company_name}"
+    score_badge = f'<div style="text-align: right;"><span style="background-color: #0284c7; color: #ffffff; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;">OVERALL SCORE: {overall_score}%</span></div>' if overall_score is not None else ''
+
+    html_content = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #090d16; color: #f8fafc; padding: 36px 20px; max-width: 580px; margin: 0 auto; border-radius: 14px; border: 1px solid #1e293b;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 18px; margin-bottom: 24px;">
+        <div>
+          <h2 style="color: #38bdf8; margin: 0; font-size: 20px; font-weight: 700;">{company_name}</h2>
+          <span style="color: #64748b; font-size: 12px;">Autonomous Technical Screening</span>
+        </div>
+        {score_badge}
+      </div>
+
+      <h3 style="color: #f1f5f9; font-size: 17px; margin-top: 0; margin-bottom: 12px;">Your technical assessment is complete!</h3>
+
+      <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6; margin-top: 0;">
+        Hello <strong>{candidate_name}</strong>,
+      </p>
+
+      <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+        Thank you for completing your technical interview session for the <strong>{role}</strong> position at <strong>{company_name}</strong>.
+      </p>
+
+      <div style="background-color: #0c1322; border: 1px solid #1e293b; border-radius: 10px; padding: 16px; margin: 20px 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <tr>
+            <td style="color: #64748b; padding: 4px 0;">Target Role:</td>
+            <td style="color: #f1f5f9; font-weight: 600; text-align: right; padding: 4px 0;">{role}</td>
+          </tr>
+          <tr>
+            <td style="color: #64748b; padding: 4px 0;">Status:</td>
+            <td style="color: #34d399; font-weight: 700; text-align: right; padding: 4px 0;">Submitted & Verified</td>
+          </tr>
+          <tr>
+            <td style="color: #64748b; padding: 4px 0;">Evaluation Model:</td>
+            <td style="color: #94a3b8; text-align: right; padding: 4px 0;">4-Pillar Competency Engine</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background-color: #0f172a; border-left: 4px solid #0ea5e9; padding: 14px; border-radius: 6px; margin: 20px 0;">
+        <p style="margin: 0; color: #cbd5e1; font-size: 13px; line-height: 1.5;">
+          Our recruiting committee has been notified and is reviewing your scorecard, code execution benchmarks, and response transcripts. You will receive an email update as soon as the hiring team finalizes next steps.
+        </p>
+      </div>
+
+      <div style="border-top: 1px solid #1e293b; padding-top: 20px; margin-top: 24px; color: #64748b; font-size: 12px; line-height: 1.5;">
+        <p style="margin: 0 0 4px 0;">Best regards,</p>
+        <p style="margin: 0; font-weight: 600; color: #94a3b8;">Talent Acquisition Team &bull; {company_name}</p>
+      </div>
+    </div>
+    """
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = smtp_from
+        msg["To"] = to_email
+        msg.attach(MIMEText(html_content, "html"))
+
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [to_email], msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [to_email], msg.as_string())
+
+        print(f"[COMPLETION EMAIL] Successfully dispatched assessment completion email to {to_email}")
+        return True, None
+    except Exception as err:
+        print(f"[COMPLETION EMAIL ERROR] Failed to send completion email to {to_email}: {err}")
+        return False, str(err)
