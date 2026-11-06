@@ -129,7 +129,9 @@ export const AIAvatarViewport: React.FC<AIAvatarViewportProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-xs sm:text-sm font-bold text-white tracking-tight truncate">{personaName}</span>
-              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" title="Verified Host" />
+              <span title="Verified Host" className="inline-flex">
+                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              </span>
             </div>
             {!compact && <p className="text-[10px] text-slate-300 font-medium truncate">{personaRole}</p>}
           </div>
