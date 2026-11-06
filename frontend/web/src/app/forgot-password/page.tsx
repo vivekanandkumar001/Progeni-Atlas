@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ShieldAlert, Mail, ArrowRight, ArrowLeft, KeyRound, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
+import { ShieldAlert, Mail, ArrowRight, ArrowLeft, KeyRound, AlertCircle, CheckCircle2, Lock, Eye, EyeOff } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import { AuthCard, buttonClass, inputClass } from '@/components/ui';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -13,10 +14,30 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState<string>('');
   const [otpCode, setOtpCode] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    if (
+      urlParams.has('password') ||
+      urlParams.has('newPassword') ||
+      urlParams.has('pass') ||
+      urlParams.has('pwd')
+    ) {
+      urlParams.delete('password');
+      urlParams.delete('newPassword');
+      urlParams.delete('pass');
+      urlParams.delete('pwd');
+      const cleanSearch = urlParams.toString();
+      const cleanUrl = window.location.pathname + (cleanSearch ? `?${cleanSearch}` : '');
+      window.history.replaceState(null, '', cleanUrl);
+    }
+  }, []);
 
   // Step 1: Request Password Reset OTP
   const handleRequestOtp = async (e: React.FormEvent) => {
@@ -31,7 +52,7 @@ export default function ForgotPasswordPage() {
     setSuccessMsg('');
 
     try {
-      const res = await fetch(getApiUrl('/api/auth/forgot-password'), {
+      const res = await apiFetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
@@ -40,15 +61,13 @@ export default function ForgotPasswordPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to request password reset.');
+        throw new Error(data.error || data.detail || 'Failed to request password reset.');
       }
 
-      setSuccessMsg('Verification code sent to your email. Redirecting to OTP verification...');
-      setTimeout(() => {
-        router.push(`/verify-otp?email=${encodeURIComponent(email)}&purpose=FORGOT_PASSWORD`);
-      }, 1000);
+      setSuccessMsg('Verification code sent to your email. Please enter the 6-digit code and your new password below.');
+      setStep('reset');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Something went wrong. Please try again.');
+      setErrorMsg(err?.message || 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +85,7 @@ export default function ForgotPasswordPage() {
     setErrorMsg('');
 
     try {
-      const res = await fetch(getApiUrl('/api/auth/reset-password'), {
+      const res = await apiFetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otpCode, newPassword }),
@@ -75,7 +94,7 @@ export default function ForgotPasswordPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Password reset failed.');
+        throw new Error(data.error || data.detail || 'Password reset failed.');
       }
 
       setSuccessMsg('Password updated successfully! Redirecting to login...');
@@ -83,29 +102,29 @@ export default function ForgotPasswordPage() {
         router.push('/login');
       }, 1500);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Reset failed. Please check your code and try again.');
+      setErrorMsg(err?.message || 'Reset failed. Please check your code and try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-canvas text-ink flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans selection:bg-cyan-500/30 selection:text-accent-cyan">
       {/* Ambient Radial Background Glows */}
       <div className="fixed top-1/4 left-1/3 w-[30rem] h-[30rem] bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="fixed bottom-1/4 right-1/3 w-[25rem] h-[25rem] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
       {/* Main Glassmorphic Form Card */}
-      <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+      <AuthCard className="max-w-md" innerClassName="space-y-6">
         {/* Top Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl text-cyan-400 mb-2 shadow-inner">
+          <div className="inline-flex items-center justify-center p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl text-accent-cyan mb-2 shadow-inner">
             <KeyRound className="w-6 h-6" />
           </div>
-          <h1 className="text-heading text-2xl font-bold text-slate-100 tracking-tight">
+          <h1 className="text-heading text-2xl font-bold text-ink tracking-tight">
             Reset Password
           </h1>
-          <p className="text-body text-sm text-slate-400 max-w-xs mx-auto">
+          <p className="text-body text-sm text-ink-muted max-w-xs mx-auto">
             {step === 'email'
               ? 'Enter your registered email address to receive a 2-minute verification code.'
               : 'Enter the verification code and your new account password.'}
@@ -114,41 +133,41 @@ export default function ForgotPasswordPage() {
 
         {/* Status Alerts */}
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-accent-rose text-xs flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-accent-rose shrink-0 mt-0.5" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-start gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-accent-emerald text-xs flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-accent-emerald shrink-0 mt-0.5" />
             <span>{successMsg}</span>
           </div>
         )}
 
         {step === 'email' ? (
-          <form onSubmit={handleRequestOtp} className="space-y-4">
+          <form action="#" method="POST" onSubmit={handleRequestOtp} className="space-y-4" noValidate>
             <div>
-              <label className="inline-flex items-center gap-1.5 text-body text-xs font-medium text-slate-300 mb-1.5">
-                <Mail className="w-4 h-4 text-cyan-400 shrink-0" />
+              <label className="inline-flex items-center gap-1.5 text-body text-xs font-medium text-ink mb-1.5">
+                <Mail className="w-4 h-4 text-accent-cyan shrink-0" />
                 <span>Work or Academic Email Address</span>
-                <span className="text-rose-500 font-bold">*</span>
+                <span className="text-accent-rose font-bold">*</span>
               </label>
               <input
                 type="email"
                 required
-                placeholder="name@company.com"
+                placeholder="Please enter your email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 transition-all placeholder:text-slate-600"
+                className={inputClass(false, 'cyan')}
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoading || !email.trim()}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold text-sm tracking-wide transition-all shadow-lg hover:shadow-cyan-500/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+              className={buttonClass('primary', 'lg', 'pill', 'w-full disabled:opacity-50 disabled:cursor-not-allowed')}
             >
               {isLoading ? (
                 <span>Sending Code...</span>
@@ -161,44 +180,63 @@ export default function ForgotPasswordPage() {
             </button>
           </form>
         ) : (
-          <form onSubmit={handleResetPassword} className="space-y-4">
+          <form action="#" method="POST" onSubmit={handleResetPassword} className="space-y-4" noValidate>
             <div>
-              <label className="inline-flex items-center gap-1.5 text-body text-xs font-medium text-slate-300 mb-1.5">
-                <KeyRound className="w-4 h-4 text-cyan-400 shrink-0" />
+              <label className="inline-flex items-center gap-1.5 text-body text-xs font-medium text-ink mb-1.5">
+                <KeyRound className="w-4 h-4 text-accent-cyan shrink-0" />
                 <span>6-Digit Verification Code</span>
-                <span className="text-rose-500 font-bold">*</span>
+                <span className="text-accent-rose font-bold">*</span>
               </label>
               <input
                 type="text"
                 required
                 maxLength={6}
-                placeholder="123456"
+                placeholder="Please enter 6-digit verification code"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value)}
-                className="w-full px-4 py-3 font-mono text-center tracking-widest text-lg rounded-xl bg-slate-950/60 border border-slate-800 text-cyan-300 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 transition-all"
+                className={inputClass(false, 'cyan', 'font-mono text-center tracking-widest text-lg')}
               />
             </div>
 
             <div>
-              <label className="inline-flex items-center gap-1.5 text-body text-xs font-medium text-slate-300 mb-1.5">
-                <Lock className="w-4 h-4 text-cyan-400 shrink-0" />
+              <label className="inline-flex items-center gap-1.5 text-body text-xs font-medium text-ink mb-1.5">
+                <Lock className="w-4 h-4 text-accent-cyan shrink-0" />
                 <span>New Account Password</span>
-                <span className="text-rose-500 font-bold">*</span>
+                <span className="text-accent-rose font-bold">*</span>
               </label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••••••"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 transition-all placeholder:text-slate-600"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Please enter your new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className={`${inputClass(false, 'cyan')} pr-12`}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowPassword((prev) => !prev);
+                  }}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink focus:outline-none cursor-pointer"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4 pointer-events-none" aria-hidden="true" />
+                  ) : (
+                    <Eye className="w-4 h-4 pointer-events-none" aria-hidden="true" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={isLoading || !otpCode || !newPassword}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold text-sm tracking-wide transition-all shadow-lg hover:shadow-cyan-500/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+              className={buttonClass('primary', 'lg', 'pill', 'w-full disabled:opacity-50 disabled:cursor-not-allowed')}
             >
               {isLoading ? (
                 <span>Resetting Password...</span>
@@ -213,15 +251,15 @@ export default function ForgotPasswordPage() {
         )}
 
         {/* Back Link */}
-        <div className="text-center pt-2 border-t border-slate-800/80">
+        <div className="text-center pt-2 border-t border-line">
           <Link
             href="/login"
-            className="inline-flex items-center gap-1 text-caption text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            className="inline-flex items-center gap-1 text-caption text-xs text-ink-muted hover:text-ink transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
           </Link>
         </div>
-      </div>
+      </AuthCard>
     </div>
   );
 }

@@ -36,23 +36,23 @@ export const PracticeCategoryFilters: React.FC<PracticeCategoryFiltersProps> = (
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Search input */}
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-4 h-4 text-ink-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search drills by topic or keyword..."
+            placeholder="Please search drills by topic or keyword..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-inset border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-cyan-500 transition-colors"
           />
         </div>
 
         {/* Difficulty Selector */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+          <Filter className="w-4 h-4 text-ink-muted shrink-0" />
           <select
             value={selectedDifficulty}
             onChange={(e) => onSelectDifficulty(e.target.value)}
-            className="w-full sm:w-auto px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 font-mono focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+            className="w-full sm:w-auto px-3 py-2 rounded-xl bg-inset border border-line text-xs text-ink font-mono focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
           >
             <option value="ALL">All Difficulties</option>
             <option value="BEGINNER">Beginner</option>
@@ -74,11 +74,11 @@ export const PracticeCategoryFilters: React.FC<PracticeCategoryFiltersProps> = (
               onClick={() => onSelectCategory(cat.id)}
               className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 shadow-md shadow-cyan-500/10'
-                  : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+                  ? 'bg-cyan-500/15 border border-cyan-500/30 text-accent-cyan shadow-md shadow-cyan-500/10'
+                  : 'bg-surface border border-line text-ink-muted hover:text-ink hover:bg-surface-2'
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-cyan-400' : 'text-slate-500'}`} />
+              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-accent-cyan' : 'text-ink-muted'}`} />
               <span>{cat.label}</span>
             </button>
           );

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { getApiUrl } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import { RecruiterHeader } from '@/components/dashboard/RecruiterHeader';
 import {
   User,
@@ -78,38 +78,10 @@ interface RecruiterProfileData {
 
 export default function RecruiterProfilePage() {
   const [profile, setProfile] = useState<RecruiterProfileData>({
-    fullName: 'Sarah Jenkins',
-    email: 'recruiter@cloudscale.com',
-    phone: '+1 (555) 382-9102',
-    designation: 'Director of Global Talent Acquisition',
-    department: 'People & Engineering Talent',
-    linkedinUrl: 'https://linkedin.com/in/sarah-jenkins-talent',
-    isOrgAdmin: true,
-    monthlyHiringQuota: 50,
-    quotaUsed: 14,
-    organization: {
-      id: 'org-cloudscale-01',
-      name: 'CloudScale Systems',
-      slug: 'cloudscale-systems',
-      tier: 'enterprise',
-      websiteUrl: 'https://cloudscale.io',
-      industry: 'Cloud Infrastructure & AI Systems',
-      companySize: '500-1000 Employees',
-      headquartersCity: 'San Francisco, CA',
-      bio: 'CloudScale Systems builds next-generation distributed AI infrastructure, high-throughput cloud execution engines, and automated screening systems.',
-      billingEmail: 'billing@cloudscale.io',
-      logoUrl: '/org-logos/cloudscale.png'
-    },
-    teamMembers: [
-      { id: 'usr-01', name: 'Sarah Jenkins', email: 'recruiter@cloudscale.com', role: 'admin', status: 'active' },
-      { id: 'usr-02', name: 'Marcus Vance', email: 'm.vance@cloudscale.com', role: 'recruiter', status: 'active' },
-      { id: 'usr-03', name: 'Elena Rostova', email: 'e.rostova@cloudscale.com', role: 'interviewer', status: 'pending' }
-    ],
-    auditLogs: [
-      { id: 'log-1', action: 'Exported Candidate Evaluation Dossier', performedBy: 'Sarah Jenkins', timestamp: '2026-09-26T14:22:00Z' },
-      { id: 'log-2', action: 'Updated System Architecture Technical Rubric', performedBy: 'Sarah Jenkins', timestamp: '2026-09-25T11:05:00Z' },
-      { id: 'log-3', action: 'Invited Elena Rostova to Workspace', performedBy: 'Sarah Jenkins', timestamp: '2026-09-24T09:15:00Z' }
-    ]
+    fullName: '', email: '', phone: '', designation: '', department: '', linkedinUrl: '',
+    isOrgAdmin: false, monthlyHiringQuota: 0, quotaUsed: 0,
+    organization: { id: '', name: '', slug: '', tier: '', websiteUrl: '', industry: '', companySize: '', headquartersCity: '', bio: '', billingEmail: '', logoUrl: '' },
+    teamMembers: [], auditLogs: []
   });
 
   const [loading, setLoading] = useState(false);
@@ -127,7 +99,7 @@ export default function RecruiterProfilePage() {
     async function fetchProfile() {
       try {
         setLoading(true);
-        const res = await fetch(getApiUrl('/api/recruiter/profile?email=recruiter@cloudscale.com'));
+        const res = await apiFetch('/api/recruiter/profile');
         if (res.ok) {
           const data = await res.json();
           setProfile((prev) => ({
@@ -137,9 +109,19 @@ export default function RecruiterProfilePage() {
             teamMembers: data.teamMembers || prev.teamMembers,
             auditLogs: data.auditLogs || prev.auditLogs
           }));
+        } else if (res.status === 401) {
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login?error=session_expired&next=' + encodeURIComponent(window.location.pathname);
+            return;
+          }
+        } else if (res.status === 403) {
+          showToast('Access restricted. Recruiter account required.', 'error');
+        } else {
+          showToast('Could not load profile from database. Please retry.', 'error');
         }
       } catch (err) {
-        console.warn('Recruiter Profile API connection warning, using default enterprise state:', err);
+        console.warn('Recruiter profile API unavailable:', err);
+        showToast('Connection to server failed. Please check backend connection.', 'error');
       } finally {
         setLoading(false);
       }
@@ -172,19 +154,28 @@ export default function RecruiterProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch(getApiUrl('/api/recruiter/profile'), {
+      const res = await apiFetch('/api/recruiter/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profile)
       });
       if (res.ok) {
         showToast('Recruiter profile and enterprise organization updated successfully!', 'success');
+        try {
+          const raw = window.localStorage.getItem('tp_user');
+          const current = raw ? JSON.parse(raw) : {};
+          window.localStorage.setItem('tp_user', JSON.stringify({
+            ...current,
+            fullName: profile.fullName,
+            companyName: profile.organization?.name,
+          }));
+        } catch {}
       } else {
         const errData = await res.json().catch(() => ({}));
         showToast(errData.error || 'Failed to save enterprise profile.', 'error');
       }
     } catch (err) {
-      showToast('Profile changes saved locally (Offline mode).', 'success');
+      showToast('Failed to save profile changes.', 'error');
     } finally {
       setSaving(false);
     }
@@ -197,7 +188,7 @@ export default function RecruiterProfilePage() {
 
     setInviting(true);
     try {
-      const res = await fetch(getApiUrl('/api/recruiter/team-invite'), {
+      const res = await apiFetch('/api/recruiter/team-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: inviteEmail, role: inviteRole })
@@ -228,7 +219,7 @@ export default function RecruiterProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-slate-950">
+    <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans selection:bg-indigo-500 selection:text-slate-950">
       {/* RECRUITER HEADER */}
       <RecruiterHeader />
 
@@ -237,14 +228,14 @@ export default function RecruiterProfilePage() {
         <div
           className={`fixed top-20 right-4 z-50 px-4 py-3 rounded-xl border shadow-xl flex items-center gap-3 text-sm font-medium transition-all animate-bounce ${
             toastMessage.type === 'success'
-              ? 'bg-slate-900/90 border-indigo-500/40 text-indigo-300 backdrop-blur-md'
-              : 'bg-slate-900/90 border-rose-500/40 text-rose-300 backdrop-blur-md'
+              ? 'bg-surface border-indigo-500/40 text-accent-indigo backdrop-blur-md'
+              : 'bg-surface border-rose-500/40 text-accent-rose backdrop-blur-md'
           }`}
         >
           {toastMessage.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-accent-indigo shrink-0" />
           ) : (
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+            <AlertCircle className="w-5 h-5 text-accent-rose shrink-0" />
           )}
           <span>{toastMessage.text}</span>
         </div>
@@ -254,7 +245,7 @@ export default function RecruiterProfilePage() {
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         {/* HERO BRANDING & ENTERPRISE ORGANIZATIONAL BANNER */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-indigo-950/50 border border-slate-800 p-6 sm:p-8 backdrop-blur-md shadow-2xl">
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-surface via-surface to-indigo-950/50 border border-line p-6 sm:p-8 backdrop-blur-md shadow-2xl">
           <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
           
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
@@ -262,11 +253,16 @@ export default function RecruiterProfilePage() {
               {/* Organization Logo / Avatar Circle */}
               <div className="relative group">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-tr from-indigo-500 via-cyan-500 to-emerald-500 p-1 shadow-lg shadow-indigo-500/20">
-                  <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center font-bold text-white text-2xl sm:text-3xl">
-                    CS
+                  <div className="w-full h-full bg-inset rounded-[14px] flex items-center justify-center font-bold text-ink text-2xl sm:text-3xl overflow-hidden">
+                    {profile.organization.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- org logo URL comes from the backend and may be hosted outside the next/image allowlist; converting would 400 at runtime.
+                      <img src={profile.organization.logoUrl} alt="Logo" className="w-full h-full object-cover rounded-[14px]" />
+                    ) : (
+                      ((profile.organization.name || profile.fullName || 'TP').trim().slice(0, 2)).toUpperCase()
+                    )}
                   </div>
                 </div>
-                <div className="absolute -bottom-1 -right-1 bg-indigo-500 text-slate-950 p-1 rounded-full border-2 border-slate-950">
+                <div className="absolute -bottom-1 -right-1 bg-indigo-500 text-slate-950 p-1 rounded-full border-2 border-surface">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
               </div>
@@ -274,25 +270,29 @@ export default function RecruiterProfilePage() {
               {/* Title & Organization Details */}
               <div>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-100">
-                    {profile.organization.name}
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+                    {profile.organization.name || 'Organization Workspace'}
                   </h1>
-                  <span className="px-3 py-1 rounded-full text-xs font-mono font-medium bg-indigo-500/10 border border-indigo-500/30 text-indigo-300">
-                    Enterprise Tier • Active Workspace
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-medium bg-indigo-500/10 border border-indigo-500/30 text-accent-indigo uppercase">
+                    {(profile.organization.tier || 'Starter')} Tier • Active Workspace
                   </span>
                 </div>
-                <p className="text-slate-400 text-sm mt-1 flex items-center gap-2 flex-wrap">
-                  <span className="text-slate-200 font-semibold">{profile.fullName}</span>
-                  <span className="text-slate-600">•</span>
-                  <span className="text-indigo-300 font-medium">{profile.designation}</span>
+                <p className="text-ink-muted text-sm mt-1 flex items-center gap-2 flex-wrap">
+                  <span className="text-ink font-semibold">{profile.fullName || 'Recruiter'}</span>
+                  <span className="text-ink-faint">•</span>
+                  <span className="text-accent-indigo font-medium">{profile.designation || 'Hiring Lead'}</span>
                 </p>
-                <p className="text-slate-400 text-xs mt-1 flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 text-slate-400">
-                    <MapPin className="w-3.5 h-3.5 text-indigo-400" />
-                    {profile.organization.headquartersCity}
-                  </span>
-                  <span className="text-slate-600">•</span>
-                  <span className="text-cyan-400 font-mono text-[11px]">
+                <p className="text-ink-muted text-xs mt-1 flex items-center gap-2 flex-wrap">
+                  {profile.organization.headquartersCity ? (
+                    <>
+                      <span className="inline-flex items-center gap-1 text-ink-muted">
+                        <MapPin className="w-3.5 h-3.5 text-accent-indigo" />
+                        {profile.organization.headquartersCity}
+                      </span>
+                      <span className="text-ink-faint">•</span>
+                    </>
+                  ) : null}
+                  <span className="text-accent-cyan font-mono text-[11px]">
                     Quota: {profile.quotaUsed} / {profile.monthlyHiringQuota} Candidates Screened
                   </span>
                 </p>
@@ -321,23 +321,23 @@ export default function RecruiterProfilePage() {
           <div className="lg:col-span-2 space-y-8">
             
             {/* CARD 1: RECRUITER IDENTITY & PROFESSIONAL CONTACT */}
-            <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-6 space-y-6 backdrop-blur-md">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div className="rounded-2xl bg-surface border border-line p-6 space-y-6 backdrop-blur-md">
+              <div className="flex items-center justify-between border-b border-line pb-4">
                 <div className="flex items-center gap-2.5">
-                  <User className="w-5 h-5 text-indigo-400" />
-                  <h2 className="text-lg font-bold text-slate-100">Recruiter Professional Identity</h2>
+                  <User className="w-5 h-5 text-accent-indigo" />
+                  <h2 className="text-lg font-bold text-ink">Recruiter Professional Identity</h2>
                 </div>
-                <span className="text-xs text-slate-400 font-mono">
-                  Fields marked with <span className="text-rose-400">*</span> are mandatory
+                <span className="text-xs text-ink-muted font-mono">
+                  Fields marked with <span className="text-accent-rose">*</span> are mandatory
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {/* Full Name */}
                 <div className="space-y-1.5">
-                  <label htmlFor="fullName" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <User className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Full Name <span className="text-rose-400">*</span></span>
+                  <label htmlFor="fullName" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <User className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Full Name <span className="text-accent-rose">*</span></span>
                   </label>
                   <input
                     id="fullName"
@@ -346,15 +346,15 @@ export default function RecruiterProfilePage() {
                     required
                     value={profile.fullName}
                     onChange={handleRecruiterInputChange}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
 
                 {/* Email Address (Readonly) */}
                 <div className="space-y-1.5">
-                  <label htmlFor="email" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <Mail className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Work Email Address <span className="text-rose-400">*</span></span>
+                  <label htmlFor="email" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <Mail className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Work Email Address <span className="text-accent-rose">*</span></span>
                   </label>
                   <div className="relative">
                     <input
@@ -363,17 +363,17 @@ export default function RecruiterProfilePage() {
                       type="email"
                       readOnly
                       value={profile.email}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 text-slate-400 text-sm cursor-not-allowed pr-10"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink-muted text-sm cursor-not-allowed pr-10"
                     />
-                    <Lock className="w-4 h-4 text-slate-600 absolute right-3 top-3" />
+                    <Lock className="w-4 h-4 text-ink-faint absolute right-3 top-3" />
                   </div>
                 </div>
 
                 {/* Phone Number */}
                 <div className="space-y-1.5">
-                  <label htmlFor="phone" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <Phone className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Phone Number <span className="text-rose-400">*</span></span>
+                  <label htmlFor="phone" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <Phone className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Phone Number <span className="text-accent-rose">*</span></span>
                   </label>
                   <input
                     id="phone"
@@ -382,15 +382,15 @@ export default function RecruiterProfilePage() {
                     required
                     value={profile.phone}
                     onChange={handleRecruiterInputChange}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
 
                 {/* Designation */}
                 <div className="space-y-1.5">
-                  <label htmlFor="designation" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <Briefcase className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Title / Designation <span className="text-rose-400">*</span></span>
+                  <label htmlFor="designation" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <Briefcase className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Title / Designation <span className="text-accent-rose">*</span></span>
                   </label>
                   <input
                     id="designation"
@@ -399,16 +399,16 @@ export default function RecruiterProfilePage() {
                     required
                     value={profile.designation}
                     onChange={handleRecruiterInputChange}
-                    placeholder="e.g. Lead Technical Recruiter"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    placeholder="Please enter your designation (e.g. Lead Technical Recruiter)"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
 
                 {/* Department */}
                 <div className="space-y-1.5">
-                  <label htmlFor="department" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <Layers className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Department <span className="text-rose-400">*</span></span>
+                  <label htmlFor="department" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <Layers className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Department <span className="text-accent-rose">*</span></span>
                   </label>
                   <input
                     id="department"
@@ -417,15 +417,15 @@ export default function RecruiterProfilePage() {
                     required
                     value={profile.department}
                     onChange={handleRecruiterInputChange}
-                    placeholder="e.g. Engineering Hiring Team"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    placeholder="Please enter your department (e.g. Engineering Hiring Team)"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
 
                 {/* LinkedIn URL */}
                 <div className="space-y-1.5">
-                  <label htmlFor="linkedinUrl" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <LinkedinIcon className="w-3.5 h-3.5 text-indigo-400" />
+                  <label htmlFor="linkedinUrl" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <LinkedinIcon className="w-3.5 h-3.5 text-accent-indigo" />
                     <span>LinkedIn Profile URL</span>
                   </label>
                   <input
@@ -434,28 +434,28 @@ export default function RecruiterProfilePage() {
                     type="url"
                     value={profile.linkedinUrl}
                     onChange={handleRecruiterInputChange}
-                    placeholder="https://linkedin.com/in/username"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    placeholder="Please enter your LinkedIn profile URL"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
               </div>
             </div>
 
             {/* CARD 2: ENTERPRISE ORGANIZATION BRANDING */}
-            <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-6 space-y-6 backdrop-blur-md">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div className="rounded-2xl bg-surface border border-line p-6 space-y-6 backdrop-blur-md">
+              <div className="flex items-center justify-between border-b border-line pb-4">
                 <div className="flex items-center gap-2.5">
-                  <Building2 className="w-5 h-5 text-indigo-400" />
-                  <h2 className="text-lg font-bold text-slate-100">Enterprise Organization Branding</h2>
+                  <Building2 className="w-5 h-5 text-accent-indigo" />
+                  <h2 className="text-lg font-bold text-ink">Enterprise Organization Branding</h2>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {/* Company Name */}
                 <div className="space-y-1.5">
-                  <label htmlFor="name" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <Building2 className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Company / Organization Name <span className="text-rose-400">*</span></span>
+                  <label htmlFor="name" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <Building2 className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Company / Organization Name <span className="text-accent-rose">*</span></span>
                   </label>
                   <input
                     id="name"
@@ -464,15 +464,15 @@ export default function RecruiterProfilePage() {
                     required
                     value={profile.organization.name}
                     onChange={handleOrgInputChange}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
 
                 {/* Corporate Website */}
                 <div className="space-y-1.5">
-                  <label htmlFor="websiteUrl" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <Globe className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Corporate Website URL <span className="text-rose-400">*</span></span>
+                  <label htmlFor="websiteUrl" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <Globe className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Corporate Website URL <span className="text-accent-rose">*</span></span>
                   </label>
                   <input
                     id="websiteUrl"
@@ -481,15 +481,15 @@ export default function RecruiterProfilePage() {
                     required
                     value={profile.organization.websiteUrl}
                     onChange={handleOrgInputChange}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
 
                 {/* Industry Sector */}
                 <div className="space-y-1.5">
-                  <label htmlFor="industry" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <Briefcase className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Industry Sector <span className="text-rose-400">*</span></span>
+                  <label htmlFor="industry" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <Briefcase className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Industry Sector <span className="text-accent-rose">*</span></span>
                   </label>
                   <input
                     id="industry"
@@ -498,15 +498,15 @@ export default function RecruiterProfilePage() {
                     required
                     value={profile.organization.industry}
                     onChange={handleOrgInputChange}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
 
                 {/* Company Size */}
                 <div className="space-y-1.5">
-                  <label htmlFor="companySize" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <Users className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Company Size <span className="text-rose-400">*</span></span>
+                  <label htmlFor="companySize" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <Users className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Company Size <span className="text-accent-rose">*</span></span>
                   </label>
                   <input
                     id="companySize"
@@ -515,15 +515,15 @@ export default function RecruiterProfilePage() {
                     required
                     value={profile.organization.companySize}
                     onChange={handleOrgInputChange}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
 
                 {/* Headquarters City */}
                 <div className="space-y-1.5">
-                  <label htmlFor="headquartersCity" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <MapPin className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Headquarters City <span className="text-rose-400">*</span></span>
+                  <label htmlFor="headquartersCity" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <MapPin className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Headquarters City <span className="text-accent-rose">*</span></span>
                   </label>
                   <input
                     id="headquartersCity"
@@ -532,15 +532,15 @@ export default function RecruiterProfilePage() {
                     required
                     value={profile.organization.headquartersCity}
                     onChange={handleOrgInputChange}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
 
                 {/* Billing Email */}
                 <div className="space-y-1.5">
-                  <label htmlFor="billingEmail" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Billing & Invoicing Email <span className="text-rose-400">*</span></span>
+                  <label htmlFor="billingEmail" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <CreditCard className="w-3.5 h-3.5 text-accent-indigo" />
+                    <span>Billing & Invoicing Email <span className="text-accent-rose">*</span></span>
                   </label>
                   <input
                     id="billingEmail"
@@ -549,14 +549,14 @@ export default function RecruiterProfilePage() {
                     required
                     value={profile.organization.billingEmail}
                     onChange={handleOrgInputChange}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                 </div>
 
                 {/* Enterprise Overview Bio */}
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label htmlFor="bio" className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+                  <label htmlFor="bio" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                    <Building2 className="w-3.5 h-3.5 text-accent-indigo" />
                     <span>Company Overview & Candidate Information</span>
                   </label>
                   <textarea
@@ -565,20 +565,20 @@ export default function RecruiterProfilePage() {
                     rows={3}
                     value={profile.organization.bio}
                     onChange={handleOrgInputChange}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors resize-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors resize-none"
                   />
                 </div>
               </div>
             </div>
 
             {/* CARD 3: HIRING TEAM & RBAC SEAT MANAGEMENT */}
-            <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-6 space-y-6 backdrop-blur-md">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div className="rounded-2xl bg-surface border border-line p-6 space-y-6 backdrop-blur-md">
+              <div className="flex items-center justify-between border-b border-line pb-4">
                 <div className="flex items-center gap-2.5">
-                  <Users className="w-5 h-5 text-indigo-400" />
+                  <Users className="w-5 h-5 text-accent-indigo" />
                   <div>
-                    <h2 className="text-lg font-bold text-slate-100">Team Seats & Access Control (RBAC)</h2>
-                    <p className="text-xs text-slate-400">Manage hiring managers, recruiters, and panel interviewers.</p>
+                    <h2 className="text-lg font-bold text-ink">Team Seats & Access Control (RBAC)</h2>
+                    <p className="text-xs text-ink-muted">Manage hiring managers, recruiters, and panel interviewers.</p>
                   </div>
                 </div>
                 <button
@@ -596,26 +596,26 @@ export default function RecruiterProfilePage() {
                 {profile.teamMembers.map((member) => (
                   <div
                     key={member.id}
-                    className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between"
+                    className="p-4 rounded-xl bg-inset border border-line flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-500 flex items-center justify-center font-bold text-white text-xs">
                         {member.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-slate-200">{member.name}</p>
-                        <p className="text-xs text-slate-400 font-mono">{member.email}</p>
+                        <p className="text-sm font-semibold text-ink">{member.name}</p>
+                        <p className="text-xs text-ink-muted font-mono">{member.email}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="capitalize text-xs font-mono px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-indigo-300">
+                      <span className="capitalize text-xs font-mono px-2.5 py-1 rounded-lg bg-surface border border-line text-accent-indigo">
                         {member.role}
                       </span>
                       <span className={`text-[11px] font-mono px-2 py-0.5 rounded-md ${
                         member.status === 'active'
-                          ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
-                          : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                          ? 'text-accent-emerald bg-emerald-500/10 border border-emerald-500/20'
+                          : 'text-accent-amber bg-amber-500/10 border border-amber-500/20'
                       }`}>
                         {member.status === 'active' ? '✓ Active' : '⌛ Pending Invite'}
                       </span>
@@ -631,55 +631,55 @@ export default function RecruiterProfilePage() {
           <div className="space-y-8">
 
             {/* SCREENING QUOTA & SUBSCRIPTION CARD */}
-            <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-6 space-y-5 backdrop-blur-md">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div className="rounded-2xl bg-surface border border-line p-6 space-y-5 backdrop-blur-md">
+              <div className="flex items-center justify-between border-b border-line pb-4">
                 <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-5 h-5 text-indigo-400" />
-                  <h2 className="text-lg font-bold text-slate-100">AI Screening Quotas</h2>
+                  <Sparkles className="w-5 h-5 text-accent-indigo" />
+                  <h2 className="text-lg font-bold text-ink">AI Screening Quotas</h2>
                 </div>
-                <span className="text-xs text-indigo-400 font-mono font-bold">Enterprise Plan</span>
+                <span className="text-xs text-accent-indigo font-mono font-bold">Enterprise Plan</span>
               </div>
 
-              <div className="space-y-3 p-4 rounded-xl bg-slate-950 border border-slate-800">
+              <div className="space-y-3 p-4 rounded-xl bg-inset border border-line">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-300">Monthly AI Candidate Screenings</span>
-                  <span className="font-mono text-cyan-400 font-bold">
+                  <span className="text-ink">Monthly AI Candidate Screenings</span>
+                  <span className="font-mono text-accent-cyan font-bold">
                     {profile.quotaUsed} / {profile.monthlyHiringQuota} Used
                   </span>
                 </div>
-                <div className="w-full h-3 rounded-full bg-slate-900 border border-slate-800 overflow-hidden p-0.5">
+                <div className="w-full h-3 rounded-full bg-surface border border-line overflow-hidden p-0.5">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 transition-all duration-300"
-                    style={{ width: `${(profile.quotaUsed / profile.monthlyHiringQuota) * 100}%` }}
+                    style={{ width: `${profile.monthlyHiringQuota > 0 ? Math.min(100, (profile.quotaUsed / profile.monthlyHiringQuota) * 100) : 0}%` }}
                   ></div>
                 </div>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-ink-muted">
                   Quota resets automatically on the 1st of every month. Unlimited manual technical reviews included.
                 </p>
               </div>
 
               <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30 space-y-2">
-                <p className="text-xs font-semibold text-indigo-300">Enterprise Dedicated Support</p>
-                <p className="text-[11px] text-slate-300">
-                  Priority recruiter support line and tailored AI prompt rubrics active for CloudScale Systems.
+                <p className="text-xs font-semibold text-accent-indigo">Enterprise Dedicated Support</p>
+                <p className="text-[11px] text-ink">
+                  Priority recruiter support and tailored AI prompt rubrics for {profile.organization.name || 'your organization'}.
                 </p>
               </div>
             </div>
 
             {/* AUDIT LOG & SECURITY TRAIL CARD */}
-            <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-6 space-y-5 backdrop-blur-md">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div className="rounded-2xl bg-surface border border-line p-6 space-y-5 backdrop-blur-md">
+              <div className="flex items-center justify-between border-b border-line pb-4">
                 <div className="flex items-center gap-2.5">
-                  <Activity className="w-5 h-5 text-indigo-400" />
-                  <h2 className="text-lg font-bold text-slate-100">Audit & Security Stream</h2>
+                  <Activity className="w-5 h-5 text-accent-indigo" />
+                  <h2 className="text-lg font-bold text-ink">Audit & Security Stream</h2>
                 </div>
               </div>
 
               <div className="space-y-3">
                 {profile.auditLogs.map((log) => (
-                  <div key={log.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                    <p className="text-xs font-medium text-slate-200">{log.action}</p>
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                  <div key={log.id} className="p-3 rounded-xl bg-inset border border-line space-y-1">
+                    <p className="text-xs font-medium text-ink">{log.action}</p>
+                    <div className="flex items-center justify-between text-[11px] text-ink-muted font-mono">
                       <span>{log.performedBy}</span>
                       <span>{new Date(log.timestamp).toLocaleDateString()}</span>
                     </div>
@@ -694,17 +694,17 @@ export default function RecruiterProfilePage() {
 
         {/* TEAM INVITE MODAL */}
         {showInviteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-            <div className="w-full max-w-md p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-5 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-sm animate-fadeIn">
+            <div className="w-full max-w-md p-6 rounded-2xl bg-surface border border-line space-y-5 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-line pb-3">
                 <div className="flex items-center gap-2">
-                  <UserPlus className="w-5 h-5 text-indigo-400" />
-                  <h3 className="text-base font-bold text-slate-100">Invite Team Member</h3>
+                  <UserPlus className="w-5 h-5 text-accent-indigo" />
+                  <h3 className="text-base font-bold text-ink">Invite Team Member</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowInviteModal(false)}
-                  className="text-slate-400 hover:text-slate-200 cursor-pointer"
+                  className="text-ink-muted hover:text-ink cursor-pointer"
                 >
                   ✕
                 </button>
@@ -712,27 +712,27 @@ export default function RecruiterProfilePage() {
 
               <form onSubmit={handleSendInvite} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-slate-300">
-                    Work Email Address <span className="text-rose-400">*</span>
+                  <label className="text-xs font-medium text-ink">
+                    Work Email Address <span className="text-accent-rose">*</span>
                   </label>
                   <input
                     type="email"
                     required
-                    placeholder="colleague@cloudscale.io"
+                    placeholder="Please enter colleague's work email address"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-slate-300">
-                    Workspace Access Role <span className="text-rose-400">*</span>
+                  <label className="text-xs font-medium text-ink">
+                    Workspace Access Role <span className="text-accent-rose">*</span>
                   </label>
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value as any)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-indigo-500"
                   >
                     <option value="recruiter">Recruiter (Full Candidate & Dossier Access)</option>
                     <option value="interviewer">Interviewer (Evaluation & Rubrics Only)</option>
@@ -744,7 +744,7 @@ export default function RecruiterProfilePage() {
                   <button
                     type="button"
                     onClick={() => setShowInviteModal(false)}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium"
+                    className="flex-1 py-2.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink text-xs font-medium"
                   >
                     Cancel
                   </button>

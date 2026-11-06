@@ -1,0 +1,102 @@
+pipeline {
+    agent {
+        label 'converiqo3'
+    }
+
+    environment {
+        PROJECT_NAME = 'vivekanand-interviewer-enterprise-project'
+        APP_NAME = 'vivekanand-interviewer-enterprise-frontend'
+        DEPLOY_URL = 'https://api-atlas.progeni.live'
+        ENV_SOURCE = '/var/www/project/trainees/backend/vivekanand-interviewer-enterprise-project/.env'
+    }
+
+    stages {
+
+        stage("Load Environment File") {
+            steps {
+                sh '''
+                    set -eu
+
+                    echo "Copying environment file..."
+
+                    if [ ! -r "$ENV_SOURCE" ]; then
+                        echo "ERROR: Environment file missing or not readable: $ENV_SOURCE"
+                        exit 1
+                    fi
+
+                    cp "$ENV_SOURCE" "$WORKSPACE/.env"
+                    chmod 600 "$WORKSPACE/.env"
+
+                    echo "Environment file copied successfully."
+                '''
+            }
+        }
+
+        stage("Deploy with Docker Compose") {
+            steps {
+                sh '''
+                    set -eu
+
+                    echo "Deploying project using Docker Compose..."
+
+                    cd "$WORKSPACE"
+
+                    if [ ! -f docker-compose.yml ] &&
+                       [ ! -f docker-compose.yaml ] &&
+                       [ ! -f compose.yml ] &&
+                       [ ! -f compose.yaml ]; then
+                        echo "ERROR: Docker Compose configuration not found."
+                        exit 1
+                    fi
+
+                    sudo docker compose up -d --build
+
+                    echo "Docker Compose deployment completed successfully."
+                '''
+            }
+        }
+
+        stage("Verify Deployment") {
+            steps {
+                sh '''
+                    set -eu
+
+                    cd "$WORKSPACE"
+
+                    echo "Checking Docker Compose services..."
+
+                    sudo docker compose ps
+
+                    echo "Deployment URL: $DEPLOY_URL"
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                env.BUILD_STATUS = currentBuild.currentResult
+
+                emailext(
+                    to: 'team-it@mobiloitte.com',
+                    subject: "PROJECT BUILD STATUS: ${env.PROJECT_NAME} #${env.BUILD_NUMBER}",
+                    body: """<html>
+                        <body>
+                            <p><b>Build has been ${env.BUILD_STATUS}</b></p>
+                            <ul>
+                                <li><strong>Project:</strong> ${env.PROJECT_NAME}</li>
+                                <li><strong>Status:</strong> ${env.BUILD_STATUS}</li>
+                                <li><strong>Build Number:</strong> ${env.BUILD_NUMBER}</li>
+                                <li><strong>Build URL:</strong> ${env.BUILD_URL}</li>
+                                <li><strong>Deployment URL:</strong> ${env.DEPLOY_URL}</li>
+                            </ul>
+                        </body>
+                    </html>""",
+                    mimeType: 'text/html',
+                    attachLog: true
+                )
+            }
+        }
+    }
+}

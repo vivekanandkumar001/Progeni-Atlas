@@ -8,7 +8,7 @@ export const RegisterValidationSchema = z.object({
   fullName: z
     .string()
     .trim()
-    .min(1, "Full Name is required")
+    .min(1, "Please enter your full name")
     .min(2, "Name must be at least 2 characters")
     .max(64, "Name cannot exceed 64 characters")
     .regex(nameRegex, "Each word must begin with a capital letter (e.g., John Doe)"),
@@ -16,7 +16,7 @@ export const RegisterValidationSchema = z.object({
   email: z
     .string()
     .trim()
-    .min(1, "Email Address is required")
+    .min(1, "Please enter your email address")
     .email("Please enter a valid email address")
     .toLowerCase(),
 
@@ -38,12 +38,12 @@ export const RegisterValidationSchema = z.object({
   phone: z
     .string()
     .trim()
-    .min(1, "Phone number is required")
+    .min(1, "Please enter your phone number")
     .regex(phoneRegex, "Please enter a valid 10-digit mobile number"),
 
   password: z
     .string()
-    .min(1, "Password is required")
+    .min(1, "Please enter your password")
     .min(8, "Password must be at least 8 characters")
     .max(32, "Password cannot exceed 32 characters")
     .regex(
@@ -63,13 +63,12 @@ export const RegisterValidationSchema = z.object({
         [
           "application/pdf",
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "application/msword",
         ].includes(file.type),
       "Only PDF and DOCX files are supported"
     ),
 
-  agreeTerms: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the terms and conditions to proceed" }),
+  agreeTerms: z.boolean().refine((val) => val === true, {
+    message: "You must accept the terms and conditions to proceed",
   }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
@@ -82,7 +81,7 @@ export const RecruiterRegisterSchema = z.object({
   fullName: z
     .string()
     .trim()
-    .min(1, "Full Name is required")
+    .min(1, "Please enter your full name")
     .min(2, "Full Name must be at least 2 characters")
     .max(64, "Full Name cannot exceed 64 characters")
     .regex(nameRegex, "Each word must begin with a capital letter"),
@@ -90,19 +89,19 @@ export const RecruiterRegisterSchema = z.object({
   workEmail: z
     .string()
     .trim()
-    .min(1, "Work Email Address is required")
+    .min(1, "Please enter your work email address")
     .email("Please enter a valid corporate email address")
     .toLowerCase(),
 
   companyName: z
     .string()
     .trim()
-    .min(2, "Company name is required"),
+    .min(2, "Please enter your company name"),
 
   designation: z
     .string()
     .trim()
-    .min(2, "Job title is required"),
+    .min(2, "Please enter your job title"),
 
   teamSize: z
     .string()
@@ -111,12 +110,12 @@ export const RecruiterRegisterSchema = z.object({
   phone: z
     .string()
     .trim()
-    .min(1, "Phone number is required")
+    .min(1, "Please enter your phone number")
     .regex(phoneRegex, "Please enter a valid 10-digit phone number"),
 
   password: z
     .string()
-    .min(1, "Password is required")
+    .min(1, "Please enter your password")
     .min(8, "Password must be at least 8 characters")
     .max(32, "Password cannot exceed 32 characters")
     .regex(passwordRegex, "Password must include uppercase, lowercase, number, and special character"),
@@ -125,8 +124,8 @@ export const RecruiterRegisterSchema = z.object({
     .string()
     .min(1, "Please confirm your password"),
 
-  agreeTerms: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the enterprise terms to proceed" }),
+  agreeTerms: z.boolean().refine((val) => val === true, {
+    message: "You must accept the enterprise terms to proceed",
   }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",

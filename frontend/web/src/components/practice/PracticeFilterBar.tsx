@@ -45,19 +45,19 @@ export const PracticeFilterBar: React.FC<PracticeFilterBarProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Search Bar */}
         <div className="relative w-full md:w-96">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-4 h-4 text-ink-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search drills by topic (e.g., B-Trees, Raft consensus, Saga Pattern)..."
+            placeholder="Please search drills by topic (e.g., B-Trees, Raft consensus, Saga Pattern)..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-inset border border-line text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-cyan-500 transition-colors"
           />
         </div>
 
         {/* Difficulty Segmented Pill & Active Count */}
         <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto">
-          <div className="inline-flex p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono">
+          <div className="inline-flex p-1 rounded-xl bg-inset border border-line text-xs font-mono">
             {difficulties.map((diff) => (
               <button
                 key={diff.id}
@@ -65,8 +65,8 @@ export const PracticeFilterBar: React.FC<PracticeFilterBarProps> = ({
                 onClick={() => onSelectDifficulty(diff.id)}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                   selectedDifficulty === diff.id
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-cyan-500/20 text-accent-cyan border border-cyan-500/30'
+                    : 'text-ink-muted hover:text-ink'
                 }`}
               >
                 {diff.label}
@@ -74,7 +74,7 @@ export const PracticeFilterBar: React.FC<PracticeFilterBarProps> = ({
             ))}
           </div>
 
-          <span className="text-caption font-mono text-cyan-400 text-xs shrink-0">
+          <span className="text-caption font-mono text-accent-cyan text-xs shrink-0">
             Showing {totalFilteredCount} active practice drills
           </span>
         </div>
@@ -91,8 +91,8 @@ export const PracticeFilterBar: React.FC<PracticeFilterBarProps> = ({
               onClick={() => onSelectCategory(domain.id)}
               className={`px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 shadow-md shadow-cyan-500/10'
-                  : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+                  ? 'bg-cyan-500/15 border border-cyan-500/30 text-accent-cyan shadow-md shadow-cyan-500/10'
+                  : 'bg-surface border border-line text-ink-muted hover:text-ink hover:bg-surface-2'
               }`}
             >
               {domain.label}

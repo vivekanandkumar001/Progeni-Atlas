@@ -16,7 +16,7 @@ export const ArchitectureWhiteboard: React.FC = () => {
     { id: 'node-1', type: 'balancer', label: 'Nginx Load Balancer', x: 60, y: 120 },
     { id: 'node-2', type: 'service', label: 'API Gateway Service', x: 260, y: 120 },
     { id: 'node-3', type: 'cache', label: 'Redis Rate Limiter Cluster', x: 480, y: 60 },
-    { id: 'node-4', type: 'database', label: 'PostgreSQL Core DB', x: 480, y: 180 }
+    { id: 'node-4', type: 'database', label: 'MongoDB Core DB', x: 480, y: 180 }
   ]);
 
   const [selectedNodeType, setSelectedNodeType] = useState<'service' | 'database' | 'cache' | 'balancer' | 'queue'>('service');
@@ -24,7 +24,7 @@ export const ArchitectureWhiteboard: React.FC = () => {
   const addNode = () => {
     const labels: Record<string, string> = {
       service: 'Microservice Node',
-      database: 'PostgreSQL / MongoDB',
+      database: 'MongoDB Database',
       cache: 'Redis Cache Cluster',
       balancer: 'Load Balancer',
       queue: 'Kafka Message Queue'
@@ -45,36 +45,36 @@ export const ArchitectureWhiteboard: React.FC = () => {
 
   const getNodeIcon = (type: string) => {
     switch (type) {
-      case 'database': return <Database className="w-4 h-4 text-cyan-400" />;
-      case 'cache': return <HardDrive className="w-4 h-4 text-amber-400" />;
-      case 'balancer': return <Cpu className="w-4 h-4 text-indigo-400" />;
+      case 'database': return <Database className="w-4 h-4 text-accent-cyan" />;
+      case 'cache': return <HardDrive className="w-4 h-4 text-accent-amber" />;
+      case 'balancer': return <Cpu className="w-4 h-4 text-accent-indigo" />;
       case 'queue': return <Layers className="w-4 h-4 text-purple-400" />;
-      default: return <Server className="w-4 h-4 text-emerald-400" />;
+      default: return <Server className="w-4 h-4 text-accent-emerald" />;
     }
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+    <div className="w-full h-full flex flex-col bg-inset rounded-2xl border border-line overflow-hidden shadow-2xl">
       
       {/* WHITEBOARD TOOLBAR */}
-      <div className="p-3 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+      <div className="p-3 bg-surface border-b border-line flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-slate-400">Add Architecture Node:</span>
+          <span className="text-xs font-mono text-ink-muted">Add Architecture Node:</span>
           <select
             value={selectedNodeType}
             onChange={(e) => setSelectedNodeType(e.target.value as any)}
-            className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs font-mono cursor-pointer"
+            className="px-2.5 py-1 rounded-lg bg-inset border border-line text-ink text-xs font-mono cursor-pointer"
           >
             <option value="service">Microservice</option>
             <option value="balancer">Load Balancer</option>
             <option value="cache">Redis Cache</option>
-            <option value="database">PostgreSQL / Mongo DB</option>
+            <option value="database">MongoDB Database</option>
             <option value="queue">Kafka Queue</option>
           </select>
           <button
             type="button"
             onClick={addNode}
-            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-medium hover:bg-cyan-500/20 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-accent-cyan text-xs font-medium hover:bg-cyan-500/20 transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Node</span>
@@ -84,7 +84,7 @@ export const ArchitectureWhiteboard: React.FC = () => {
         <button
           type="button"
           onClick={clearNodes}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-rose-400 text-xs font-medium hover:bg-rose-500/10 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-inset border border-line text-accent-rose text-xs font-medium hover:bg-rose-500/10 transition-colors cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />
           <span>Clear Canvas</span>
@@ -119,18 +119,18 @@ export const ArchitectureWhiteboard: React.FC = () => {
           <div
             key={node.id}
             style={{ left: `${node.x}px`, top: `${node.y}px` }}
-            className="absolute p-3 rounded-xl bg-slate-900/90 border border-slate-700 shadow-xl backdrop-blur-md flex items-center gap-2.5 cursor-grab hover:border-cyan-400 transition-all group"
+            className="absolute p-3 rounded-xl bg-surface border border-line-strong shadow-xl backdrop-blur-md flex items-center gap-2.5 cursor-grab hover:border-cyan-400 transition-all group"
           >
             {getNodeIcon(node.type)}
             <div>
-              <p className="text-xs font-semibold text-slate-100">{node.label}</p>
-              <p className="text-[10px] font-mono text-slate-400 capitalize">{node.type} node</p>
+              <p className="text-xs font-semibold text-ink">{node.label}</p>
+              <p className="text-[10px] font-mono text-ink-muted capitalize">{node.type} node</p>
             </div>
           </div>
         ))}
 
         {nodes.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-2">
+          <div className="h-full flex flex-col items-center justify-center text-ink-faint space-y-2">
             <Move className="w-8 h-8 animate-pulse" />
             <p className="text-xs font-mono">Whiteboard Canvas Empty. Click &quot;Add Node&quot; above to draw system architecture.</p>
           </div>

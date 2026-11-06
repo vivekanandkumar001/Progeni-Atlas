@@ -1,72 +1,173 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Design tokens
+   Light is the only theme. Every token below is the value that was
+   hardcoded in the markup, so the light rendering is pixel-identical to the
+   previous light theme.
+--------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --canvas: #eef2f7;
+  --surface: #ffffff;
+  --surface-deep: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #e2e8f0;
+  --inset: #f8fafc;
+
+  /* Lines */
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+
+  /* Text - WCAG AA compliant 4.5:1 contrast ratio against light & dark surface cards */
+  --ink: #0f172a;
+  --ink-2: #1e293b;
+  --ink-muted: #334155;
+  --ink-faint: #64748b;
+
+  /* Accents (light end of each ramp) */
+  --accent-cyan: #0e7490;
+  --accent-indigo: #4338ca;
+  --accent-emerald: #047857;
+  --accent-rose: #be123c;
+  --accent-amber: #b45309;
+  --accent-violet: #6d28d9;
+
+  /* Translucent chrome */
+  --header: rgba(255, 255, 255, 0.92);
+  --grid-line: rgba(15, 23, 42, 0.04);
+  --glass-from: rgba(255, 255, 255, 0.90);
+  --glass-to: rgba(248, 250, 252, 0.95);
+  --glass-border: rgba(15, 23, 42, 0.12);
+  --glow-cyan: rgba(8, 145, 178, 0.04);
+  --glow-indigo: rgba(79, 70, 229, 0.04);
+
+  /* Theme-invariant: stays dark in both themes so modal backdrops keep
+     separating the dialog from whatever is behind it */
+  --scrim: rgba(2, 6, 23, 0.82);
+
+  /* Brand gradient + its label colour, identical in both themes */
+  --brand-from: #06b6d4;
+  --brand-to: #6366f1;
+  --on-brand: #ffffff;
+
+  /* Subtle glow */
+  --brand-glow: rgba(8, 145, 178, 0.20);
+}
+
+/* Expose the tokens as Tailwind utilities (bg-surface, text-ink, border-line...).
+   `inline` keeps the var() reference live so token changes apply instantly. */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-deep: var(--surface-deep);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-inset: var(--inset);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-indigo: var(--accent-indigo);
+  --color-accent-emerald: var(--accent-emerald);
+  --color-accent-rose: var(--accent-rose);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-violet: var(--accent-violet);
+
+  --color-header: var(--header);
+  --color-scrim: var(--scrim);
+
+  --color-brand-from: var(--brand-from);
+  --color-brand-to: var(--brand-to);
+  --color-on-brand: var(--on-brand);
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
   }
 
-  :root {
-    --background: #020617;
-    --foreground: #f8fafc;
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    overflow-x: clip;
   }
 
-  body {
-    background-color: #020617;
-    color: #f8fafc;
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    overflow-x: hidden;
+  /* Accessible focus indicators for keyboard navigation */
+  *:focus-visible {
+    outline: 2px solid var(--accent-cyan) !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Keep scrollbars and native controls in step with the active theme */
+  * {
+    scrollbar-color: var(--line-strong) transparent;
+  }
+
+  ::selection {
+    background-color: var(--accent-indigo);
+    color: var(--on-brand);
   }
 }
 
 /* Custom background grid & ambient lighting */
 .bg-grid-pattern {
   background-size: 36px 36px;
-  background-image: 
-    linear-gradient(to right, rgba(30, 41, 59, 0.4) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(30, 41, 59, 0.4) 1px, transparent 1px);
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
 }
 
 .ambient-glow-cyan {
-  background: radial-gradient(circle at 20% 15%, rgba(34, 211, 238, 0.18) 0%, transparent 50%);
+  background: radial-gradient(circle at 20% 15%, var(--glow-cyan) 0%, transparent 50%);
 }
 
 .ambient-glow-indigo {
-  background: radial-gradient(circle at 80% 40%, rgba(99, 102, 241, 0.16) 0%, transparent 50%);
+  background: radial-gradient(circle at 80% 40%, var(--glow-indigo) 0%, transparent 50%);
 }
 
 /* Glassmorphism Card Style */
 .glass-card {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);
+  background: linear-gradient(135deg, var(--glass-from) 0%, var(--glass-to) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(51, 65, 85, 0.7);
+  border: 1px solid var(--glass-border);
 }
 
 /* Primary Button Gradient */
 .btn-primary-gradient {
-  background: linear-gradient(to right, #06b6d4, #6366f1);
+  background: linear-gradient(to right, var(--brand-from), var(--brand-to));
   transition: all 0.3s ease;
 }
 
 .btn-primary-gradient:hover {
-  box-shadow: 0 0 24px rgba(6, 182, 212, 0.45);
+  box-shadow: 0 0 24px var(--brand-glow);
   filter: brightness(1.1);
 }
 
 /* Pulse animation for glowing cyan dot */
 @keyframes cyanPulse {
   0%, 100% {
-    box-shadow: 0 0 12px 2px rgba(6, 182, 212, 0.8);
+    box-shadow: 0 0 12px 2px var(--brand-from);
   }
   50% {
-    box-shadow: 0 0 20px 6px rgba(6, 182, 212, 1);
+    box-shadow: 0 0 20px 6px var(--brand-from);
   }
 }
 
 .cyan-pulse-dot {
   width: 14px;
   height: 14px;
-  background-color: #06b6d4;
+  background-color: var(--brand-from);
   border-radius: 50%;
   animation: cyanPulse 2s infinite ease-in-out;
 }
@@ -76,19 +177,24 @@
   font-size: 1.5rem; /* 24px */
   line-height: 2rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--ink);
 }
 
 .text-body {
   font-size: 0.875rem; /* 14px */
   line-height: 1.25rem;
   font-weight: 400;
-  color: #94a3b8;
+  color: var(--ink-muted);
 }
 
 .text-caption {
   font-size: 0.75rem; /* 12px */
   line-height: 1rem;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
-  color: #38bdf8;
+  color: var(--accent-cyan);
+}
+
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
 }

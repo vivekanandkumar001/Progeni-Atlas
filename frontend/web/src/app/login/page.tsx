@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { getApiUrl } from '@/lib/api';
+import { apiFetch, persistSession, clearSession } from '@/lib/api';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
@@ -12,380 +13,524 @@ import {
   EyeOff,
   ArrowRight,
   ShieldCheck,
-  Zap,
-  User,
-  Building2,
   Loader2,
+  Mail,
+  Lock,
+  AlertCircle,
+  Info,
+  Building2,
+  UserPlus,
 } from 'lucide-react';
 import { LoginValidationSchema, LoginFormData } from '@/lib/validations/login';
+import { Navbar } from '@/components/Navbar';
+import { AuthCard, buttonClass, inputClass } from '@/components/ui';
 
-// Reusable Form Label Component with Mandatory Red Asterisk (*) & Inline Icon
 interface FormLabelProps {
   label: string;
   required?: boolean;
   icon?: React.ReactNode;
+  htmlFor?: string;
 }
 
-export const FormLabel = ({ label, required = true, icon }: FormLabelProps) => (
-  <label className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-300 mb-1.5">
-    {icon && <span className="text-cyan-400 shrink-0">{icon}</span>}
+export const FormLabel = ({ label, required = true, icon, htmlFor }: FormLabelProps) => (
+  <label
+    htmlFor={htmlFor}
+    className="inline-flex items-center gap-1.5 text-sm font-medium text-ink mb-1.5"
+  >
+    {icon && <span className="text-accent-cyan shrink-0">{icon}</span>}
     <span>{label}</span>
-    {required && <span className="text-rose-500 font-bold">*</span>}
+    {required && (
+      <span className="text-accent-rose font-bold" aria-hidden="true">
+        *
+      </span>
+    )}
   </label>
 );
+
+const TRUST_BADGES = [
+  {
+    icon: ShieldCheck,
+    color: 'text-accent-cyan',
+    title: 'Server-Enforced RBAC',
+    desc: 'Role-based access control is enforced on the server, not just the browser.',
+  },
+  {
+    icon: Lock,
+    color: 'text-accent-indigo',
+    title: 'Encrypted Sessions',
+    desc: 'Passwords hashed with bcrypt and sessions secured with HttpOnly cookies.',
+  },
+  {
+    icon: Building2,
+    color: 'text-accent-emerald',
+    title: 'Org-Scoped Data',
+    desc: 'Organization-scoped data isolation for recruiter and admin workflows.',
+  },
+];
+
+function normalizeRole(rawRole: unknown): 'candidate' | 'recruiter' | 'super_admin' {
+  const role = String(rawRole || '').trim().toLowerCase();
+  if (role === 'super_admin') return 'super_admin';
+  if (role === 'admin' || role === 'hr' || role === 'recruiter') return 'recruiter';
+  return 'candidate';
+}
+
+function isSafeNext(path: string | null, role: 'candidate' | 'recruiter' | 'super_admin'): boolean {
+  if (!path || typeof path !== 'string') return false;
+  const p = path.trim();
+  if (!p.startsWith('/') || p.startsWith('//')) return false;
+  // Prevent protocol-relative / absolute URLs or path traversal.
+  if (/^[a-z]+:/i.test(p) || p.includes('..') || p.includes('\\')) return false;
+  if (role === 'candidate') return p.startsWith('/candidate');
+  if (role === 'recruiter') return p.startsWith('/recruiter');
+  return p.startsWith('/super-admin') || p.startsWith('/admin');
+}
+
+function roleHome(role: 'candidate' | 'recruiter' | 'super_admin'): string {
+  if (role === 'super_admin') return '/super-admin';
+  if (role === 'recruiter') return '/recruiter/dashboard';
+  return '/candidate/dashboard';
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginErrorMsg, setLoginErrorMsg] = useState<string>('');
+  const [networkError, setNetworkError] = useState<string>('');
+  const [redirectNotice, setRedirectNotice] = useState<string | null>(null);
+  const [nextPath, setNextPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Purge any accidental credential query parameters from URL search bar immediately
+    const urlParams = new URLSearchParams(window.location.search);
+    if (
+      urlParams.has('password') ||
+      urlParams.has('email') ||
+      urlParams.has('pass') ||
+      urlParams.has('pwd')
+    ) {
+      urlParams.delete('password');
+      urlParams.delete('email');
+      urlParams.delete('pass');
+      urlParams.delete('pwd');
+      const cleanSearch = urlParams.toString();
+      const cleanUrl = window.location.pathname + (cleanSearch ? `?${cleanSearch}` : '');
+      window.history.replaceState(null, '', cleanUrl);
+    }
+
+    // Check URL params for redirect
+    const nextParam =
+      urlParams.get('next') ||
+      urlParams.get('redirect') ||
+      urlParams.get('returnUrl') ||
+      urlParams.get('return_url');
+    if (nextParam || urlParams.has('logout')) {
+      clearSession();
+      if (nextParam) {
+        setNextPath(nextParam);
+        if (nextParam.includes('/candidate/interview/')) {
+          setRedirectNotice('Please sign in to access your interview session.');
+        } else {
+          setRedirectNotice('Please sign in to continue.');
+        }
+      }
+    } else {
+      // Option 1: If user is already authenticated and visits /login, redirect directly to dashboard
+      try {
+        const stored = localStorage.getItem('tp_user');
+        if (stored) {
+          const u = JSON.parse(stored);
+          if (u && (u.id || u.email)) {
+            const normalizedRole = normalizeRole(u.role || '');
+            router.replace(roleHome(normalizedRole));
+            return;
+          }
+        }
+      } catch {}
+    }
+  }, [router]);
 
   const {
     register,
     handleSubmit,
-    setValue,
-    watch,
     formState: { errors, isSubmitted },
   } = useForm<LoginFormData>({
     resolver: zodResolver(LoginValidationSchema),
-    mode: 'onSubmit',
-    reValidateMode: 'onChange',
+    mode: 'onBlur',
     defaultValues: {
-      role: 'candidate',
       email: '',
       password: '',
-      rememberMe: false,
     },
   });
-
-  const values = watch();
-  const activeRole = values.role || 'candidate';
-  const watchedEmail = values.email || '';
-  const watchedPassword = values.password || '';
-
-  // Form is filled when email and password are non-empty
-  const isFormFilled = Boolean(watchedEmail.trim() && watchedPassword);
-
-  const handleRoleToggle = (newRole: 'candidate' | 'recruiter') => {
-    setValue('role', newRole);
-  };
-
-  const handleAutoFillCandidate = () => {
-    setValue('role', 'candidate');
-    setValue('email', 'candidate.demo@talentpulse.ai');
-    setValue('password', 'DemoPass123!');
-  };
-
-  const handleAutoFillRecruiter = () => {
-    setValue('role', 'recruiter');
-    setValue('email', 'recruiter.lead@techcorp.io');
-    setValue('password', 'RecruiterPass123!');
-  };
-
-  const [loginErrorMsg, setLoginErrorMsg] = useState<string>('');
 
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
     setLoginErrorMsg('');
+    setNetworkError('');
     try {
-      const res = await fetch(getApiUrl('/api/auth/login'), {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          email: data.email,
+          email: data.email.trim().toLowerCase(),
           password: data.password,
         }),
       });
 
-      const result = await res.json();
-
-      if (res.status === 403 || result.isUnverified) {
-        setLoginErrorMsg('Your email address is not verified yet. Redirecting to OTP verification...');
-        setTimeout(() => {
-          router.push(result.redirectUrl || `/verify-otp?email=${encodeURIComponent(data.email)}&purpose=REGISTRATION_VERIFY`);
-        }, 1200);
-        return;
-      }
+      const contentType = res.headers.get('content-type') || '';
+      const result: any = contentType.includes('application/json')
+        ? await res.json()
+        : null;
 
       if (!res.ok) {
-        throw new Error(result.error || 'Invalid credentials. Please check your email and password.');
+        if (res.status === 403 && result?.isUnverified && result?.redirectUrl) {
+          if (typeof window !== 'undefined') {
+            window.location.assign(result.redirectUrl);
+          } else {
+            router.push(result.redirectUrl);
+          }
+          return;
+        }
+
+        if (res.status === 503) {
+          setNetworkError(result?.error || 'Database service is temporarily unavailable. Please make sure MongoDB is running.');
+        } else if (res.status === 0 || res.status >= 500) {
+          setNetworkError('We could not reach the authentication service. Please check your connection and try again.');
+        }
+
+        const errorDetail =
+          (typeof result?.error === 'string' && result.error) ||
+          (typeof result?.message === 'string' && result.message) ||
+          (typeof result?.detail === 'string' && result.detail) ||
+          (res.status === 401
+            ? 'Invalid email or password. Please check your credentials.'
+            : res.status === 503
+              ? (result?.error || 'Database service is temporarily unavailable.')
+              : res.status === 502 || res.status === 504
+                ? 'Cannot reach the backend server. Please verify backend is running.'
+                : `Sign in failed (${res.status}). Please try again.`);
+        throw new Error(typeof errorDetail === 'string' ? errorDetail : 'Login failed. Please check credentials.');
       }
 
-      router.push(result.redirectUrl || (data.role === 'recruiter' ? '/recruiter/dashboard' : '/candidate/dashboard'));
-    } catch (err: any) {
-      setLoginErrorMsg(err.message || 'Login failed. Please try again.');
+      persistSession(result?.token || result?.access_token, undefined, result?.user || {});
+
+      const normalizedRole = normalizeRole(result?.user?.role || '');
+      let destination = roleHome(normalizedRole);
+      if (typeof result?.redirectUrl === 'string' && result.redirectUrl.trim()) {
+        const requested = result.redirectUrl.trim();
+        if (isSafeNext(requested, normalizedRole)) {
+          destination = requested;
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        if (isSafeNext(nextPath, normalizedRole)) {
+          destination = nextPath as string;
+        }
+        window.location.assign(destination);
+      } else {
+        router.push(destination);
+      }
+    } catch (err: unknown) {
+      const message = (err as Error)?.message || 'Login failed. Please try again.';
+      if (!networkError) {
+        setLoginErrorMsg(message);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-[#f8fafc] font-sans flex flex-col justify-between relative overflow-hidden">
-      {/* Ambient background glow gradients */}
+    <div className="h-screen bg-canvas text-ink font-sans flex flex-col relative overflow-hidden">
+      {/* Ambient radial background glows */}
       <div className="absolute top-0 left-0 w-full h-full ambient-glow-cyan pointer-events-none z-0" />
       <div className="absolute bottom-0 right-0 w-full h-full ambient-glow-indigo pointer-events-none z-0" />
 
-      <div className="relative z-10 flex flex-col min-h-screen">
-        {/* Top Minimal Navigation Bar */}
-        <header className="w-full border-b border-slate-800/80 px-6 py-4 backdrop-blur-md bg-slate-950/80">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-3 group">
-              <div className="cyan-pulse-dot" />
-              <span className="text-xl font-bold tracking-tight text-white font-sans">
-                TalentPulse<span className="text-[#38bdf8]">.AI</span>
-              </span>
-            </Link>
+      <div className="relative z-10 flex flex-col h-full">
+        <Navbar />
 
-            <div className="text-xs font-medium text-[#94a3b8]">
-              Don't have an account?{' '}
-              <Link
-                href="/register"
-                className="text-[#38bdf8] font-semibold hover:underline inline-flex items-center space-x-1 ml-1"
-              >
-                <span>Register</span>
-                <ArrowRight className="w-3 h-3 ml-0.5" />
-              </Link>
-            </div>
-          </div>
-        </header>
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <div className="min-h-full w-full max-w-7xl mx-auto px-6 py-10 flex items-center justify-center">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full items-center">
 
-        {/* Main Content (Responsive Two-Column Layout) */}
-        <main className="flex-grow max-w-6xl w-full mx-auto px-6 py-12 flex items-center">
-          <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 w-full items-start">
-            
-            {/* SECTION A: LOGIN FORM CONTAINER (ORDER 1 ON MOBILE, RIGHT COL ON DESKTOP) */}
+            {/* SECTION A: SIGN-IN FORM */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 1, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="w-full order-1 lg:order-2 lg:col-span-7"
+              className="w-full order-1 lg:order-2 lg:col-span-5"
             >
-              <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6">
-                
-                {/* Role Switcher Pill (Candidate vs Recruiter) */}
-                <div className="flex items-center p-1 bg-slate-950 border border-slate-800 rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => handleRoleToggle('candidate')}
-                    className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
-                      activeRole === 'candidate'
-                        ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-semibold shadow-md'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <User className="w-4 h-4" />
-                    <span>Candidate Portal</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRoleToggle('recruiter')}
-                    className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
-                      activeRole === 'recruiter'
-                        ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-semibold shadow-md'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Building2 className="w-4 h-4" />
-                    <span>Recruiter / Admin</span>
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  <h2 className="text-xl font-bold text-white tracking-tight">
-                    {activeRole === 'candidate' ? 'Candidate Sign In' : 'Recruiter & Admin Sign In'}
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Enter your credentials to access your interviewing dashboard.
+              {/* Premium auth card (shared component) */}
+              <AuthCard className="max-w-md mx-auto" innerClassName="flex flex-col gap-6">
+                {/* Header */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-indigo-600 shadow-lg shadow-cyan-500/30">
+                      <ShieldCheck className="h-5 w-5 text-white" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[11px] font-mono font-bold uppercase tracking-wider text-accent-cyan">
+                        Secure Access
+                      </span>
+                      <h2 className="text-2xl font-bold text-ink tracking-tight leading-tight">Welcome back</h2>
+                    </div>
+                  </div>
+                  <p className="text-sm text-ink-muted leading-relaxed">
+                    Sign in to continue to your Progeni Atlas workspace.
                   </p>
                 </div>
 
+                {redirectNotice && !loginErrorMsg && !networkError && (
+                  <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-accent-cyan text-xs font-medium flex items-start gap-2.5">
+                    <Info className="w-4 h-4 text-accent-cyan shrink-0 mt-0.5" aria-hidden="true" />
+                    <span>{redirectNotice}</span>
+                  </div>
+                )}
+
                 {loginErrorMsg && (
-                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                  <div
+                    role="alert"
+                    className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-accent-amber text-xs font-medium flex items-start gap-2.5"
+                  >
+                    <AlertCircle className="w-4 h-4 text-accent-amber shrink-0 mt-0.5" aria-hidden="true" />
                     <span>{loginErrorMsg}</span>
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                  
-                  {/* Email Address Field */}
+                {networkError && (
+                  <div
+                    role="alert"
+                    className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-accent-rose text-xs font-medium flex items-start gap-2.5"
+                  >
+                    <AlertCircle className="w-4 h-4 text-accent-rose shrink-0 mt-0.5" aria-hidden="true" />
+                    <span>{networkError}</span>
+                  </div>
+                )}
+
+                <form
+                  action="#"
+                  method="POST"
+                  onSubmit={handleSubmit(onSubmit)}
+                  className="space-y-4"
+                  noValidate
+                >
                   <div>
-                    <FormLabel label="Email Address" required />
-                    <input
-                      {...register('email')}
-                      onChange={(e) => setValue('email', e.target.value.toLowerCase().replace(/\s/g, ''))}
-                      type="email"
-                      placeholder={
-                        activeRole === 'candidate'
-                          ? 'candidate@example.com'
-                          : 'recruiter@company.com'
-                      }
-                      className={`w-full px-4 py-3 rounded-xl bg-slate-950/60 border text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-all ${
-                        isSubmitted && errors.email
-                          ? 'border-rose-500/80 focus:border-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.2)]'
-                          : 'border-slate-800 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/20'
-                      }`}
-                    />
+                    <FormLabel htmlFor="login-email" label="Email address" required />
+                    <div className="relative">
+                      <Mail
+                        className="pointer-events-none absolute left-3.5 top-1/2 w-4 h-4 -translate-y-1/2 text-ink-faint"
+                        aria-hidden="true"
+                      />
+                      <input
+                        {...register('email')}
+                        id="login-email"
+                        type="email"
+                        inputMode="email"
+                        autoComplete="username"
+                        placeholder="Please enter your email address"
+                        aria-invalid={isSubmitted && !!errors.email}
+                        aria-describedby={isSubmitted && errors.email ? 'email-error' : undefined}
+                        className={`${inputClass(Boolean(isSubmitted && errors.email))} pl-11`}
+                      />
+                    </div>
                     {isSubmitted && errors.email && (
-                      <p className="text-xs text-rose-400 mt-1.5 block animate-fadeIn">
+                      <p id="email-error" className="text-xs text-accent-rose mt-1.5 block">
                         {errors.email.message}
                       </p>
                     )}
                   </div>
 
-                  {/* Password Field */}
                   <div>
-                    <FormLabel label="Password" required />
+                    <FormLabel htmlFor="login-password" label="Password" required />
                     <div className="relative">
+                      <Lock
+                        className="pointer-events-none absolute left-3.5 top-1/2 z-10 w-4 h-4 -translate-y-1/2 text-ink-faint"
+                        aria-hidden="true"
+                      />
                       <input
                         {...register('password')}
+                        id="login-password"
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••••••"
-                        className={`w-full px-4 py-3 rounded-xl bg-slate-950/60 border text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-all pr-11 ${
-                          isSubmitted && errors.password
-                            ? 'border-rose-500/80 focus:border-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.2)]'
-                            : 'border-slate-800 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/20'
-                        }`}
+                        autoComplete="current-password"
+                        placeholder="Please enter your password"
+                        aria-invalid={isSubmitted && !!errors.password}
+                        aria-describedby={isSubmitted && errors.password ? 'password-error' : undefined}
+                        className={`${inputClass(Boolean(isSubmitted && errors.password))} pl-11 pr-12`}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowPassword((prev) => !prev);
+                        }}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        aria-pressed={showPassword}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink focus:outline-none cursor-pointer"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4 pointer-events-none" aria-hidden="true" />
+                        ) : (
+                          <Eye className="w-4 h-4 pointer-events-none" aria-hidden="true" />
+                        )}
                       </button>
                     </div>
                     {isSubmitted && errors.password && (
-                      <p className="text-xs text-rose-400 mt-1.5 block animate-fadeIn">
+                      <p id="password-error" className="text-xs text-accent-rose mt-1.5 block">
                         {errors.password.message}
                       </p>
                     )}
                   </div>
 
-                  {/* Form Utility Row (Remember Me & Forgot Password) */}
-                  <div className="flex items-center justify-between pt-1">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        {...register('rememberMe')}
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-cyan-500/20 cursor-pointer"
-                      />
-                      <span className="text-xs text-slate-400">Remember this device for 30 days</span>
-                    </label>
-
+                  <div className="flex items-center justify-end pt-1">
                     <Link
                       href="/forgot-password"
-                      className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors font-medium cursor-pointer"
+                      className="text-xs text-accent-cyan transition-colors font-medium cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded"
                     >
                       Forgot password?
                     </Link>
                   </div>
 
-                  {/* Submit Button */}
                   <button
                     type="submit"
-                    disabled={!isFormFilled || isSubmitting}
-                    className={`w-full py-3.5 px-6 rounded-full font-bold text-sm transition-all duration-200 flex items-center justify-center space-x-2 ${
-                      isFormFilled
-                        ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white cursor-pointer shadow-lg shadow-cyan-500/20 hover:scale-[1.01]'
-                        : 'bg-slate-800/80 text-slate-500 border border-slate-700/50 cursor-not-allowed opacity-50 pointer-events-none'
-                    }`}
+                    disabled={isSubmitting}
+                    aria-busy={isSubmitting}
+                    className={
+                      isSubmitting
+                        ? buttonClass('secondary', 'lg', 'pill', 'w-full cursor-wait opacity-70')
+                        : buttonClass('primary', 'lg', 'pill', 'w-full')
+                    }
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                         <span>Authenticating...</span>
                       </>
                     ) : (
-                      <span>Sign In to Account →</span>
+                      <>
+                        <span>Sign in securely</span>
+                        <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                      </>
                     )}
                   </button>
+                </form>
 
-                  {/* Quick Demo Logins (For 1-Click Testing) */}
-                  <div className="pt-2">
-                    <div className="relative flex py-2 items-center">
-                      <div className="flex-grow border-t border-slate-800"></div>
-                      <span className="flex-shrink mx-3 text-xs font-mono text-slate-500">Quick Demo Access</span>
-                      <div className="flex-grow border-t border-slate-800"></div>
+                {/* Secondary action: create account */}
+                <div className="space-y-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                      <span className="w-full border-t border-line" />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3 mt-2">
-                      <button
-                        type="button"
-                        onClick={handleAutoFillCandidate}
-                        className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-cyan-500/50 text-xs text-slate-300 font-mono transition-all hover:bg-slate-900 flex items-center justify-center space-x-1.5"
-                      >
-                        <User className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>Demo Candidate</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleAutoFillRecruiter}
-                        className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-indigo-500/50 text-xs text-slate-300 font-mono transition-all hover:bg-slate-900 flex items-center justify-center space-x-1.5"
-                      >
-                        <Building2 className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>Demo Recruiter</span>
-                      </button>
+                    <div className="relative flex justify-center">
+                      <span className="bg-surface px-3 text-[11px] font-mono font-bold uppercase tracking-wider text-ink-muted">
+                        New here?
+                      </span>
                     </div>
                   </div>
 
-                </form>
-              </div>
+                  <Link
+                    href="/register"
+                    className={buttonClass('secondary', 'md', 'pill', 'w-full')}
+                  >
+                    <UserPlus className="w-4 h-4 text-accent-cyan" aria-hidden="true" />
+                    <span>Create an account</span>
+                  </Link>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-[11px] text-ink-muted">
+                    <ShieldCheck className="h-3.5 w-3.5 text-accent-emerald" aria-hidden="true" />
+                    <span>256-bit TLS encrypted session</span>
+                  </div>
+                </div>
+              </AuthCard>
             </motion.div>
 
-            {/* SECTION B: VALUE PROPOSITION & SECURITY REASSURANCE (ORDER 2 ON MOBILE, LEFT COL ON DESKTOP) */}
+            {/* SECTION B: BORDERLESS HERO + PRODUCT VISUAL */}
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 1, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="w-full order-2 lg:order-1 lg:col-span-5 space-y-6"
+              className="hidden lg:block relative w-full order-2 lg:order-1 lg:col-span-7"
             >
-              <div>
-                <span className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider block">
-                  SECURE PLATFORM ACCESS
-                </span>
+              {/* soft gradient wash tying the hero to the background */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute -inset-x-10 -inset-y-8 -z-10 bg-[radial-gradient(60%_50%_at_20%_0%,rgba(6,182,212,0.14),transparent_70%),radial-gradient(50%_45%_at_90%_80%,rgba(99,102,241,0.12),transparent_70%)]"
+              />
 
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight mt-2">
-                  Welcome Back to TalentPulse AI
-                </h1>
+              <div className="space-y-8">
+                {/* Headline block — freed from any box */}
+                <div>
+                  <span className="text-xs font-mono font-bold text-accent-cyan uppercase tracking-[0.22em] block">
+                    Secure Workspace Access
+                  </span>
+                  <h1 className="mt-4 text-4xl sm:text-5xl xl:text-[3.4rem] font-black tracking-tight leading-[1.06] text-ink">
+                    Better interviews.{' '}
+                    <span className="block bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600 bg-clip-text text-transparent">
+                      Smarter decisions.
+                    </span>
+                  </h1>
+                  <p className="mt-5 text-base text-ink-muted leading-relaxed max-w-xl">
+                    Progeni Atlas helps teams run structured, AI-assisted interviews, evaluate candidate
+                    capability, and make confident hiring decisions across every stage.
+                  </p>
+                </div>
 
-                <p className="text-sm text-slate-400 leading-relaxed font-normal mt-2">
-                  Log in to access your interview schedule, practice sessions, and evaluation scorecards.
-                </p>
-              </div>
+                {/* Borderless player with ambient glow + organic live overlays */}
+                <div className="relative">
+                  <div
+                    aria-hidden="true"
+                    className="absolute -inset-6 rounded-[36px] bg-gradient-to-r from-cyan-500/25 via-indigo-500/10 to-cyan-500/25 blur-3xl"
+                  />
+                  <div className="relative overflow-hidden rounded-2xl ring-1 ring-cyan-400/25 shadow-2xl shadow-cyan-500/20">
+                    <Image
+                      src="/interview-demo.jpg"
+                      alt="A candidate taking a Progeni Atlas two-way technical video interview"
+                      width={1024}
+                      height={682}
+                      priority
+                      className="h-[clamp(230px,36vh,400px)] w-full object-cover"
+                    />
 
-              {/* 2 Security Trust Cards */}
-              <div className="space-y-4 pt-2">
-                
-                {/* Trust Card 1 */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex items-start space-x-3.5">
-                  <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0 mt-0.5">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">Encrypted Authentication</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      AES-256 session management & secure JWT tokens ensure your identity remains protected.
-                    </p>
+                    {/* live status tag, overlay-native */}
+                    <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur-md ring-1 ring-white/15">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                      </span>
+                      Interview in progress
+                    </div>
+
+                    {/* bottom caption bar, part of the player chrome */}
+                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/75 via-black/30 to-transparent px-4 pb-3.5 pt-12 text-[11px] font-medium text-white/90">
+                      <span>Live AI Technical Interview</span>
+                      <span className="hidden sm:inline text-white/70">Candidate &middot; Round 2</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Trust Card 2 */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex items-start space-x-3.5">
-                  <div className="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 shrink-0 mt-0.5">
-                    <Zap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">Instant Sync</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Seamless progress restore across desktop and mobile devices for uninterrupted interviews.
-                    </p>
-                  </div>
+                {/* Value props as crisp, scannable badges */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {TRUST_BADGES.map((badge) => (
+                    <span
+                      key={badge.title}
+                      title={badge.desc}
+                      className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-3.5 py-2 text-xs font-semibold text-ink shadow-sm backdrop-blur-sm transition-colors hover:border-cyan-400/40"
+                    >
+                      <badge.icon className={`h-4 w-4 ${badge.color}`} aria-hidden="true" />
+                      {badge.title}
+                    </span>
+                  ))}
                 </div>
-
               </div>
             </motion.div>
-
+            </div>
           </div>
         </main>
       </div>

@@ -9,13 +9,13 @@ import { PracticeDrillList } from '@/components/dashboard/PracticeDrillList';
 import { ResumeSyncFooter } from '@/components/dashboard/ResumeSyncFooter';
 
 export const metadata: Metadata = {
-  title: 'Candidate Dashboard | TalentPulse AI',
+  title: 'Candidate Dashboard | Progeni Atlas',
   description: 'Track your AI interview readiness, practice technical drills, view competency breakdowns, and access scheduled live video screening rooms.',
 };
 
 export default function CandidateDashboardPage() {
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans relative overflow-x-clip selection:bg-cyan-500/30 selection:text-accent-cyan">
       {/* Background ambient glows */}
       <div className="fixed top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="fixed top-1/3 right-1/4 w-[30rem] h-[30rem] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />

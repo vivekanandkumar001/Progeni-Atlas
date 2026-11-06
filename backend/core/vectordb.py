@@ -28,7 +28,7 @@ COLLECTION_RUBRICS = "job_rubrics"
 # =============================================================================
 
 class VectorDBClient:
-    """Enterprise Qdrant Vector Database Manager for TalentPulse AI."""
+    """Enterprise Qdrant Vector Database Manager for Progeni Atlas."""
 
     def __init__(self, vector_size: int = VECTOR_SIZE):
         self.vector_size = vector_size
