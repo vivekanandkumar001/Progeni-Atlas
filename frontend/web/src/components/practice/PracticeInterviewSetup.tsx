@@ -809,7 +809,7 @@ export function PracticeInterviewSetup() {
                   </h4>
                 </div>
                 <p className="text-xs text-ink-muted leading-relaxed">
-                  Your wallet balance is low. You have enough credits for {Math.max(1, Math.floor(walletBalance / 2))} more practice interview(s). Please recharge your wallet to continue.
+                  Your wallet balance is low. You have enough credits for {Math.max(1, Math.floor((walletBalance ?? 0) / 2))} more practice interview(s). Please recharge your wallet to continue.
                 </p>
                 <div className="pt-1">
                   <Link
@@ -863,7 +863,7 @@ export function PracticeInterviewSetup() {
                 {isZeroBalance
                   ? '⚠️ Wallet balance is 0 credits. Please recharge in Wallet to enable practice interviews.'
                   : isLowBalance
-                  ? `⚠️ Wallet balance is low (${walletBalance} credits). You have enough for ${Math.max(1, Math.floor(walletBalance / 2))} more practice interview(s). Please recharge to continue.`
+                  ? `⚠️ Wallet balance is low (${walletBalance ?? 0} credits). You have enough for ${Math.max(1, Math.floor((walletBalance ?? 0) / 2))} more practice interview(s). Please recharge to continue.`
                   : !isRoleValid
                   ? '⚠️ Enter or select a Target Job Role above to unlock interview setup.'
                   : !isJdValid
