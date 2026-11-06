@@ -271,7 +271,7 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
             <div className="flex items-center gap-2 min-w-0">
               <Clock className="w-4 h-4 text-cyan-400 shrink-0 animate-pulse" />
               <span className="truncate">
-                Pause detected. Auto-submitting in <strong className="text-cyan-400 font-mono font-bold text-sm">{autoSubmitCountdown ?? 12}s</strong>.
+                Natural pause detected. Wrapping up in <strong className="text-cyan-400 font-mono font-bold text-sm">{autoSubmitCountdown ?? 18}s</strong>.
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -280,9 +280,9 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
                   type="button"
                   onClick={onExtendThinkingTime}
                   className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold transition-all cursor-pointer text-xs flex items-center gap-1.5"
-                  title="Pause auto-submit for 45s while you think"
+                  title="Pause auto-submit for 60s while you think"
                 >
-                  <span>✋ I'm still thinking</span>
+                  <span>✋ I need a moment</span>
                 </button>
               )}
               <button
@@ -291,7 +291,7 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
                 disabled={!hasValidAnswer}
                 className="px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950 font-bold transition-all cursor-pointer text-xs"
               >
-                Submit Now
+                Submit Answer
               </button>
             </div>
           </div>

@@ -111,8 +111,12 @@ def generate_dynamic_session_questions(session_id: str, session_doc: dict | None
     try:
         from app.services import interviewer_policy, llm_service
         sys_msg = (
-            "You are a Principal AI Technical Interview Architect. Generate a realistic, progressive 4-turn technical interview. "
+            "You are Sarah Chen, a warm, experienced Staff Systems Engineer and Technical Hiring Lead. "
+            "Generate a realistic, progressive 4-turn technical interview that feels like an authentic, collegial 1-on-1 video call. "
             "Output ONLY a valid JSON array of 4 question objects without preamble or markdown fences. "
+            "Every question must sound spoken aloud by a real human engineer — no dry exam prompts or robotic phrasing. "
+            f"Turn 1 must start with a warm personal greeting (e.g., 'Hi {cand_name}, great to meet you! I'm Sarah, lead on this evaluation...'). "
+            "Keep each question focused, natural, and under 42 words. "
             + interviewer_policy.question_authoring_rules()
         )
         user_msg = f"""Target Role: {job_title}
@@ -1571,13 +1575,30 @@ def interview_media_state_route(session_id):
 _TTS_AUDIO_CACHE: dict[str, bytes] = {}
 
 
-def _generate_edge_tts_sync(text: str, voice: str = "en-US-AriaNeural") -> bytes:
-    """Synchronously stream Azure Neural audio via edge-tts."""
+def _sanitize_text_for_speech(text: str) -> str:
+    """Strip markdown, backticks, bullets, and symbols so spoken audio sounds completely natural."""
+    import re
+    t = re.sub(r"```[\s\S]*?```", " the following code snippet, ", text)
+    t = re.sub(r"`([^`]+)`", r"\1", t)
+    t = re.sub(r"\*\*([^*]+)\*\*", r"\1", t)
+    t = re.sub(r"\*([^*]+)\*", r"\1", t)
+    t = re.sub(r"__([^_]+)__", r"\1", t)
+    t = re.sub(r"^\s*[-*•]\s+", "", t, flags=re.MULTILINE)
+    t = re.sub(r"^\s*\d+\.\s+", "", t, flags=re.MULTILINE)
+    t = re.sub(r"^\s*#+\s+", "", t, flags=re.MULTILINE)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def _generate_edge_tts_sync(text: str, voice: str = "en-US-AvaNeural", rate: str = "-2%", pitch: str = "+0Hz") -> bytes:
+    """Synchronously stream ultra-natural Azure Neural audio via edge-tts."""
     import asyncio
     import edge_tts
 
+    sanitized = _sanitize_text_for_speech(text)
+
     async def _runner():
-        comm = edge_tts.Communicate(text, voice)
+        comm = edge_tts.Communicate(sanitized, voice, rate=rate, pitch=pitch)
         buf = io.BytesIO()
         async for chunk in comm.stream():
             if chunk["type"] == "audio":
@@ -1604,7 +1625,7 @@ def generate_speech_audio(text: str) -> tuple[bytes, str]:
     Tier 3: gTTS (Google Translate fallback)
     Returns: (audio_bytes, mimetype)
     """
-    clean_text = text.strip()
+    clean_text = _sanitize_text_for_speech(text)
     import hashlib
     cache_key = hashlib.md5(clean_text.encode("utf-8")).hexdigest()
     if cache_key in _TTS_AUDIO_CACHE:
@@ -1634,7 +1655,7 @@ def generate_speech_audio(text: str) -> tuple[bytes, str]:
 
     # Tier 2: Microsoft Azure Neural Voice via edge-tts (studio-grade quality)
     try:
-        voice = os.environ.get("EDGE_TTS_VOICE", "en-US-AriaNeural")
+        voice = os.environ.get("EDGE_TTS_VOICE", "en-US-AvaNeural")
         audio_bytes = _generate_edge_tts_sync(clean_text[:4096], voice=voice)
         if audio_bytes and len(audio_bytes) > 500:
             if len(_TTS_AUDIO_CACHE) > 500:
@@ -2006,14 +2027,14 @@ def get_interview_room_data(session_id):
             "currentStage": stages[0] if stages else "Introduction",
             "stages": stages,
             "interviewerAvatar": {
-                "name": "Alex Vance (Progeni Atlas)",
-                "role": "Lead Systems & Architectural AI Evaluator",
+                "name": "Sarah Chen",
+                "role": "Staff Systems Engineer & Technical Hiring Lead",
                 "status": "active_speaking"
             },
             "activeProblem": active_problem,
             "subtitlesStream": [
-                {"id": "sub-1", "speaker": "AI Interviewer", "text": f"Welcome {first_name}! Let's begin your technical evaluation. You can review the problem statement and code workspace at any time."},
-                {"id": "sub-2", "speaker": "Candidate", "text": f"Thank you, Alex. I am ready to review the {active_problem.get('title', 'challenge')} and begin."}
+                {"id": "sub-1", "speaker": "Sarah Chen", "text": f"Welcome {first_name}! Great to meet you. I'm Sarah, leading your technical conversation today. Feel free to review the challenge and think out loud anytime."},
+                {"id": "sub-2", "speaker": "Candidate", "text": f"Thank you, Sarah. I am ready to review the {active_problem.get('title', 'challenge')} and begin."}
             ]
         }), 200
     except Exception as e:

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Sparkles, ChevronUp, ChevronDown, User, Bot, History } from 'lucide-react';
 
-export type CaptionSpeaker = 'AI Interviewer' | 'You';
+export type CaptionSpeaker = string;
 
 export interface CaptionEntry {
   id: string;
@@ -16,14 +16,17 @@ interface LiveClosedCaptionsProps {
   subtitles: CaptionEntry[];
 }
 
-const INTERVIEWER: CaptionSpeaker = 'AI Interviewer';
+const DEFAULT_INTERVIEWER_NAME = 'Sarah Chen';
 
 export const LiveClosedCaptions: React.FC<LiveClosedCaptionsProps> = ({ subtitles }) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   // No invented dialogue when there is nothing to show yet.
   const activeSubtitle = subtitles[subtitles.length - 1];
-  const isInterviewerSpeaking = !activeSubtitle || activeSubtitle.speaker === INTERVIEWER;
+  const isCandidateSpeaking = activeSubtitle?.speaker === 'You' || activeSubtitle?.speaker === 'Candidate';
+  const speakerDisplayName = activeSubtitle?.speaker
+    ? (activeSubtitle.speaker === 'AI Interviewer' ? DEFAULT_INTERVIEWER_NAME : activeSubtitle.speaker)
+    : DEFAULT_INTERVIEWER_NAME;
 
   return (
     <div className="w-full rounded-2xl bg-surface border border-line backdrop-blur-md overflow-hidden shadow-2xl transition-all">
@@ -34,17 +37,17 @@ export const LiveClosedCaptions: React.FC<LiveClosedCaptionsProps> = ({ subtitle
           {/* Speaker Tag */}
           <span
             className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium shrink-0 flex items-center gap-1.5 ${
-              isInterviewerSpeaking
+              !isCandidateSpeaking
                 ? 'bg-cyan-500/15 text-accent-cyan border border-cyan-500/30'
                 : 'bg-indigo-500/15 text-accent-indigo border border-indigo-500/30'
             }`}
           >
-            {isInterviewerSpeaking ? (
+            {!isCandidateSpeaking ? (
               <Sparkles className="w-3.5 h-3.5 text-accent-cyan" />
             ) : (
               <User className="w-3.5 h-3.5 text-indigo-400" />
             )}
-            <span>{activeSubtitle?.speaker ?? INTERVIEWER}</span>
+            <span>{speakerDisplayName}</span>
           </span>
 
           {/* Subtitle Text */}
