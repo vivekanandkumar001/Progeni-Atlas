@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Volume2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Volume2, AlertTriangle, RefreshCw, Clock } from 'lucide-react';
 
 export interface InterviewStatusBannerProps {
   proctoringAlertBanner: string | null;

@@ -153,13 +153,14 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
   // Real interview billing: candidate must have credits to launch (non-demo,
   // charging-enabled sessions). Default wallet balance to 40 credits if the
   // server response is missing the field.
-  const candidateWalletBalance = lobbyInfo?.billing?.candidateWalletBalance ?? 40;
-  const isZeroBalance = !lobbyInfo.billing.isDemoEligible
-    && lobbyInfo.billing.chargingEnabled
+  const billing = lobbyInfo?.billing;
+  const candidateWalletBalance = billing?.candidateWalletBalance ?? 40;
+  const isZeroBalance = !billing?.isDemoEligible
+    && Boolean(billing?.chargingEnabled)
     && candidateWalletBalance <= 0;
   const isLowBalance =
-    !lobbyInfo.billing.isDemoEligible &&
-    lobbyInfo.billing.chargingEnabled &&
+    !billing?.isDemoEligible &&
+    Boolean(billing?.chargingEnabled) &&
     candidateWalletBalance > 0 &&
     candidateWalletBalance <= 10;
   const isLaunchEnabled = isAllHardwareReady && agreed && !isZeroBalance;
@@ -311,23 +312,23 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
       )}
 
       {/* SESSION BILLING & CREDIT QUOTA BADGE */}
-      {lobbyInfo?.billing && (
+      {billing && (
         <div className={`p-4 rounded-2xl border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm transition-all ${
-          lobbyInfo.billing.isDemoEligible
+          billing.isDemoEligible
             ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'
-            : !lobbyInfo.billing.chargingEnabled
+            : !billing.chargingEnabled
             ? 'bg-purple-950/20 border-purple-500/30 text-purple-200'
             : 'bg-cyan-950/20 border-cyan-500/30 text-cyan-200'
         }`}>
           <div className="flex items-center gap-3 min-w-0">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              lobbyInfo.billing.isDemoEligible
+              billing.isDemoEligible
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                : !lobbyInfo.billing.chargingEnabled
+                : !billing.chargingEnabled
                 ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
                 : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
             }`}>
-              {lobbyInfo.billing.isDemoEligible ? (
+              {billing.isDemoEligible ? (
                 <Sparkles className="w-4 h-4" />
               ) : (
                 <Coins className="w-4 h-4" />
@@ -336,34 +337,34 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-ink text-sm">
-                  {lobbyInfo.billing.isDemoEligible
-                    ? `Free Demo Interview (${lobbyInfo.billing.freeDemosRemaining ?? 1} Available)`
-                    : !lobbyInfo.billing.chargingEnabled
+                  {billing.isDemoEligible
+                    ? `Free Demo Interview (${billing.freeDemosRemaining ?? 1} Available)`
+                    : !billing.chargingEnabled
                     ? 'Evaluation Tier (Zero Customer Charge)'
-                    : Math.abs((lobbyInfo.billing.ratePerMinuteCredits ?? (1 / 3)) - 1 / 3) < 0.000001
+                    : Math.abs((billing.ratePerMinuteCredits ?? (1 / 3)) - 1 / 3) < 0.000001
                     ? 'Pay-as-you-go: ₹1 per 3 min'
-                    : `Pay-as-you-go: ₹${lobbyInfo.billing.ratePerMinuteCredits}/min`}
+                    : `Pay-as-you-go: ₹${billing.ratePerMinuteCredits}/min`}
                 </span>
                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                  lobbyInfo.billing.isDemoEligible
+                  billing.isDemoEligible
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                    : !lobbyInfo.billing.chargingEnabled
+                    : !billing.chargingEnabled
                     ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
                     : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
                 }`}>
-                  {lobbyInfo.billing.isDemoEligible ? 'Free Demo' : '₹1 = 1 Credit'}
+                  {billing.isDemoEligible ? 'Free Demo' : '₹1 = 1 Credit'}
                 </span>
               </div>
               <p className="text-[11px] text-ink-muted mt-0.5">
-                {lobbyInfo.billing.billingNotice || 'Server-authoritative per-minute billing'}
+                {billing.billingNotice || 'Server-authoritative per-minute billing'}
               </p>
             </div>
           </div>
           <div className="sm:text-right shrink-0 flex items-center sm:flex-col justify-between w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-line">
             <span className="font-mono font-bold text-xs text-ink">
-              {lobbyInfo.billing.isDemoEligible
+              {billing.isDemoEligible
                 ? '10 MIN CAP'
-                : `₹${(lobbyInfo.billing.candidateWalletBalance ?? 0).toFixed(2)} Balance`}
+                : `₹${(billing.candidateWalletBalance ?? 0).toFixed(2)} Balance`}
             </span>
             <a
               href="/candidate/wallet"
