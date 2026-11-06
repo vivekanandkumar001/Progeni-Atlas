@@ -116,9 +116,12 @@ const nextConfig: NextConfig = {
       { source: '/super-admin/billing-audit', destination: '/super-admin/billing?tab=ledger', permanent: false },
     ];
   },
-  /* Proxy all /api/* requests to the Flask backend (port 5000) */
+  /* Proxy all /api/* requests to the Flask backend */
   async rewrites() {
-    const flaskBase = (process.env.NEXT_PUBLIC_API_URL?.split(',')[0] || '').replace(/\/+$/, '') || 'http://127.0.0.1:5000';
+    const defaultBackend = process.env.NODE_ENV === 'production'
+      ? 'https://api-vivekanandinterview.converiqo.tech'
+      : 'http://127.0.0.1:5000';
+    const flaskBase = (process.env.NEXT_PUBLIC_API_URL?.split(',')[0] || '').replace(/\/+$/, '') || defaultBackend;
     return [
       {
         source: '/api/:path*',

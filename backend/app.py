@@ -16,7 +16,7 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from dotenv import load_dotenv
 
 # Load environment configuration
@@ -49,22 +49,40 @@ if os.environ.get("TRUST_PROXY_HEADERS", "false").lower() in ("true", "1", "t"):
 
 # 3. Dynamic CORS Configuration & Enterprise Security Headers
 def _get_allowed_cors_origins() -> list[str]:
-    raw = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://vivekanandinterview.converiqo.tech")
+    raw = os.environ.get(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,https://atlas.progeni.live,https://api-vivekanandinterview.converiqo.tech,https://vivekanandinterview.converiqo.tech"
+    )
     origins = [o.strip() for o in raw.split(",") if o.strip() and o.strip() != "*"]
-    if "https://vivekanandinterview.converiqo.tech" not in origins:
-        origins.append("https://vivekanandinterview.converiqo.tech")
+    for required in ("https://atlas.progeni.live", "https://api-vivekanandinterview.converiqo.tech", "https://vivekanandinterview.converiqo.tech"):
+        if required not in origins:
+            origins.append(required)
     return origins
 
 _ALLOWED_CORS_ORIGINS = _get_allowed_cors_origins()
 
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        origin = request.headers.get("Origin")
+        res = make_response("", 204)
+        if origin and (origin in _ALLOWED_CORS_ORIGINS or origin.endswith(".progeni.live")):
+            res.headers["Access-Control-Allow-Origin"] = origin
+            res.headers["Access-Control-Allow-Credentials"] = "true"
+            res.headers.add("Vary", "Origin")
+        res.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization,X-Requested-With,X-Support-Reason,X-Client-Platform"
+        res.headers["Access-Control-Allow-Methods"] = "GET,PUT,POST,PATCH,DELETE,OPTIONS"
+        res.headers["Access-Control-Max-Age"] = "86400"
+        return res
+
 @app.after_request
 def after_request(response):
     origin = request.headers.get("Origin")
-    if origin and origin in _ALLOWED_CORS_ORIGINS:
+    if origin and (origin in _ALLOWED_CORS_ORIGINS or origin.endswith(".progeni.live")):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers.add("Vary", "Origin")
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization,X-Requested-With"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization,X-Requested-With,X-Support-Reason,X-Client-Platform"
     response.headers["Access-Control-Allow-Methods"] = "GET,PUT,POST,PATCH,DELETE,OPTIONS"
 
     # Enterprise Hardened HTTP Security Headers
