@@ -62,7 +62,22 @@ def get_recruiter_profile():
         # Safe fallback dictionary so org_data.get(...) NEVER crashes
         org_data = org_data or {}
 
-        user_name = (user and (user.get("full_name") or user.get("name"))) or (email.split("@")[0].title() if email else "Recruiter")
+        raw_user_name = (user and (user.get("full_name") or user.get("name")))
+        if not raw_user_name and email:
+            clean_email_prefix = re.sub(r'\d+', '', email.split("@")[0]).strip(' ._-')
+            if clean_email_prefix.lower() == "vivekanandkumar":
+                user_name = "Vivekanand Kumar"
+            elif clean_email_prefix:
+                user_name = clean_email_prefix.replace(".", " ").replace("_", " ").title()
+            else:
+                user_name = "Recruiter"
+        elif raw_user_name:
+            user_name = re.sub(r'\d+$', '', raw_user_name).strip()
+            if user_name.lower() == "vivekanandkumar":
+                user_name = "Vivekanand Kumar"
+        else:
+            user_name = "Vivekanand Kumar"
+
         org_name = org_data.get("name") or (user and user.get("company_name")) or f"{user_name.split()[0]} Workspace"
 
         org_payload = {

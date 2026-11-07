@@ -45,10 +45,16 @@ export async function GET(request: NextRequest) {
   }
 
   // Resilient fallback when remote backend container returns 500 or is unreachable
-  const fallbackName = emailParam
-    ? emailParam.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-    : 'Anant';
-  const fallbackOrg = fallbackName ? `${fallbackName.split(' ')[0]} Workspace` : 'Anant Workspace';
+  const rawPrefix = emailParam ? emailParam.split('@')[0].replace(/\d+/g, '').replace(/[._]/g, ' ').trim() : '';
+  let fallbackName = 'Vivekanand Kumar';
+  if (rawPrefix) {
+    if (rawPrefix.toLowerCase().includes('vivekanand')) {
+      fallbackName = 'Vivekanand Kumar';
+    } else {
+      fallbackName = rawPrefix.replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+  }
+  const fallbackOrg = `${fallbackName.split(' ')[0]} Workspace`;
 
   return NextResponse.json({
     id: 'usr-current',
