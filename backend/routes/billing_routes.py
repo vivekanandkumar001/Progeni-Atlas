@@ -346,7 +346,7 @@ def get_billing_wallet_transactions():
 MAYANK_UPI_GATEWAY_URL = os.environ.get("UPI_GATEWAY_URL", "https://pay.progeni.live").rstrip("/")
 MAYANK_UPI_KEY = os.environ.get("UPI_GATEWAY_KEY", "live_key_mayank_upi_progeni")
 MAYANK_UPI_SECRET = os.environ.get("UPI_GATEWAY_SECRET", "sec_mayank_upi_signed_secret_2026")
-MAYANK_UPI_VPA = os.environ.get("UPI_MERCHANT_VPA", "8651240027@ptsbi")
+MAYANK_UPI_VPA = os.environ.get("UPI_MERCHANT_VPA", "progeniatlas@ptaxis")
 MAYANK_UPI_PAYEE = os.environ.get("UPI_PAYEE_NAME", "Progeni Atlas")
 
 
@@ -407,7 +407,7 @@ def _complete_paid_order(db, order_rec, payment_ref, reason_title):
 
 @billing_bp.route("/api/billing/wallet/create-order", methods=["POST"])
 def create_wallet_order():
-    """Create a verified payment order using Mayank Singh Multi-Merchant UPI Gateway."""
+    """Create a verified payment order using Progeni Atlas UPI Gateway."""
     try:
         user, _, _ = get_current_candidate(request)
         user_id = str(user.get("id") or user.get("_id")) if user else "user-candidate"
@@ -481,7 +481,7 @@ def create_wallet_order():
                     "order_id": order_no,
                     "client_order_id": client_order_id,
                     "userId": user_id,
-                    "gateway": "mayank_singh_upi",
+                    "gateway": "progeni_atlas_upi",
                     "amount_credits": amount_credits,
                     "amount_inr": amount_inr,
                     "amount_paise": int(round(amount_inr * 100)),
@@ -495,7 +495,7 @@ def create_wallet_order():
 
         return jsonify({
             "success": True,
-            "gateway": "mayank_singh_upi",
+            "gateway": "progeni_atlas_upi",
             "order_id": order_no,
             "client_order_id": client_order_id,
             "amount_inr": amount_inr,
@@ -595,7 +595,7 @@ def submit_wallet_utr():
                     "status": "pending"
                 }
 
-            credits_added = _complete_paid_order(db, order_rec, utr, f"UPI Payment (UTR: {utr})")
+            credits_added = _complete_paid_order(db, order_rec, utr, f"Progeni Atlas UPI Gateway (UTR: {utr})")
 
             return jsonify({
                 "success": True,
@@ -656,7 +656,7 @@ def verify_wallet_payment():
         if db is not None and order_id:
             order_rec = db.billing_orders.find_one({"$or": [{"order_id": order_id}, {"client_order_id": order_id}]})
             if order_rec:
-                credits_added = _complete_paid_order(db, order_rec, utr, f"UPI Payment (Ref: {utr})")
+                credits_added = _complete_paid_order(db, order_rec, utr, f"UPI Payment via Progeni Atlas Gateway (Ref: {utr})")
                 return jsonify({
                     "success": True,
                     "message": f"Payment successful! {int(credits_added)} credits added to your wallet.",

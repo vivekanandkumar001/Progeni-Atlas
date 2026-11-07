@@ -47,18 +47,22 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
 
   // Fallback defaults to ensure nothing is ever blank on screen
   const displayAmount =
-    orderData?.amount_inr ||
-    orderData?.amount_credits ||
-    0;
+    (orderData?.amount_inr && Number(orderData.amount_inr) > 0)
+      ? Number(orderData.amount_inr)
+      : (orderData?.amount_credits && Number(orderData.amount_credits) > 0)
+        ? Number(orderData.amount_credits)
+        : 99;
 
   const upiId =
-    orderData?.upi_id ||
-    process.env.NEXT_PUBLIC_MERCHANT_UPI_ID ||
-    '8651240027@ptsbi';
+    (orderData?.upi_id && orderData.upi_id.trim().length > 3)
+      ? orderData.upi_id.trim()
+      : 'progeniatlas@ptaxis';
+
   const payeeName =
-    orderData?.payee_name ||
-    process.env.NEXT_PUBLIC_MERCHANT_PAYEE_NAME ||
-    'Progeni Atlas';
+    (orderData?.payee_name && orderData.payee_name.trim().length > 0)
+      ? orderData.payee_name.trim()
+      : 'Progeni Atlas';
+
   const orderRef = orderData?.order_id || 'ORDER';
 
   const upiIntentUri =
@@ -205,7 +209,7 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
             <div className="text-right">
               <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-accent-emerald border border-emerald-500/20">
                 <Sparkles className="w-3.5 h-3.5" />
-                +{orderData.amount_credits} Credits
+                +{orderData?.amount_credits || displayAmount} Credits
               </span>
               <p className="text-[10px] text-ink-muted font-mono mt-1">Ref: {orderRef.slice(-8)}</p>
             </div>
@@ -257,7 +261,7 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
           {/* UPI ID Copy Field */}
           <div className="p-3 rounded-xl bg-surface-2 border border-line flex items-center justify-between text-xs">
             <div>
-              <span className="text-[10px] text-ink-muted uppercase block font-semibold">Payee: {payeeName}</span>
+              <span className="text-[10px] text-ink-muted uppercase block font-semibold">Payee UPI ID</span>
               <span className="font-mono font-bold text-ink">{upiId}</span>
             </div>
             <button
