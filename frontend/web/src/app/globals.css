@@ -223,3 +223,289 @@ input::-ms-clear {
     transform: scale(1.045) translateY(-1px);
   }
 }
+
+/* ===========================================================================
+   SAKSHAAT AI ANIMATION SUITE
+   Rich animations matching sakshaat-ai.in:
+   - Atmospheric drift orbs & geometric masked grid
+   - Rotating conic gradient glow border (trust-frame)
+   - Sweeping diagonal light beam sheen (trust-sheen)
+   - Twinkling star sparks with drop-shadow glow (trust-spark)
+   - Multi-bar audio reactive equalizer bars (voice-bars)
+   - Live code typing caret blink
+   - Infinite rolling candidate & panel marquee track
+   - Organic interviewer presence swaying & breathing
+   =========================================================================== */
+
+/* Masked geometric grid */
+.sakshaat-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.08) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 65% 60% at 50% 30%, #000 25%, transparent 80%);
+  mask-image: radial-gradient(ellipse 65% 60% at 50% 30%, #000 25%, transparent 80%);
+  pointer-events: none;
+}
+
+/* Atmospheric Glow Orbs */
+@keyframes lpDriftA {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(45px, 25px) scale(1.08);
+  }
+}
+
+@keyframes lpDriftB {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-50px, 20px) scale(1.06);
+  }
+}
+
+@keyframes lpAura {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.95;
+  }
+}
+
+.anim-drift-a {
+  animation: lpDriftA 22s ease-in-out infinite;
+}
+
+.anim-drift-b {
+  animation: lpDriftB 26s ease-in-out infinite;
+}
+
+.anim-aura {
+  animation: lpAura 4.5s ease-in-out infinite;
+}
+
+/* Rotating Conic Gradient Border ("Trust Frame") */
+@keyframes borderConicSpin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+.conic-border-box {
+  position: relative;
+  overflow: hidden;
+  padding: 1.5px;
+  border-radius: 1.25rem;
+  background: rgba(14, 165, 233, 0.25);
+  box-shadow: 0 0 25px -4px rgba(14, 165, 233, 0.35), 0 0 60px -15px rgba(99, 102, 241, 0.25);
+}
+
+.conic-border-box::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 120deg,
+    rgba(6, 182, 212, 0.8) 180deg,
+    rgba(99, 102, 241, 0.9) 210deg,
+    transparent 270deg,
+    transparent 360deg
+  );
+  animation: borderConicSpin 6s linear infinite;
+}
+
+/* Sheen Light Beam Sweep */
+@keyframes trustSheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  40%, 100% {
+    transform: translateX(140%);
+  }
+}
+
+.sheen-sweeper {
+  position: relative;
+  overflow: hidden;
+}
+
+.sheen-sweeper::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  transform: translateX(-120%);
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.22) 50%, transparent 70%);
+  animation: trustSheen 4.5s ease-in-out infinite;
+}
+
+/* Star Sparkle Twinkle */
+@keyframes trustTwinkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(0.35) rotate(45deg);
+  }
+}
+
+.trust-sparkle {
+  position: absolute;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.9));
+  animation: trustTwinkle 2.8s ease-in-out infinite;
+}
+
+/* Ping Ripple */
+@keyframes trustPing {
+  0% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+
+.ping-ripple {
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  border: 2px solid rgba(6, 182, 212, 0.7);
+  pointer-events: none;
+  animation: trustPing 2.4s ease-out infinite;
+}
+
+/* AI Equalizer Voice Bars */
+@keyframes voiceBarAnim {
+  0%, 100% {
+    height: 4px;
+  }
+  20% {
+    height: 18px;
+  }
+  40% {
+    height: 8px;
+  }
+  60% {
+    height: 22px;
+  }
+  80% {
+    height: 6px;
+  }
+}
+
+.voice-bar {
+  width: 3px;
+  border-radius: 9999px;
+  background-color: var(--brand-from);
+  animation: voiceBarAnim 1.2s ease-in-out infinite;
+}
+
+/* Live Code Typing Caret */
+@keyframes caretBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.typing-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  vertical-align: -2px;
+  background-color: var(--accent-cyan);
+  animation: caretBlink 1s infinite;
+}
+
+/* Infinite Marquee Strip */
+@keyframes marqueeScrollVertical {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes marqueeScrollHorizontal {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track-v {
+  display: flex;
+  flex-direction: column;
+  animation: marqueeScrollVertical 28s linear infinite;
+}
+
+.marquee-track-v:hover {
+  animation-play-state: paused;
+}
+
+.marquee-track-h {
+  display: flex;
+  width: max-content;
+  animation: marqueeScrollHorizontal 35s linear infinite;
+}
+
+.marquee-track-h:hover {
+  animation-play-state: paused;
+}
+
+/* Smooth Card Hover Lift */
+.card-lift-hover {
+  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), border-color 0.3s ease;
+}
+
+.card-lift-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px -10px rgba(6, 182, 212, 0.2);
+  border-color: rgba(6, 182, 212, 0.5);
+}
+
+/* Natural Interviewer Sway */
+@keyframes interviewerSway {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(-0.4deg);
+  }
+}
+
+.interviewer-sway {
+  animation: interviewerSway 6s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+

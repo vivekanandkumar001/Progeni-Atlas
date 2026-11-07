@@ -26,7 +26,7 @@ export const AiInterviewerFeed: React.FC<AiInterviewerFeedProps> = ({
         <img
           src="/avatars/interviewer_female.jpg"
           alt={name}
-          className={`w-full h-full object-cover object-center transition-all duration-700 ease-out ${
+          className={`w-full h-full object-cover object-center transition-all duration-700 ease-out interviewer-sway ${
             isSpeaking ? 'scale-105 brightness-105 contrast-[1.02]' : 'scale-[1.02] brightness-100'
           }`}
         />
@@ -63,14 +63,18 @@ export const AiInterviewerFeed: React.FC<AiInterviewerFeedProps> = ({
           </div>
         </div>
 
-        {/* Real-Time Waveform */}
+        {/* Real-Time Waveform (Sakshaat Voice Bars) */}
         <div className="bg-slate-950/85 backdrop-blur-md border border-slate-800 rounded-xl px-2.5 py-2 flex items-center gap-1 shrink-0">
           <Volume2 className="w-3.5 h-3.5 text-cyan-400 shrink-0 mr-1" />
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className={`w-0.5 rounded-full transition-all ${isSpeaking ? 'bg-gradient-to-t from-cyan-500 to-indigo-400 animate-pulse' : 'bg-slate-700 h-1.5'}`}
-              style={{ height: isSpeaking ? `${6 + (i % 3) * 6}px` : '4px', animationDelay: `${i * 80}ms` }}
+              className={`rounded-full transition-all ${
+                isSpeaking
+                  ? 'voice-bar bg-cyan-400'
+                  : 'w-0.5 bg-slate-700 h-1.5'
+              }`}
+              style={{ animationDelay: `${i * 110}ms` }}
             />
           ))}
         </div>
