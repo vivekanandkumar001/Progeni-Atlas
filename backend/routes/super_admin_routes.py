@@ -271,8 +271,8 @@ def super_admin_organizations():
         if not org_docs and db is not None:
             default_org = {
                 "id": "org-progeni-atlas-hq",
-                "name": "TalentPulse Enterprise HQ",
-                "slug": "talentpulse-hq",
+                "name": "Progeni Atlas Enterprise HQ",
+                "slug": "progeni-atlas-hq",
                 "tier": "enterprise",
                 "status": "active",
                 "company_size": "500+",
@@ -330,8 +330,8 @@ def super_admin_organization_detail(org_id):
         if not org and org_id in ("org-progeni-atlas-hq", "default"):
             org = {
                 "id": org_id,
-                "name": "TalentPulse Enterprise HQ",
-                "slug": "talentpulse-hq",
+                "name": "Progeni Atlas Enterprise HQ",
+                "slug": "progeni-atlas-hq",
                 "tier": "enterprise",
                 "status": "active",
                 "company_size": "500+",
@@ -607,7 +607,7 @@ def super_admin_interviews(session_id=None):
                 "session": {
                     "id": str(s.get("id") or s.get("_id")),
                     "orgId": str(s.get("org_id") or ""),
-                    "organizationName": s.get("company_name") or "TalentPulse Assessment",
+                    "organizationName": s.get("company_name") or "Progeni Atlas Assessment",
                     "candidateId": str(s.get("candidate_id") or ""),
                     "candidateName": c_name,
                     "candidateEmail": s.get("candidate_email"),
@@ -673,8 +673,8 @@ def super_admin_interviews(session_id=None):
                 "mode": s.get("mode", "real"),
                 "durationMinutes": s.get("duration_minutes", 45),
                 "jobTitle": role_t,
-                "companyName": s.get("company_name") or "TalentPulse Assessment",
-                "organizationName": s.get("company_name") or "TalentPulse Assessment",
+                "companyName": s.get("company_name") or "Progeni Atlas Assessment",
+                "organizationName": s.get("company_name") or "Progeni Atlas Assessment",
                 "totalScore": s.get("total_score"),
                 "recommendation": s.get("final_recommendation"),
                 "proctoringFlags": v_count,
@@ -1583,13 +1583,13 @@ def super_admin_billing_accounts():
         accounts = list(db.billing_accounts.find({})) if db is not None else []
         if not accounts:
             orgs = list(db.organizations.find({})) if db is not None else []
-            org = orgs[0] if orgs else {"id": "org-progeni-atlas-hq", "name": "TalentPulse Enterprise HQ", "tier": "enterprise"}
+            org = orgs[0] if orgs else {"id": "org-progeni-atlas-hq", "name": "Progeni Atlas Enterprise HQ", "tier": "enterprise"}
             org_id = str(org.get("id") or org.get("_id"))
             default_acc = {
                 "id": f"acc-{org_id}",
                 "orgId": org_id,
                 "userId": None,
-                "accountName": f"{org.get('name', 'TalentPulse')} Operating Account",
+                "accountName": f"{org.get('name', 'Progeni Atlas')} Operating Account",
                 "accountType": "enterprise",
                 "currency": "INR",
                 "openingBalanceNanoUsd": 0,
@@ -1836,7 +1836,7 @@ def super_admin_billing_invoices():
                 "createdAt": "2026-10-01T12:00:00Z",
                 "lineItems": [
                     {
-                        "description": "TalentPulse Growth Tier (250 Screening Seats)",
+                        "description": "Progeni Atlas Growth Tier (250 Screening Seats)",
                         "quantity": 1,
                         "unitPriceUsd": 1499.0,
                         "totalUsd": 1499.0,
@@ -2032,7 +2032,7 @@ def public_career_openings():
 
 @super_admin_bp.route("/api/careers/apply", methods=["POST"])
 def public_career_apply():
-    """Public endpoint for candidates to apply to a TalentPulse company opening."""
+    """Public endpoint for candidates to apply to a Progeni Atlas company opening."""
     try:
         db = get_mongo_db()
         data = request.get_json() or {}
@@ -2075,7 +2075,7 @@ def public_career_apply():
 @super_admin_bp.route("/api/super-admin/careers", methods=["GET", "POST"])
 @require_super_admin
 def super_admin_careers():
-    """List or create internal company job openings for TalentPulse."""
+    """List or create internal company job openings for Progeni Atlas."""
     try:
         db = get_mongo_db()
         if request.method == "GET":

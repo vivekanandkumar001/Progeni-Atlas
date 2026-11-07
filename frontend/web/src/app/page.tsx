@@ -53,7 +53,7 @@ const faqs = [
   ['How does the AI interviewer create questions?', 'It uses the interview context — resume, job description, role, skills and previous answers — to determine the next question.'],
   ['Is the interview two-way?', 'Yes. The candidate communicates with the AI interviewer through the supported voice/video experience. The AI can ask follow-up questions based on the response.'],
   ['Can HR schedule real interviews?', 'Yes. Recruiters can create positions, invite candidates and use the scheduled interview workflow. Practice interviews remain separate.'],
-  ['Does TalentPulse support coding interviews?', 'Yes. The candidate experience includes a live coding workspace and system-design interview stages.'],
+  ['Does Progeni Atlas support coding interviews?', 'Yes. The candidate experience includes a live coding workspace and system-design interview stages.'],
   ['What does the final scorecard contain?', 'It can include technical depth, coding, system design, problem solving, communication and role-specific evidence.'],
 ];
 
@@ -269,11 +269,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* WHY TALENTPULSE */}
+      {/* WHY PROGENI ATLAS */}
       <section id="benefits" className="border-b border-line px-5 py-20 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-7xl">
           <div className="text-center">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-emerald">Why TalentPulse</span>
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-emerald">Why Progeni Atlas</span>
             <h2 className="mt-3 text-3xl font-black text-ink sm:text-4xl">Designed for candidates, recruiters and enterprise teams</h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-ink-muted">One platform with role-specific experiences across the candidate journey, recruiter workflow and platform governance.</p>
           </div>

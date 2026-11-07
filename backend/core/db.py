@@ -17,10 +17,10 @@ if os.path.exists(root_env):
 else:
     load_dotenv()
 
-logger = logging.getLogger("talentpulse.db")
+logger = logging.getLogger("progeni_atlas.db")
 
-MONGO_URI = os.environ.get("MONGO_URI") or os.environ.get("MONGODB_URI") or "mongodb://localhost:27017/talentpulse"
-MONGODB_DB_NAME = os.environ.get("MONGODB_DB_NAME") or "talentpulse"
+MONGO_URI = os.environ.get("MONGO_URI") or os.environ.get("MONGODB_URI") or "mongodb://localhost:27017/progeni_atlas"
+MONGODB_DB_NAME = os.environ.get("MONGODB_DB_NAME") or "progeni_atlas"
 QDRANT_URL = os.environ.get("QDRANT_URL")
 QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY")
 
@@ -84,7 +84,7 @@ def init_mongo_db():
         db.audit_logs.create_index("action")
 
         # Seed default platform super_admin user if not already present
-        admin_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "talentpulseadmin@gmail.com").strip().lower()
+        admin_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "admin@progeni.live").strip().lower()
         if admin_email:
             existing_admin = db.users.find_one({"email": admin_email})
             import uuid
@@ -98,7 +98,7 @@ def init_mongo_db():
                     "id": str(uuid.uuid4()),
                     "email": admin_email,
                     "password_hash": pwd_hash,
-                    "full_name": "TalentPulse Administrator",
+                    "full_name": "Progeni Atlas Administrator",
                     "role": "super_admin",
                     "status": "active",
                     "is_email_verified": True,

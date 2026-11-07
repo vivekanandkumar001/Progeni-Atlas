@@ -20,7 +20,7 @@ from typing import Any
 from app.services import llm_service
 from app.services.llm_service import AnswerEvaluation
 
-logger = logging.getLogger("talentpulse.evaluation_service")
+logger = logging.getLogger("progeni_atlas.evaluation_service")
 
 __all__ = [
     "AnswerEvaluation",

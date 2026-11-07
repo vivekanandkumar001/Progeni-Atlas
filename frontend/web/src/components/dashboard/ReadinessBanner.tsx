@@ -112,7 +112,7 @@ export const ReadinessBanner: React.FC = () => {
         </span>
 
         <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight leading-tight">
-          {firstName ? `Welcome back, ${firstName}!` : 'Welcome to TalentPulse'}
+          {firstName ? `Welcome back, ${firstName}!` : 'Welcome to Progeni Atlas'}
         </h1>
 
         <p className="text-sm text-ink leading-relaxed">

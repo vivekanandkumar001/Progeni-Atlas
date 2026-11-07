@@ -22,7 +22,7 @@ from app.services import llm_service
 from app.services.context import _candidate_context
 from app.services.llm_service import AnswerEvaluation, GeneratedQuestion, LLMError
 
-logger = logging.getLogger("talentpulse.question_service")
+logger = logging.getLogger("progeni_atlas.question_service")
 
 __all__ = [
     "AnswerEvaluation",

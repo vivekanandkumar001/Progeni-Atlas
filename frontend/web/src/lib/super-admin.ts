@@ -47,7 +47,7 @@ export const SUPER_ADMIN_NAV: SuperAdminNavGroup[] = [
       { label: 'Users & Accounts', href: '/super-admin/users', icon: Users, description: 'Candidate, recruiter and admin accounts' },
       { label: 'Roles & Permissions', href: '/super-admin/roles', icon: ShieldCheck, description: 'RBAC matrix, role hierarchy and action policy' },
       { label: 'Jobs & Interviews', href: '/super-admin/interviews', icon: Video, description: 'Platform-wide interview oversight' },
-      { label: 'Company Careers', href: '/super-admin/careers', icon: Briefcase, description: 'TalentPulse internal job openings and candidate applications' },
+      { label: 'Company Careers', href: '/super-admin/careers', icon: Briefcase, description: 'Progeni Atlas internal job openings and candidate applications' },
     ],
   },
   {

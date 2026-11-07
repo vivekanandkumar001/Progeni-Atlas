@@ -397,7 +397,7 @@ async def upload_recording(
     try:
         stored = upload_bytes(
             data,
-            folder=f"talentpulse/recordings/{session.id}",
+            folder=f"progeni_atlas/recordings/{session.id}",
             filename=filename,
             mime_type=mime,
             resource_type="video",

@@ -31,7 +31,7 @@ from app.models import (
 from app.services import interview_engine as engine
 from app.services.llm_service import LLMError
 
-logger = logging.getLogger("talentpulse.orchestrator")
+logger = logging.getLogger("progeni_atlas.orchestrator")
 
 # Stages that call a provider and therefore need latency/retry observability.
 AI_STAGES = ("greeting", "generate_question", "evaluate_answer", "scorecard")

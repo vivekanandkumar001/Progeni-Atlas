@@ -70,7 +70,7 @@ export function exportCandidateDossierPdf(candidate: CandidateDossierExportData)
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('TALENTPULSE AI', margin + 6, y + 10);
+  doc.text('PROGENI ATLAS', margin + 6, y + 10);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -381,7 +381,7 @@ export function exportCandidateDossierPdf(candidate: CandidateDossierExportData)
   // Download Trigger
   const safeName = (candidate.name || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
   const safeDate = new Date().toISOString().split('T')[0];
-  const fileName = `TalentPulse_Dossier_${safeName}_${safeDate}.pdf`;
+  const fileName = `Progeni_Atlas_Dossier_${safeName}_${safeDate}.pdf`;
   doc.save(fileName);
   return fileName;
 }

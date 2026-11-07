@@ -17,7 +17,7 @@ import json
 import logging
 from typing import Any
 
-logger = logging.getLogger("talentpulse.summary_service")
+logger = logging.getLogger("progeni_atlas.summary_service")
 
 __all__ = ["generate_interview_summary"]
 
