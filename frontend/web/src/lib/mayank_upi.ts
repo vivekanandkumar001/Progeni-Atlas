@@ -66,7 +66,7 @@ export async function createMayankUpiOrder({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rawData = (await res.json().catch(() => ({}))) as Record<string, any>;
-  
+
   if (!res.ok && !rawData.order_id && !rawData.id) {
     throw new Error(rawData.error || 'Failed to initialize UPI payment order.');
   }
@@ -78,9 +78,9 @@ export async function createMayankUpiOrder({
     targetInr;
 
   const orderId = String(rawData.order_id || rawData.id || rawData.client_order_id || `PA-ORD-${Date.now()}`);
-  const upiId = String(rawData.upi_id || process.env.NEXT_PUBLIC_MERCHANT_UPI_ID || '8651240027@ptsbi');
+  const upiId = String(rawData.upi_id || process.env.NEXT_PUBLIC_MERCHANT_UPI_ID || 'progeniatlas@ptaxis');
   const payeeName = String(rawData.payee_name || process.env.NEXT_PUBLIC_MERCHANT_PAYEE_NAME || 'Progeni Atlas');
-  
+
   const upiIntent =
     rawData.upi_intent ||
     `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${calculatedInr.toFixed(2)}&cu=INR&tr=${encodeURIComponent(orderId)}&tn=${encodeURIComponent('Progeni Atlas Credits')}`;
