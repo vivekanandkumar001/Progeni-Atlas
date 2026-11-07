@@ -17,45 +17,49 @@ import {
   Target,
   Clock,
   Compass,
+  Cpu,
+  Terminal,
+  Activity,
+  Layers,
 } from 'lucide-react';
 
 export default function AboutPage() {
-  const teamMembers = [
+  const engineeringPrinciples = [
     {
-      name: 'Dr. Evelyn Vance',
-      role: 'Chief AI Scientist & Co-Founder',
-      bio: 'Ex-DeepMind NLP researcher specializing in speech intelligence and multi-modal conversational agents.',
-      avatar: 'EV',
+      title: 'Real-Time Audio Latency',
+      role: 'Sub-500ms Turn Processing',
+      description: 'Built on WebRTC and streaming speech recognition for natural, low-latency technical discussions without awkward conversational lag.',
+      icon: Activity,
       gradient: 'from-blue-600 to-cyan-500',
     },
     {
-      name: 'Marcus Chen',
-      role: 'VP of Distributed Systems',
-      bio: 'Former Staff Engineer at Stripe & AWS. Architect of our ultra-low latency proctoring and code evaluation sandbox.',
-      avatar: 'MC',
+      title: 'Sandboxed Code Runtimes',
+      role: 'In-Browser Execution',
+      description: 'Monaco-powered development environment supporting Python, C++, Java, and TypeScript with automated edge-case test validation.',
+      icon: Terminal,
       gradient: 'from-indigo-600 to-violet-500',
     },
     {
-      name: 'Sarah Al-Mansoor',
-      role: 'Head of People Science & Rubrics',
-      bio: 'Organizational Psychologist specializing in equitable psychometric grading and bias elimination algorithms.',
-      avatar: 'SA',
+      title: 'Objective Mathematical Rubrics',
+      role: 'Unbiased Evaluation',
+      description: 'Grading is anchored to demonstrable code execution, algorithmic complexity, and structured communication rubrics.',
+      icon: BrainCircuit,
       gradient: 'from-cyan-600 to-teal-500',
     },
     {
-      name: 'David Thorne',
-      role: 'Head of Enterprise Security',
-      bio: '15+ years securing cloud infra, SOC-2 Type II audit compliance, and multi-tenant biometric governance.',
-      avatar: 'DT',
+      title: 'Privacy-First Architecture',
+      role: 'Transient Processing',
+      description: 'Session audio and code inputs are processed with standard SSL encryption, giving candidates full transparency over their feedback.',
+      icon: Lock,
       gradient: 'from-slate-700 to-slate-900',
     },
   ];
 
-  const milestones = [
-    { number: '150,000+', label: 'Technical Interviews Conducted' },
-    { number: '85%', label: 'Reduction in Screening Turnaround' },
-    { number: '99.4%', label: 'AI Proctoring Accuracy' },
-    { number: '40+', label: 'Supported Tech Stacks & Sandboxes' },
+  const platformSpecs = [
+    { number: '< 500ms', label: 'Real-Time Voice Turn Latency' },
+    { number: 'Monaco', label: 'Integrated Code Sandbox' },
+    { number: '100%', label: 'Evidence-Linked Rubric Scoring' },
+    { number: 'WebRTC', label: 'Zero Install In-Browser Experience' },
   ];
 
   return (
@@ -69,46 +73,47 @@ export default function AboutPage() {
         <div className="absolute top-20 -left-40 w-[450px] h-[450px] rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/5 text-accent-cyan text-xs font-bold uppercase tracking-wider">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/5 text-[#185adb] text-xs font-bold uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5" />
-            Empowering Merit-Based Hiring
+            Engineering Mission
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-ink tracking-tight leading-[1.1]">
             We&apos;re Building the Future of{' '}
-            <span className="bg-gradient-to-r from-[#185adb] via-cyan-500 to-indigo-600 bg-clip-text text-transparent">
-              Autonomous Technical Evaluation
+            <span className="text-[#185adb]">
+              Technical Interview Mastery
             </span>
           </h1>
 
           <p className="max-w-3xl mx-auto text-base sm:text-lg text-ink-muted leading-relaxed">
-            Progeni Atlas was founded with a singular conviction: technical competence should be measured by demonstrated engineering ability, logical depth, and system reasoning—not by resume keyword gymnastics or interview scheduling fatigue.
+            Progeni Atlas was founded with a singular conviction: engineering ability should be practiced and evaluated on real problem solving, logical clarity, and systems reasoning—not high-stress trick questions or scheduling bottlenecks.
           </p>
 
           <div className="pt-4 flex flex-wrap justify-center gap-4">
             <Link
-              href="/services"
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/20 hover:brightness-110 transition-all"
+              href="/candidate/practice"
+              prefetch={false}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#185adb] hover:bg-[#154bb7] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition-all"
             >
-              Explore AI Services <ArrowRight className="w-4 h-4" />
+              Start Free Practice <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/contact"
-              className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-6 py-3.5 text-sm font-semibold text-ink hover:bg-surface-2 hover:border-cyan-400/50 transition-all"
+              href="#principles"
+              className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-6 py-3.5 text-sm font-semibold text-ink hover:bg-surface-2 transition-all"
             >
-              Contact Leadership
+              Platform Principles
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Numbers / Traction */}
+      {/* Platform Capabilities / Metrics */}
       <section className="border-b border-line bg-surface-deep py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
-            {milestones.map((item, idx) => (
+            {platformSpecs.map((item, idx) => (
               <div key={idx} className="space-y-1">
-                <p className="text-3xl sm:text-4xl font-black text-[#185adb]  font-mono">
+                <p className="text-2xl sm:text-3xl font-black text-[#185adb] font-mono">
                   {item.number}
                 </p>
                 <p className="text-xs sm:text-sm text-ink-muted font-medium">
@@ -120,7 +125,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Mission & Vision Section (#mission) */}
+      {/* Mission & Philosophy Section (#mission) */}
       <section id="mission" className="py-20 border-b border-line bg-surface scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -129,20 +134,20 @@ export default function AboutPage() {
                 MISSION &amp; PHILOSOPHY
               </span>
               <h2 className="text-3xl sm:text-4xl font-black text-ink tracking-tight">
-                Eliminating Interviewer Fatigue, Restoring Engineering Depth
+                Eliminating Interview Anxiety, Elevating Engineering Depth
               </h2>
               <p className="text-sm sm:text-base text-ink-muted leading-relaxed">
-                Traditional hiring processes ask engineers to spend 20+ hours a week repeating basic technical screens, leading to burnout, subjective grading, and lost candidates.
+                Traditional technical interviews often create high friction for candidates and engineers alike. Candidates face scheduling anxiety and inconsistent questioning, while engineers spend dozens of hours repeating identical preliminary screens.
               </p>
               <p className="text-sm sm:text-base text-ink-muted leading-relaxed">
-                Progeni Atlas provides candidates with an intelligent, patient, two-way conversational partner that adapts questions in real-time. Whether probing distributed systems tradeoffs or debugging live Python code, our platform listens, evaluates, and compiles evidence-based dossiers that hiring managers can verify in minutes.
+                Progeni Atlas provides candidates with an autonomous, patient, two-way conversational partner that adapts questions in real time. Whether probing distributed systems tradeoffs or debugging live Python code, our platform listens, evaluates, and compiles detailed rubric reports you can learn from.
               </p>
 
               <div className="space-y-3 pt-2">
                 {[
-                  '100% Equal Opportunity: Every candidate receives uniform baseline scrutiny.',
-                  'Zero Scheduling Delays: Complete technical screens 24/7 at the candidate’s convenience.',
-                  'Comprehensive Transcripts: Audit every turn of conversation with exact audio timestamps.',
+                  'Objective Standards: Every candidate is evaluated on clear, transparent criteria.',
+                  '24/7 Availability: Practice or take technical screens at whatever time works best for you.',
+                  'Actionable Feedback: Review turn-by-turn transcripts and targeted recommendations to improve.',
                 ].map((point, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-accent-emerald shrink-0 mt-0.5" />
@@ -156,8 +161,8 @@ export default function AboutPage() {
               <div className="rounded-3xl border border-line bg-surface-deep p-6 sm:p-8 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl" />
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-line">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#185adb] to-cyan-500 text-white flex items-center justify-center font-bold text-lg shadow-md">
-                    <BrainCircuit className="w-6 h-6" />
+                  <div className="w-12 h-12 rounded-2xl bg-[#072448] text-white flex items-center justify-center font-bold text-lg shadow-md">
+                    <BrainCircuit className="w-6 h-6 text-[#185adb]" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-ink">Adaptive Evaluation Engine</h3>
@@ -170,19 +175,19 @@ export default function AboutPage() {
                     <p className="font-bold text-accent-cyan uppercase text-[10px] tracking-wider mb-1">
                       Context Ingestion
                     </p>
-                    <p className="text-ink">Resume + Job Description + Role Competencies extracted into rubric matrices.</p>
+                    <p className="text-ink">Resume + Target Role competencies extracted into structured evaluation rubrics.</p>
                   </div>
                   <div className="p-4 rounded-xl bg-surface border border-line">
                     <p className="font-bold text-indigo-500 uppercase text-[10px] tracking-wider mb-1">
                       Two-Way Audio/Video Dialog
                     </p>
-                    <p className="text-ink">Real-time candidate vocal answers trigger intelligent follow-ups on trade-offs.</p>
+                    <p className="text-ink">Real-time candidate vocal answers trigger intelligent follow-ups on system trade-offs.</p>
                   </div>
                   <div className="p-4 rounded-xl bg-surface border border-line">
                     <p className="font-bold text-emerald-500 uppercase text-[10px] tracking-wider mb-1">
-                      Server-Authoritative Scorecard
+                      Evidence-Linked Feedback
                     </p>
-                    <p className="text-ink">Mathematical scoring based on verified rubric evidence, never arbitrary scores.</p>
+                    <p className="text-ink">Granular scoring backed by automated unit test results and audio transcript evidence.</p>
                   </div>
                 </div>
               </div>
@@ -195,81 +200,86 @@ export default function AboutPage() {
       <section id="integrity" className="py-20 border-b border-line bg-surface-deep scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
-            <span className="text-xs font-bold text-accent-emerald uppercase tracking-wider block">
-              TRUST, GOVERNANCE &amp; ETHICS
+            <span className="text-xs font-bold text-[#185adb] uppercase tracking-wider block">
+              TRUST &amp; EVALUATION INTEGRITY
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-ink tracking-tight">
-              Anti-Bias Guardrails &amp; AI Proctoring Integrity
+              Anti-Bias Guardrails &amp; Fair Evaluation
             </h2>
             <p className="text-sm sm:text-base text-ink-muted">
-              We hold our models to strict ethical boundaries. Progeni Atlas audits every model output to prevent demographic skew and protect session validity.
+              We anchor our evaluation models to demonstrated problem solving and code correctness, eliminating human bias.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="p-6 sm:p-8 rounded-2xl bg-surface border border-line shadow-sm space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-accent-emerald flex items-center justify-center">
+            <div className="p-6 sm:p-8 rounded-2xl bg-surface border border-line shadow-xs space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-[#185adb] flex items-center justify-center">
                 <ShieldCheck className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-ink">Blinded Demographic Evaluation</h3>
+              <h3 className="text-lg font-bold text-ink">Objective Rubric Evaluation</h3>
               <p className="text-sm text-ink-muted leading-relaxed">
-                Candidate scoring relies strictly on semantic code accuracy and reasoning rubric parameters. Voice tone, gender, race, or accent are neutralized.
+                Candidate scoring relies strictly on semantic code accuracy, logical problem solving, and architecture reasoning. Personal demographics are never evaluated.
               </p>
             </div>
 
-            <div className="p-6 sm:p-8 rounded-2xl bg-surface border border-line shadow-sm space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-accent-cyan flex items-center justify-center">
+            <div className="p-6 sm:p-8 rounded-2xl bg-surface border border-line shadow-xs space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-600 flex items-center justify-center">
                 <Lock className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-ink">Multi-Signal Proctoring</h3>
+              <h3 className="text-lg font-bold text-ink">Client-Side Proctoring</h3>
               <p className="text-sm text-ink-muted leading-relaxed">
-                Client-side MediaPipe vision monitors display window focus departures, tab switching, and multi-face anomalies without storing invasive biometric records.
+                Client-side MediaPipe vision monitors display focus and face detection locally during the session without storing unnecessary biometric profiles.
               </p>
             </div>
 
-            <div className="p-6 sm:p-8 rounded-2xl bg-surface border border-line shadow-sm space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-accent-indigo flex items-center justify-center">
+            <div className="p-6 sm:p-8 rounded-2xl bg-surface border border-line shadow-xs space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
                 <Globe2 className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-ink">Enterprise Regulatory Compliance</h3>
+              <h3 className="text-lg font-bold text-ink">Transparent Candidate Feedback</h3>
               <p className="text-sm text-ink-muted leading-relaxed">
-                Fully compliant with EU AI Act High-Risk Employment requirements, EEOC algorithmic transparency, and GDPR Right to Explanation standards.
+                Candidates receive comprehensive feedback reports highlighting specific areas of strength and concrete code optimizations to accelerate career growth.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Leadership & Team Section (#team) */}
-      <section id="team" className="py-20 border-b border-line bg-surface scroll-mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
-            <span className="text-xs font-bold text-[#185adb]  uppercase tracking-wider block">
-              OUR LEADERSHIP
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-ink tracking-tight">
-              Engineered by Practitioners, Driven by Science
-            </h2>
-            <p className="text-sm sm:text-base text-ink-muted">
-              Our core team brings together specialists in large language models, low-latency audio streaming, and high-stakes psychometric assessment.
-            </p>
-          </div>
+      {/* Engineering Principles Section (#principles & #team) */}
+      <section id="principles" className="py-20 border-b border-line bg-surface scroll-mt-20">
+        <div id="team" className="scroll-mt-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
+              <span className="text-xs font-bold text-[#185adb] uppercase tracking-wider block">
+                ENGINEERING PILLARS
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-ink tracking-tight">
+                Designed for Engineering Excellence
+              </h2>
+              <p className="text-sm sm:text-base text-ink-muted">
+                Our platform architecture combines real-time streaming AI, in-browser compilation, and mathematical grading rubrics.
+              </p>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {teamMembers.map((member, i) => (
-              <div key={i} className="p-6 rounded-2xl bg-surface-deep border border-line hover:border-cyan-400/40 transition-colors space-y-4">
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-tr ${member.gradient} text-white flex items-center justify-center font-bold text-base shadow-md`}>
-                  {member.avatar}
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-ink">{member.name}</h3>
-                  <p className="text-xs font-semibold text-[#185adb]  mt-0.5">{member.role}</p>
-                </div>
-                <p className="text-xs text-ink-muted leading-relaxed">
-                  {member.bio}
-                </p>
-              </div>
-            ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {engineeringPrinciples.map((item, i) => {
+                const IconComponent = item.icon;
+                return (
+                  <div key={i} className="p-6 rounded-2xl bg-surface-deep border border-line hover:border-[#185adb]/40 transition-colors space-y-4">
+                    <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-[#185adb] flex items-center justify-center shadow-xs">
+                      <IconComponent className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-ink">{item.title}</h3>
+                      <p className="text-xs font-semibold text-[#185adb] mt-0.5">{item.role}</p>
+                    </div>
+                    <p className="text-xs text-ink-muted leading-relaxed">
+                      {item.description}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
@@ -277,9 +287,9 @@ export default function AboutPage() {
       {/* CTA Bottom Banner */}
       <section className="py-16 bg-gradient-to-r from-[#072448] via-[#0c3666] to-[#185adb] text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <h2 className="text-3xl sm:text-4xl font-black">Ready to experience merit-based hiring?</h2>
+          <h2 className="text-3xl sm:text-4xl font-black">Ready to practice your technical interview?</h2>
           <p className="text-slate-200 text-sm sm:text-base max-w-xl mx-auto">
-            Try a simulated interview session or speak with our solutions engineering team for a personalized enterprise trial.
+            Take a simulated interview drill right now, test your live coding skills, and get instant detailed feedback.
           </p>
           <div className="flex flex-wrap justify-center gap-4 pt-2">
             <Link
@@ -293,7 +303,7 @@ export default function AboutPage() {
               href="/pricing"
               className="px-6 py-3 rounded-full border border-white/40 text-white font-bold text-sm hover:bg-white/10 transition-colors"
             >
-              View Pricing &amp; Plans
+              View Credit Packs (From ₹49)
             </Link>
           </div>
         </div>

@@ -8,7 +8,7 @@ import {
   Video,
   Play,
   CheckCircle2,
-  Building2,
+  Cpu,
   TrendingUp,
   Award,
   Users,
@@ -19,53 +19,56 @@ import {
   Star,
   Clock,
   Terminal,
+  Database,
+  Layers,
+  Code2,
 } from 'lucide-react';
 
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState<'interview' | 'code' | 'dossier'>('interview');
 
-  const caseStudies = [
+  const engineeringTracks = [
     {
-      company: 'Apex Financial Technologies',
-      industry: 'Global FinTech (1,400+ Engineers)',
-      headline: 'Reduced Technical Screening Turnaround from 18 Days to 36 Hours',
-      impact: '78% Faster Throughput',
-      stats: [
-        { label: 'Interviews Conducted', value: '3,200+' },
-        { label: 'Time Saved per Recruiter', value: '14 hrs/wk' },
-        { label: 'Candidate CSAT Rating', value: '4.9 / 5' },
+      domain: 'Backend & Systems',
+      level: 'Senior & Staff Level',
+      headline: 'Distributed Systems, Concurrency & High-Throughput APIs',
+      focus: 'High Scale & Low Latency',
+      topics: [
+        { label: 'Cache Stampede', value: 'Redis / Lease' },
+        { label: 'Consistency', value: 'Raft / Paxos' },
+        { label: 'Throughput', value: 'gRPC / Kafka' },
       ],
-      quote:
-        'Progeni Atlas transformed our high-volume graduate and senior engineering intake. Candidates loved taking interviews on their own schedule without bias.',
-      author: 'Marcus Vance, VP of Engineering Talent',
+      description:
+        'Tests candidate depth on data consistency, partitioning strategies, rate-limiting algorithms, and fault-tolerant failovers.',
+      trackCode: 'BACKEND_SYS_L5',
     },
     {
-      company: 'CloudScale Infrastructure',
-      industry: 'Enterprise DevOps SaaS',
-      headline: 'Standardized Senior Distributed Systems Rubrics Across 14 Global Hubs',
-      impact: '99.4% Proctoring Integrity',
-      stats: [
-        { label: 'Engineering Hours Reclaimed', value: '450+ hrs/mo' },
-        { label: 'Rubric Adherence', value: '100%' },
-        { label: 'Unbiased Hiring Rate', value: '+34%' },
+      domain: 'Algorithms & Data Structures',
+      level: 'Mid to Senior SWE',
+      headline: 'Optimal Time-Complexity, Graph Traversals & Monotonic Queues',
+      focus: 'Algorithmic Rigor',
+      topics: [
+        { label: 'Sliding Windows', value: 'O(N) Amortized' },
+        { label: 'Graph BFS/DFS', value: 'Topological Sort' },
+        { label: 'Dynamic Prog', value: 'State Transitions' },
       ],
-      quote:
-        'Instead of engineers debating subjective opinions, we now get a verifiable dossier with exact code diffs and audio transcript quotes.',
-      author: 'Elena Rostova, Chief People Officer',
+      description:
+        'Live in-browser compilation with automated unit tests across hidden edge cases, memory bounds, and computational complexity.',
+      trackCode: 'ALGO_DSA_L4',
     },
     {
-      company: 'NeuraHealth AI',
-      industry: 'Healthcare Technology',
-      headline: 'Eliminated Candidate No-Shows with 24/7 On-Demand Video Interviews',
-      impact: '60% Higher Completion Rate',
-      stats: [
-        { label: 'Interview Drop-off', value: '-60%' },
-        { label: 'ATS Integration Speed', value: '1 Day' },
-        { label: 'Offer Acceptance Rate', value: '88%' },
+      domain: 'Full-Stack Web Architecture',
+      level: 'Frontend & Full-Stack',
+      headline: 'Modern React/Next.js, State Machines & Secure Auth Flows',
+      focus: 'Production Readiness',
+      topics: [
+        { label: 'Rendering', value: 'SSR / Hydration' },
+        { label: 'State Flow', value: 'Optimistic UI' },
+        { label: 'Security', value: 'JWT / CSRF Guard' },
       ],
-      quote:
-        'Candidates in different timezones no longer have to wake up at 3 AM for a technical screen. The AI interviewer conducts deep, adaptive technical dialogues effortlessly.',
-      author: 'Tariq Al-Hamad, Head of Talent Acquisition',
+      description:
+        'Evaluates component lifecycle ergonomics, web performance metrics (LCP/INP), API error handling, and robust typing.',
+      trackCode: 'FULLSTACK_L4',
     },
   ];
 
@@ -79,35 +82,35 @@ export default function PortfolioPage() {
         <div className="absolute top-10 right-1/4 w-[500px] h-[350px] bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/5 text-[#185adb]  text-xs font-bold uppercase tracking-wider">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/5 text-[#185adb] text-xs font-bold uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5" />
-            Platform Showcase &amp; Track Record
+            Interactive Platform Showcase
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-ink tracking-tight leading-[1.1]">
-            Proven Results.{' '}
-            <span className="bg-gradient-to-r from-[#185adb] via-cyan-500 to-indigo-600 bg-clip-text text-transparent">
-              Enterprise Scale.
+            Next-Gen Architecture.{' '}
+            <span className="text-[#185adb]">
+              Zero Friction.
             </span>
           </h1>
 
           <p className="max-w-3xl mx-auto text-base sm:text-lg text-ink-muted leading-relaxed">
-            Explore our platform in action and discover how forward-thinking talent teams evaluate engineering excellence without hiring bottlenecks.
+            Explore the live Progeni Atlas interview suite: real-time conversational AI, integrated multi-language Monaco coding workspace, and comprehensive rubric reporting.
           </p>
 
           <div className="pt-4 flex flex-wrap justify-center gap-4">
             <Link
               href="/candidate/practice"
               prefetch={false}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/20 hover:brightness-110 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#185adb] hover:bg-[#154bb7] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition-all"
             >
-              Test Practice Drills <ArrowRight className="w-4 h-4" />
+              Launch Practice Drills <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="#case-studies"
+              href="#tracks"
               className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-6 py-3.5 text-sm font-semibold text-ink hover:bg-surface-2 transition-all"
             >
-              Read Client Case Studies
+              Explore Engineering Tracks
             </Link>
           </div>
         </div>
@@ -121,10 +124,10 @@ export default function PortfolioPage() {
               INTERACTIVE PREVIEW
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-ink tracking-tight">
-              Experience the Progeni Atlas Ecosystem
+              Experience the Progeni Atlas Suite
             </h2>
             <p className="text-sm text-ink-muted">
-              Select a platform module below to inspect the candidate and recruiter interfaces.
+              Select a module below to inspect the live interview components in action.
             </p>
           </div>
 
@@ -164,7 +167,7 @@ export default function PortfolioPage() {
               }`}
             >
               <Award className="w-4 h-4" />
-              3. Evidence-Based Recruiter Dossier
+              3. Objective Rubric &amp; Feedback Report
             </button>
           </div>
 
@@ -177,13 +180,13 @@ export default function PortfolioPage() {
                     Live Video Session Mode
                   </span>
                   <h3 className="text-2xl font-black text-ink">
-                    Empathetic AI Persona with Real-Time Vocal Branching
+                    Adaptive AI Persona with Voice Activity Detection
                   </h3>
                   <p className="text-sm text-ink-muted leading-relaxed">
-                    The AI interviewer listens to the candidate&apos;s verbal explanation, dynamically analyzes semantic depth, and asks follow-ups on architectural tradeoffs.
+                    The AI interviewer listens to candidate verbal explanations, evaluates conceptual clarity, and dynamically probes follow-up tradeoffs.
                   </p>
                   <div className="p-4 rounded-2xl bg-surface border border-line space-y-2">
-                    <p className="text-xs font-mono text-accent-cyan font-bold">AI Interviewer Prompt:</p>
+                    <p className="text-xs font-mono text-accent-cyan font-bold">Sample Interviewer Question:</p>
                     <p className="text-sm text-ink italic">
                       &quot;You mentioned using Redis for cache invalidation. How would you handle cache stampede if 50,000 requests hit simultaneously on an expired key?&quot;
                     </p>
@@ -191,7 +194,7 @@ export default function PortfolioPage() {
                   <Link
                     href="/candidate/practice"
                     prefetch={false}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-bold text-xs shadow-md"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#185adb] text-white font-bold text-xs shadow-md hover:bg-[#154bb7] transition-all"
                   >
                     Try This Drill Live <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
@@ -201,9 +204,9 @@ export default function PortfolioPage() {
                   <div className="flex items-center justify-between text-xs pb-3 border-b border-line">
                     <span className="flex items-center gap-2 text-accent-emerald font-bold">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Session In Progress
+                      Live Session Active
                     </span>
-                    <span className="font-mono text-ink-muted">Turn 3 of 7</span>
+                    <span className="font-mono text-ink-muted">Question 3 of 7</span>
                   </div>
                   <div className="h-56 sm:h-64 rounded-xl bg-gradient-to-br from-slate-900 to-indigo-950 flex flex-col items-center justify-center text-white space-y-3 relative overflow-hidden">
                     <div className="w-20 h-20 rounded-full border-2 border-cyan-400 bg-cyan-500/20 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.3)]">
@@ -222,20 +225,20 @@ export default function PortfolioPage() {
                     Live Coding Runtime
                   </span>
                   <h3 className="text-2xl font-black text-ink">
-                    Production Code Execution with Unit Tests
+                    Integrated Monaco Editor with Instant Test Runner
                   </h3>
                   <p className="text-sm text-ink-muted leading-relaxed">
-                    Candidates write code in their preferred language with autocomplete, execution runtimes, and automated test-case evaluation.
+                    Write real production code in Python, C++, TypeScript, or Java with syntax validation, runtime execution, and automated test-case evaluation.
                   </p>
                   <ul className="space-y-2 text-xs text-ink-muted">
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-accent-emerald" /> 6 Supported languages with instant sandbox spin-up
+                      <CheckCircle2 className="w-4 h-4 text-accent-emerald" /> Multiple supported languages with instant sandbox spin-up
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-accent-emerald" /> Edge-case fuzzing and memory allocation metrics
+                      <CheckCircle2 className="w-4 h-4 text-accent-emerald" /> Automated edge-case unit test execution
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-accent-emerald" /> Keystroke and revision history stored for recruiter audit
+                      <CheckCircle2 className="w-4 h-4 text-accent-emerald" /> Full revision timeline recorded for objective evaluation
                     </li>
                   </ul>
                 </div>
@@ -250,7 +253,6 @@ export default function PortfolioPage() {
     # Binary search partitioning O(log(min(m, n)))
     if len(nums1) > len(nums2):
         nums1, nums2 = nums2, nums1
-    
     m, n = len(nums1), len(nums2)
     low, high = 0, m
     ...
@@ -266,21 +268,21 @@ export default function PortfolioPage() {
             {activeTab === 'dossier' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center animate-fadeIn">
                 <div className="space-y-5">
-                  <span className="text-[11px] font-bold text-[#185adb]  uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
-                    Audit-Ready Dossier
+                  <span className="text-[11px] font-bold text-[#185adb] uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+                    Sample Feedback Report
                   </span>
                   <h3 className="text-2xl font-black text-ink">
-                    Quantifiable Evidence Behind Every Hiring Decision
+                    Evidence Behind Every Assessment
                   </h3>
                   <p className="text-sm text-ink-muted leading-relaxed">
-                    Hiring managers receive a granular breakdown across Technical Depth, Coding Quality, Architecture, and Communication.
+                    Both candidates and hiring teams receive a granular breakdown across Technical Depth, Code Quality, System Architecture, and Communication.
                   </p>
                   <div className="flex flex-wrap gap-2 pt-2">
                     <Link
-                      href="/recruiter/dossiers"
+                      href="/pricing"
                       className="px-5 py-2.5 rounded-xl bg-[#072448] text-white font-bold text-xs hover:brightness-110"
                     >
-                      Open Full Recruiter Portal
+                      View Preparation Packs
                     </Link>
                   </div>
                 </div>
@@ -288,11 +290,11 @@ export default function PortfolioPage() {
                 <div className="rounded-2xl border border-line bg-surface p-6 shadow-xl space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-line">
                     <div>
-                      <h4 className="text-sm font-bold text-ink">Senior Backend Engineer Candidate</h4>
-                      <p className="text-xs text-ink-muted">Overall Score: 94 / 100 • Strong Hire</p>
+                      <h4 className="text-sm font-bold text-ink">Technical Interview Feedback (Sample)</h4>
+                      <p className="text-xs text-ink-muted">Overall Assessment: 94 / 100 • Strong Engineering Mastery</p>
                     </div>
                     <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-accent-emerald text-xs font-bold border border-emerald-500/30">
-                      Recommended
+                      Sample Rubric
                     </span>
                   </div>
 
@@ -317,11 +319,11 @@ export default function PortfolioPage() {
                     </div>
                     <div>
                       <div className="flex justify-between mb-1">
-                        <span className="text-ink-muted">Anti-Cheating Integrity Score</span>
-                        <span className="font-bold text-emerald-500">99.8% (Clean)</span>
+                        <span className="text-ink-muted">Communication &amp; Architecture</span>
+                        <span className="font-bold text-emerald-500">90%</span>
                       </div>
                       <div className="w-full h-2 rounded-full bg-surface-2 overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full w-[99%]" />
+                        <div className="h-full bg-emerald-500 rounded-full w-[90%]" />
                       </div>
                     </div>
                   </div>
@@ -332,61 +334,64 @@ export default function PortfolioPage() {
         </div>
       </section>
 
-      {/* Case Studies Section (#case-studies) */}
-      <section id="case-studies" className="py-20 border-b border-line bg-surface-deep scroll-mt-20">
+      {/* Engineering Tracks Section (#tracks) */}
+      <section id="tracks" className="py-20 border-b border-line bg-surface-deep scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-            <span className="text-xs font-bold text-accent-emerald uppercase tracking-wider block">
-              ENTERPRISE VALIDATION
+            <span className="text-xs font-bold text-[#185adb] uppercase tracking-wider block">
+              PRACTICE SYLLABUS &amp; TRACKS
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-ink tracking-tight">
-              Trusted by High-Velocity Engineering Organizations
+              Curated Technical Interview Tracks
             </h2>
             <p className="text-sm sm:text-base text-ink-muted">
-              Discover how leading companies replace screening bottlenecks with high-throughput, unbiased assessments.
+              Practice real-world interview drills aligned with modern engineering requirements.
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {caseStudies.map((cs, idx) => (
+            {engineeringTracks.map((tr, idx) => (
               <div
                 key={idx}
-                className="p-8 rounded-3xl border border-line bg-surface shadow-sm hover:shadow-xl transition-all flex flex-col justify-between space-y-6"
+                className="p-8 rounded-3xl border border-line bg-surface shadow-xs hover:shadow-xl transition-all flex flex-col justify-between space-y-6"
               >
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#185adb]  font-mono">
-                      {cs.industry}
+                    <span className="text-xs font-bold text-[#185adb] font-mono">
+                      {tr.domain}
                     </span>
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-accent-emerald border border-emerald-500/20">
-                      {cs.impact}
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-500/10 text-[#185adb] border border-blue-500/20">
+                      {tr.focus}
                     </span>
                   </div>
 
                   <h3 className="text-xl font-bold text-ink leading-snug">
-                    {cs.company}
+                    {tr.headline}
                   </h3>
 
                   <p className="text-xs sm:text-sm text-ink-muted font-medium">
-                    {cs.headline}
+                    {tr.description}
                   </p>
 
                   <div className="grid grid-cols-3 gap-2 py-4 border-y border-line text-center">
-                    {cs.stats.map((s, i) => (
+                    {tr.topics.map((t, i) => (
                       <div key={i}>
-                        <p className="text-base font-black text-ink">{s.value}</p>
-                        <p className="text-[10px] text-ink-muted">{s.label}</p>
+                        <p className="text-xs font-black text-ink">{t.value}</p>
+                        <p className="text-[10px] text-ink-muted">{t.label}</p>
                       </div>
                     ))}
                   </div>
-
-                  <p className="text-xs italic text-ink-muted leading-relaxed">
-                    &quot;{cs.quote}&quot;
-                  </p>
                 </div>
 
-                <div className="pt-2 text-xs font-bold text-ink border-t border-line">
-                  {cs.author}
+                <div className="pt-2 flex items-center justify-between border-t border-line">
+                  <span className="text-[11px] font-mono text-ink-muted">{tr.trackCode}</span>
+                  <Link
+                    href="/candidate/practice"
+                    prefetch={false}
+                    className="text-xs font-bold text-[#185adb] hover:underline inline-flex items-center gap-1"
+                  >
+                    Start Drill <ArrowRight className="w-3 h-3" />
+                  </Link>
                 </div>
               </div>
             ))}

@@ -927,7 +927,7 @@ export default function ATSIntegrationsPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
-                    <span><strong>Enterprise Data Protection:</strong> SOC-2 Type II compliant payload hashing.</span>
+                    <span><strong>Enterprise Data Protection:</strong> HMAC-SHA256 signature payload hashing.</span>
                   </li>
                 </ul>
 
