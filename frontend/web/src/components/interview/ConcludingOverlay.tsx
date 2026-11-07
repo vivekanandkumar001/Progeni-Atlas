@@ -18,7 +18,7 @@ export const ConcludingOverlay: React.FC<ConcludingOverlayProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl space-y-6 text-center animate-fadeIn select-none">
-      <div className="w-20 h-20 rounded-3xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-accent-cyan shadow-2xl shadow-cyan-500/20">
+      <div className="w-20 h-20 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-accent-cyan shadow-2xl shadow-cyan-500/20">
         <Sparkles className="w-10 h-10 text-cyan-400 animate-pulse" />
       </div>
 

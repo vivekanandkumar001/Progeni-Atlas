@@ -546,7 +546,7 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
         {/* Support modal */}
         {supportModalOpen && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center bg-scrim p-4 backdrop-blur-md">
-            <div className="w-full max-w-lg space-y-4 rounded-3xl border border-line bg-surface p-6 shadow-2xl">
+            <div className="w-full max-w-lg space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <div className="flex items-center gap-2">
                   <KeyRound className="h-5 w-5 text-accent-amber" />

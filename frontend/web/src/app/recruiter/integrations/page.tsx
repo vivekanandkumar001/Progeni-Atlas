@@ -500,7 +500,7 @@ export default function ATSIntegrationsPage() {
       {/* Main Canvas */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Recruiter Header Banner */}
-        <section className="p-6 sm:p-8 rounded-3xl border border-line bg-surface shadow-sm relative overflow-hidden">
+        <section className="p-6 sm:p-8 rounded-xl border border-line bg-surface shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
@@ -656,7 +656,7 @@ export default function ATSIntegrationsPage() {
 
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {/* Provider 1: Google Sheets / CSV (Always Ready) */}
-              <div className="p-6 rounded-3xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+              <div className="p-6 rounded-xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -701,7 +701,7 @@ export default function ATSIntegrationsPage() {
               </div>
 
               {/* Provider 2: Greenhouse ATS */}
-              <div className="p-6 rounded-3xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+              <div className="p-6 rounded-xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -752,7 +752,7 @@ export default function ATSIntegrationsPage() {
               </div>
 
               {/* Provider 3: Workday HCM */}
-              <div className="p-6 rounded-3xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+              <div className="p-6 rounded-xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -802,7 +802,7 @@ export default function ATSIntegrationsPage() {
               </div>
 
               {/* Provider 4: Lever */}
-              <div className="p-6 rounded-3xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+              <div className="p-6 rounded-xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -852,7 +852,7 @@ export default function ATSIntegrationsPage() {
               </div>
 
               {/* Provider 5: Ashby */}
-              <div className="p-6 rounded-3xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+              <div className="p-6 rounded-xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -902,7 +902,7 @@ export default function ATSIntegrationsPage() {
               </div>
 
               {/* Provider 6: LinkedIn Recruiter */}
-              <div className="p-6 rounded-3xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+              <div className="p-6 rounded-xl border border-line bg-surface hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -956,7 +956,7 @@ export default function ATSIntegrationsPage() {
 
         {/* TAB 2: BULK CSV / EXCEL IMPORT (RECRUITER WORKHORSE) */}
         {activeTab === 'bulk_import' && (
-          <div className="p-6 sm:p-8 rounded-3xl border border-line bg-surface shadow-sm space-y-6">
+          <div className="p-6 sm:p-8 rounded-xl border border-line bg-surface shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-6">
               <div>
                 <h2 className="text-lg font-bold text-ink">Bulk Candidate Spreadsheet Importer</h2>
@@ -1089,7 +1089,7 @@ export default function ATSIntegrationsPage() {
 
         {/* TAB 3: HIRING AUTOMATION RULES */}
         {activeTab === 'rules' && (
-          <div className="p-6 sm:p-8 rounded-3xl border border-line bg-surface shadow-sm space-y-6">
+          <div className="p-6 sm:p-8 rounded-xl border border-line bg-surface shadow-sm space-y-6">
             <div className="border-b border-line pb-4">
               <h2 className="text-lg font-bold text-ink">Recruitment Pipeline Automation Rules</h2>
               <p className="text-xs text-ink-muted mt-0.5">
@@ -1213,7 +1213,7 @@ export default function ATSIntegrationsPage() {
 
         {/* TAB 4: REAL ACTIVITY AUDIT TRAIL */}
         {activeTab === 'activity' && (
-          <div className="p-6 sm:p-8 rounded-3xl border border-line bg-surface shadow-sm space-y-6">
+          <div className="p-6 sm:p-8 rounded-xl border border-line bg-surface shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-4">
               <div>
                 <h2 className="text-lg font-bold text-ink">Integration Sync Ledger</h2>
@@ -1310,7 +1310,7 @@ export default function ATSIntegrationsPage() {
         {/* CONNECTION MODAL FOR RECRUITERS */}
         {selectedProviderKey && activeProviderObj && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-sm animate-fadeIn">
-            <div className="w-full max-w-lg rounded-3xl border border-line bg-surface p-6 sm:p-8 shadow-2xl space-y-6 text-ink">
+            <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xl space-y-6 text-ink">
               <div className="flex items-center justify-between border-b border-line pb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-2xl bg-blue-500/10 text-[#185adb]">

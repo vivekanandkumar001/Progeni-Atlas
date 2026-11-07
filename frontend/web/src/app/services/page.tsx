@@ -163,7 +163,7 @@ export default function ServicesPage() {
               <div
                 key={service.id}
                 id={service.id}
-                className={`grid grid-cols-1 lg:grid-cols-12 gap-10 items-center scroll-mt-24 p-8 sm:p-10 rounded-3xl border border-line bg-surface-deep shadow-sm hover:shadow-xl transition-shadow`}
+                className={`grid grid-cols-1 lg:grid-cols-12 gap-10 items-center scroll-mt-24 p-8 sm:p-10 rounded-xl border border-line bg-surface-deep shadow-sm hover:shadow-xl transition-shadow`}
               >
                 {/* Content side (7 cols) */}
                 <div className={`lg:col-span-7 space-y-6 ${isReversed ? 'lg:order-2' : ''}`}>

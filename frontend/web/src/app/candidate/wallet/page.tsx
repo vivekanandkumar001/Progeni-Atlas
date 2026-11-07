@@ -335,8 +335,7 @@ export default function CandidateWalletPage() {
         {/* Paytm-Style Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Available Balance */}
-          <div className="p-6 rounded-3xl border border-line bg-surface shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-28 h-28 bg-cyan-500/5 rounded-full blur-2xl group-hover:bg-cyan-500/10 transition" />
+          <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm relative overflow-hidden group">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span className="font-semibold uppercase tracking-wider">Available Balance</span>
               <div className="p-1.5 rounded-lg bg-cyan-500/10 text-accent-cyan">
@@ -363,8 +362,7 @@ export default function CandidateWalletPage() {
           </div>
 
           {/* Card 2: Total Credits Added / Recharged */}
-          <div className="p-6 rounded-3xl border border-line bg-surface shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-28 h-28 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition" />
+          <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm relative overflow-hidden group">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span className="font-semibold uppercase tracking-wider">Total Added (Recharges)</span>
               <div className="p-1.5 rounded-lg bg-emerald-500/10 text-accent-emerald">
@@ -383,8 +381,7 @@ export default function CandidateWalletPage() {
           </div>
 
           {/* Card 3: Total Spent on Practice & Technical Interviews */}
-          <div className="p-6 rounded-3xl border border-line bg-surface shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-28 h-28 bg-rose-500/5 rounded-full blur-2xl group-hover:bg-rose-500/10 transition" />
+          <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm relative overflow-hidden group">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span className="font-semibold uppercase tracking-wider">Spent on Interviews</span>
               <div className="p-1.5 rounded-lg bg-rose-500/10 text-accent-rose">
@@ -403,8 +400,7 @@ export default function CandidateWalletPage() {
           </div>
 
           {/* Card 4: Free Demo Quota */}
-          <div className="p-6 rounded-3xl border border-line bg-surface shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-28 h-28 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 transition" />
+          <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm relative overflow-hidden group">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span className="font-semibold uppercase tracking-wider">Free Demo Quota</span>
               <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
@@ -426,7 +422,7 @@ export default function CandidateWalletPage() {
         </div>
 
         {/* Paytm-Style Passbook & History Section */}
-        <div className="rounded-3xl border border-line bg-surface p-5 sm:p-6 space-y-5 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 space-y-5 shadow-sm">
           {/* Header & Search */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line pb-4">
             <div>
@@ -687,7 +683,7 @@ export default function CandidateWalletPage() {
       {/* Paytm-Style Transaction Receipt Modal */}
       {selectedTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-line bg-surface p-6 shadow-2xl space-y-6">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-2">
                 <Receipt className="h-5 w-5 text-accent-cyan" />
@@ -823,7 +819,7 @@ export default function CandidateWalletPage() {
       {/* Recharge Modal */}
       {rechargeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-line bg-surface p-6 shadow-2xl space-y-6">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-accent-cyan" />

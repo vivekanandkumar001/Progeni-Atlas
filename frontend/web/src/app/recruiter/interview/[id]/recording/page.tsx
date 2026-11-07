@@ -277,7 +277,7 @@ export default function RecruiterRecordingViewPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-canvas text-ink flex flex-col items-center justify-center p-6">
-        <div className="max-w-md w-full p-8 rounded-3xl bg-surface border border-line text-center space-y-5 shadow-2xl">
+        <div className="max-w-md w-full p-8 rounded-xl bg-surface border border-line text-center space-y-5 shadow-2xl">
           <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center mx-auto text-rose-400">
             <AlertCircle className="w-7 h-7" />
           </div>

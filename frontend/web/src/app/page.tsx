@@ -35,38 +35,34 @@ const featureCards = [
   { icon: BarChart3, title: 'Evidence-Based Scorecards', text: 'Turn answers, coding performance and competency signals into a structured assessment.' },
 ];
 
-const panelInterviewers = [
+const technicalInterviewTracks = [
   {
-    name: 'Sarah Chen',
-    role: 'Staff Systems Engineer',
-    level: 'Hard',
-    levelColor: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-    desc: 'Deep dives on distributed concurrency, locking semantics & high-throughput pipelines.',
-    avatar: '/avatars/interviewer_female.jpg',
+    title: 'Distributed Systems & Backend Architecture',
+    category: 'Backend Track',
+    level: 'Advanced',
+    levelColor: 'text-rose-700 bg-rose-50 border-rose-200',
+    desc: 'Deep dives on distributed concurrency, cache invalidation, locking semantics & high-throughput pipelines.',
   },
   {
-    name: 'Alex Rivera',
-    role: 'Principal Frontend Architect',
-    level: 'Medium',
-    levelColor: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-    desc: 'Tests real DOM performance, state reactivity, micro-frontends and accessibility.',
-    avatar: '/avatars/interviewer_female.jpg',
+    title: 'Frontend Architecture & Modern Web Systems',
+    category: 'Frontend Track',
+    level: 'Core',
+    levelColor: 'text-blue-700 bg-blue-50 border-blue-200',
+    desc: 'Tests real DOM performance, state reactivity, micro-frontends, rendering pipelines and accessibility standards.',
   },
   {
-    name: 'Dr. Vikram Sethi',
-    role: 'Lead ML & Algorithms Lead',
-    level: 'Hard',
-    levelColor: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-    desc: 'Probes dynamic programming, graph invariants, transformer latency & memory bounds.',
-    avatar: '/avatars/interviewer_female.jpg',
+    title: 'Algorithms, Data Structures & Complexity',
+    category: 'Computer Science Track',
+    level: 'Advanced',
+    levelColor: 'text-rose-700 bg-rose-50 border-rose-200',
+    desc: 'Probes dynamic programming, graph invariants, transformer latency, memory bounds, and algorithmic optimization.',
   },
   {
-    name: 'Maya Patel',
-    role: 'Engineering Manager (Behavioral)',
-    level: 'Warm-up',
-    levelColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    desc: 'Evaluates architecture trade-offs, cross-functional leadership, and conflict resolution.',
-    avatar: '/avatars/interviewer_female.jpg',
+    title: 'Engineering Leadership & Architectural Tradeoffs',
+    category: 'System & Leadership',
+    level: 'Staff / Lead',
+    levelColor: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+    desc: 'Evaluates architecture trade-offs, cross-functional engineering leadership, fault tolerance, and incident resolution.',
   },
 ];
 
@@ -83,8 +79,8 @@ const pricing = [
   {
     name: 'Free Starter',
     price: '₹0',
-    credits: '10 Credits',
-    note: 'Instant on OTP verification',
+    credits: '1 Mock Trial',
+    note: 'Free full technical screening round',
     items: [
       '1 Full AI Technical Mock Round',
       'Live Coding & Spoken Voice Analysis',
@@ -311,7 +307,7 @@ export default function Home() {
             className="relative"
           >
             {/* Ambient Aura Background */}
-            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-cyan-500/20 via-indigo-500/15 to-purple-500/20 blur-2xl pointer-events-none anim-aura" />
+            <div className="absolute -inset-4 rounded-xl bg-gradient-to-r from-cyan-500/20 via-indigo-500/15 to-purple-500/20 blur-2xl pointer-events-none anim-aura" />
 
             {/* The Live Video Interview Room Window (Sakshaat Style) */}
             <div className="relative overflow-hidden rounded-2xl border border-cyan-400/40 bg-slate-950 text-white shadow-2xl shadow-cyan-500/15">
@@ -472,45 +468,47 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          AI INTERVIEWER PANEL CAROUSEL (SAKSHAAT-STYLE lp-pn-strip)
-          Continuous marquee scrolling of AI interviewers
+          TECHNICAL INTERVIEW TRACKS CAROUSEL
+          Continuous marquee scrolling of specialized interview evaluation tracks
           ===================================================================== */}
-      <section className="relative border-b border-line bg-surface-deep py-16 overflow-hidden">
+      <section className="relative border-b border-line bg-surface py-14 overflow-hidden">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-accent-cyan">
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-blue-600">
               <Sparkles className="h-3.5 w-3.5" /> Autonomous Interview Engine
             </div>
-            <h2 className="mt-2 text-2xl sm:text-3xl font-black text-ink">
-              Your AI-Powered Panel is Ready. Are You?
+            <h2 className="mt-2 text-2xl sm:text-3xl font-extrabold text-slate-900">
+              Curated Technical Tracks. Production Rigor.
             </h2>
           </div>
-          <p className="text-xs sm:text-sm text-ink-muted max-w-md">
-            Each interviewer specializes in different competencies — from distributed consensus to architectural trade-offs.
+          <p className="text-xs sm:text-sm text-slate-500 max-w-md">
+            Each track evaluates deep architectural competency, clean code semantics, and real-world system resilience.
           </p>
         </div>
 
         {/* Horizontal Infinite Marquee Carousel */}
         <div className="relative w-full overflow-hidden mask-linear-gradient">
           <div className="marquee-track-h flex gap-5 py-2">
-            {[...panelInterviewers, ...panelInterviewers].map((panel, idx) => (
+            {[...technicalInterviewTracks, ...technicalInterviewTracks].map((track, idx) => (
               <div
                 key={idx}
-                className="card-lift-hover group flex w-[360px] shrink-0 items-center gap-4 rounded-2xl border border-line bg-inset p-4.5 shadow-sm transition-all duration-300"
+                className="group flex w-[380px] shrink-0 flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 hover:border-blue-400 hover:shadow-sm"
               >
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-cyan-400/50 shadow-md shadow-cyan-500/10 transition-transform duration-300 group-hover:scale-105">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={panel.avatar} alt={panel.name} className="h-full w-full object-cover" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-ink truncate">{panel.name}</span>
-                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${panel.levelColor}`}>
-                      {panel.level}
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 font-mono">
+                      {track.category}
+                    </span>
+                    <span className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${track.levelColor}`}>
+                      {track.level}
                     </span>
                   </div>
-                  <p className="text-[11px] font-medium text-accent-cyan truncate">{panel.role}</p>
-                  <p className="mt-1 text-xs text-ink-muted line-clamp-2 leading-relaxed">{panel.desc}</p>
+                  <h3 className="font-bold text-sm text-slate-900 mt-2 line-clamp-1">{track.title}</h3>
+                  <p className="mt-1.5 text-xs text-slate-600 line-clamp-2 leading-relaxed">{track.desc}</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Adaptive Dynamic Questions</span>
+                  <span className="font-medium text-blue-600">Live Workspace</span>
                 </div>
               </div>
             ))}

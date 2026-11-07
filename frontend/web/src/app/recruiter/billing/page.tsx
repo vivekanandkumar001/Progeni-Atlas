@@ -175,378 +175,414 @@ export default function RecruiterBillingPage() {
  };
 
 
- return (
- <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors">
- <RecruiterHeader />
+   return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
+      <RecruiterHeader />
 
- <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
- {/* Top Header */}
- <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
- <div>
- <div className="flex items-center gap-3">
- <div className="p-2.5 rounded-2xl bg-blue-500/10 text-[#185adb]">
- <Wallet className="h-6 w-6"/>
- </div>
- <div>
- <h1 className="text-2xl font-black tracking-tight">Organization Wallet & Billing</h1>
- <p className="text-sm text-slate-500">
- Prepaid credit accounting convention: <strong>₹1.00 = 1 Credit</strong>. Simple, duration-based per-minute billing.
- </p>
- </div>
- </div>
- </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7">
+        {/* Page Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/80 shadow-xs">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Organization Wallet & Billing</h1>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                  Prepaid credit accounting convention: <strong className="text-slate-700">₹1.00 = 1 Credit</strong>. Transparent, duration-based billing.
+                </p>
+              </div>
+            </div>
+          </div>
 
- <div className="flex items-center gap-3">
- <button
- onClick={() => void loadWallet()}
- disabled={loading}
- className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-200 hover:bg-slate-100 transition"
- >
- <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin': ''}`} />
- Refresh
- </button>
- <button
- onClick={() => setRechargeModalOpen(true)}
- className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#185adb] hover:bg-blue-700 shadow-md transition"
- >
- <Plus className="h-4 w-4"/>
- Add Credits
- </button>
- </div>
- </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => void loadWallet()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs transition cursor-pointer"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+              Refresh
+            </button>
+            <button
+              onClick={() => setRechargeModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              Add Credits
+            </button>
+          </div>
+        </div>
 
- {/* Notifications & Banners */}
- {message && (
- <div
- className={`p-4 rounded-2xl border text-sm flex items-center justify-between ${
- message.type === 'success'
- ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
- : 'bg-rose-500/10 border-rose-500/30 text-rose-600'
- }`}
- >
- <span>{message.text}</span>
- <button onClick={() => setMessage(null)} className="p-1 hover:opacity-75">
- <X className="h-4 w-4"/>
- </button>
- </div>
- )}
+        {/* Notifications & Banners */}
+        {message && (
+          <div
+            className={`p-3.5 rounded-xl border text-xs sm:text-sm flex items-center justify-between shadow-xs ${
+              message.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {message.type === 'success' ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              )}
+              <span>{message.text}</span>
+            </div>
+            <button onClick={() => setMessage(null)} className="p-1 hover:opacity-75 text-slate-400 hover:text-slate-600">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
- {/* Free Demo Trial Notice if applicable */}
- {wallet?.demoQuota && wallet.demoQuota.remaining > 0 && (
- <div className="p-4 rounded-2xl border border-blue-500/30 bg-blue-500/5 flex items-center justify-between">
- <div className="flex items-center gap-3">
- <Gift className="h-5 w-5 text-[#185adb] shrink-0"/>
- <div>
- <span className="font-bold text-sm text-slate-800">
- Complimentary AI Screening Trial Active
- </span>
- <p className="text-xs text-slate-500 mt-0.5">
- Your organization has <strong>{wallet.demoQuota.remaining} free demo screening(s)</strong> remaining (up to 10 minutes each) with zero wallet charge.
- </p>
- </div>
- </div>
- <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-[#185adb]">
- {wallet.demoQuota.remaining} / {wallet.demoQuota.totalAllowed} Left
- </span>
- </div>
- )}
+        {/* Free Demo Trial Notice if applicable */}
+        {wallet?.demoQuota && wallet.demoQuota.remaining > 0 && (
+          <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-100 text-blue-700 shrink-0">
+                <Gift className="h-4 w-4" />
+              </div>
+              <div>
+                <span className="font-semibold text-xs sm:text-sm text-blue-900 block">
+                  Complimentary AI Screening Trial Active
+                </span>
+                <p className="text-xs text-blue-700 mt-0.5">
+                  Your organization has <strong className="font-bold text-blue-900">{wallet.demoQuota.remaining} free screening round(s)</strong> remaining (up to 10 minutes each) with zero wallet deduction.
+                </p>
+              </div>
+            </div>
+            <span className="self-start sm:self-auto px-2.5 py-1 rounded-md text-xs font-bold bg-white text-blue-700 border border-blue-200 shadow-2xs whitespace-nowrap">
+              {wallet.demoQuota.remaining} of {wallet.demoQuota.totalAllowed} Left
+            </span>
+          </div>
+        )}
 
- {/* Balance Overview Cards */}
- <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
- {/* Card 1: Available Balance */}
- <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-sm relative overflow-hidden">
- <div className="flex items-center justify-between text-xs text-slate-500">
- <span>Available Balance</span>
- <span className="font-mono text-[10px] uppercase font-bold text-emerald-500">Active</span>
- </div>
- <div className="mt-3 flex items-baseline gap-1.5">
- <span className="text-3xl font-black text-slate-900">
- {wallet?.availableCredits?.toFixed(2) ?? '0.00'}
- </span>
- <span className="text-sm font-semibold text-slate-500">Credits (₹)</span>
- </div>
- <div className="mt-3 text-xs text-slate-500 flex items-center gap-1.5">
- <Clock className="h-3.5 w-3.5 text-blue-500"/>
- <span>
- ≈{' '}
- <strong className="text-slate-700">
- {Math.floor((wallet?.availableCredits ?? 0) / (wallet?.ratePerMinuteCredits || 2))} mins
- </strong>{' '}
-                  interview time
- </span>
- </div>
- </div>
+        {/* Balance Overview Cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Card 1: Available Balance */}
+          <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-medium uppercase tracking-wider text-[11px]">Available Balance</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                  Active
+                </span>
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                  ₹{wallet?.availableCredits?.toFixed(2) ?? '0.00'}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">
+                  ({wallet?.availableCredits?.toFixed(0) ?? 0} Credits)
+                </span>
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+              <span>
+                ≈ <strong className="text-slate-800 font-semibold">{Math.floor((wallet?.availableCredits ?? 0) / (wallet?.ratePerMinuteCredits || 2))} mins</strong> screening time
+              </span>
+            </div>
+          </div>
 
- {/* Card 2: Reserved Holds */}
- <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-sm">
- <div className="flex items-center justify-between text-xs text-slate-500">
- <span>Active Reserved Hold</span>
- <Clock className="h-4 w-4 text-amber-500"/>
- </div>
- <div className="mt-3 flex items-baseline gap-1.5">
- <span className="text-3xl font-black text-amber-600">
- {wallet?.reservedCredits?.toFixed(2) ?? '0.00'}
- </span>
- <span className="text-sm font-semibold text-slate-500">Credits</span>
- </div>
- <p className="mt-3 text-xs text-slate-500">
- Preflight holds on active sessions. Unused duration auto-releases on finish.
- </p>
- </div>
+          {/* Card 2: Reserved Holds */}
+          <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-medium uppercase tracking-wider text-[11px]">Active Reserved Hold</span>
+                <Clock className="h-4 w-4 text-amber-500" />
+              </div>
+              <div className="mt-3 flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                  {wallet?.reservedCredits?.toFixed(2) ?? '0.00'}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">Credits</span>
+              </div>
+            </div>
+            <p className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
+              Atomic preflight hold during live interviews. Auto-releases on finish.
+            </p>
+          </div>
 
- {/* Card 3: Consumed Credits */}
- <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-sm">
- <div className="flex items-center justify-between text-xs text-slate-500">
- <span>Total Consumed</span>
- <Zap className="h-4 w-4 text-blue-500"/>
- </div>
- <div className="mt-3 flex items-baseline gap-1.5">
- <span className="text-3xl font-black text-slate-900">
- {wallet?.consumedCredits?.toFixed(2) ?? '0.00'}
- </span>
- <span className="text-sm font-semibold text-slate-500">Credits (₹)</span>
- </div>
- <p className="mt-3 text-xs text-slate-500">
- Settled screening minutes across all completed candidate interviews.
- </p>
- </div>
+          {/* Card 3: Consumed Credits */}
+          <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-medium uppercase tracking-wider text-[11px]">Total Consumed</span>
+                <Zap className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="mt-3 flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                  ₹{wallet?.consumedCredits?.toFixed(2) ?? '0.00'}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">Credits</span>
+              </div>
+            </div>
+            <p className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
+              Settled screening minutes across all completed candidate interviews.
+            </p>
+          </div>
 
- {/* Card 4: Active Rate Card */}
- <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-sm">
- <div className="flex items-center justify-between text-xs text-slate-500">
- <span>Active Rate Card</span>
- <ShieldCheck className="h-4 w-4 text-emerald-500"/>
- </div>
- <div className="mt-3 flex items-baseline gap-1.5">
- <span className="text-3xl font-black text-[#185adb]">
- {(wallet?.ratePerMinuteCredits ?? 2.0).toFixed(2)}
- </span>
- <span className="text-sm font-semibold text-slate-500">Credits / min</span>
- </div>
- <p className="mt-3 text-xs text-slate-500">
- ₹2.00 (2 Credits) per billable minute with server ceiling-to-whole-minute rounding.
- </p>
- </div>
- </div>
+          {/* Card 4: Active Rate Card */}
+          <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-medium uppercase tracking-wider text-[11px]">Active Rate Card</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                  Standard
+                </span>
+              </div>
+              <div className="mt-3 flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-blue-600">
+                  {(wallet?.ratePerMinuteCredits ?? 2.0).toFixed(2)}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">Credits / min</span>
+              </div>
+            </div>
+            <p className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
+              ₹2.00 per minute with server ceiling-to-whole-minute rounding.
+            </p>
+          </div>
+        </div>
 
- {/* Pricing Policy Card */}
- <div className="p-6 rounded-3xl border border-slate-200 bg-white space-y-4">
- <h2 className="text-lg font-bold">How Per-Minute Billing Works</h2>
- <div className="grid gap-4 sm:grid-cols-3 text-xs">
- <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
- <span className="font-bold text-slate-800 block mb-1">1. Preflight Reservation</span>
- <p className="text-slate-500">
- When live charging is enabled, the server atomically holds 10 Credits (5 mins @ 2 Credits/min) from your wallet to guarantee uninterrupted connectivity.
- </p>
- </div>
- <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
- <span className="font-bold text-slate-800 block mb-1">2. Server-Authoritative Timing</span>
- <p className="text-slate-500">
- Duration is measured strictly by server timestamps with ceiling-to-minute rounding (e.g. 18m 24s is calculated as 19 billable minutes).
- </p>
- </div>
- <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
- <span className="font-bold text-slate-800 block mb-1">3. Instant Hold Release</span>
- <p className="text-slate-500">
- Upon interview completion, the exact charge is deducted and any remaining reserved hold is instantly credited back to your available balance.
- </p>
- </div>
- </div>
- </div>
+        {/* Clean Process Strip: How Duration-Based Billing Works */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
+          <div className="border-b border-slate-100 pb-3 mb-5">
+            <h2 className="text-base font-bold text-slate-900">How Duration-Based Billing Operates</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Transparent, double-entry ledger calculation governed by server-authoritative timestamps.
+            </p>
+          </div>
 
- {/* Recent Transactions Table */}
- <div className="p-6 rounded-3xl border border-slate-200 bg-white space-y-4">
- <div className="flex items-center justify-between">
- <h2 className="text-lg font-bold">Transaction History</h2>
- <span className="text-xs text-slate-500">Immutable Double-Entry Ledger</span>
- </div>
+          <div className="grid gap-6 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+            <div className="pt-4 md:pt-0 md:pr-6 space-y-1.5">
+              <span className="text-xs font-mono font-bold text-blue-600 block">01 · Preflight Hold</span>
+              <h3 className="text-xs font-bold text-slate-800">Atomic Reservation</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                When live charging is active, the server reserves a temporary 10 Credit hold (5 mins @ 2 Credits/min) to prevent mid-answer disconnection.
+              </p>
+            </div>
 
- <div className="overflow-x-auto">
- <table className="w-full text-xs text-left">
- <thead>
- <tr className="border-b border-slate-200 text-slate-500 font-semibold">
- <th className="py-3 px-3">Date & Time</th>
- <th className="py-3 px-3">Transaction Ref</th>
- <th className="py-3 px-3">Type</th>
- <th className="py-3 px-3">Description</th>
- <th className="py-3 px-3 text-right">Credits (₹)</th>
- <th className="py-3 px-3 text-center">Status</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-slate-100">
- {transactions.length === 0 ? (
- <tr>
- <td colSpan={6} className="py-8 text-center text-slate-400">
- No transactions recorded yet.
- </td>
- </tr>
- ) : (
- transactions.map((tx) => (
- <tr key={tx.id} className="hover:bg-slate-50/50 transition">
- <td className="py-3 px-3 text-slate-500 font-mono">
- {new Date(tx.createdAt).toLocaleString('en-IN', {
- day: 'numeric',
- month: 'short',
- year: 'numeric',
- hour: '2-digit',
- minute: '2-digit',
- })}
- </td>
- <td className="py-3 px-3 font-mono text-[11px] text-slate-700">
- {tx.txRef}
- </td>
- <td className="py-3 px-3">
- <span
- className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
- tx.entryType === 'recharge_paid'
- ? 'bg-emerald-500/10 text-emerald-600'
- : tx.entryType === 'service_debit'
- ? 'bg-blue-500/10 text-blue-600'
- : tx.entryType === 'service_hold'
- ? 'bg-amber-500/10 text-amber-600'
- : 'bg-slate-500/10 text-slate-600'
- }`}
- >
- {tx.entryType.replace('_', '')}
- </span>
- </td>
- <td className="py-3 px-3 text-slate-600 max-w-xs truncate">
- {tx.reason ||'General ledger mutation'}
- </td>
- <td
- className={`py-3 px-3 text-right font-mono font-bold ${
- tx.amountCredits >= 0
- ? 'text-emerald-600'
- : 'text-rose-600'
- }`}
- >
- {tx.amountCredits >= 0 ?`+${tx.amountCredits.toFixed(0)}`:`${tx.amountCredits.toFixed(0)}`} cr
- </td>
- <td className="py-3 px-3 text-center">
- <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600">
- {tx.status}
- </span>
- </td>
- </tr>
- ))
- )}
- </tbody>
- </table>
- </div>
- </div>
- </main>
+            <div className="pt-4 md:pt-0 md:px-6 space-y-1.5">
+              <span className="text-xs font-mono font-bold text-blue-600 block">02 · Authoritative Meter</span>
+              <h3 className="text-xs font-bold text-slate-800">Precision Server Timing</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Duration is measured strictly by WebSocket server connection intervals with industry-standard ceiling-to-minute rounding (e.g. 18m 15s = 19 billable mins).
+              </p>
+            </div>
 
- {/* Recharge Modal */}
- {rechargeModalOpen && (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
- <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-6">
- <div className="flex items-center justify-between border-b border-slate-200 pb-4">
- <div className="flex items-center gap-2">
- <CreditCard className="h-5 w-5 text-[#185adb]"/>
- <h3 className="text-lg font-bold">Add Wallet Credits</h3>
- </div>
- <button
- onClick={() => setRechargeModalOpen(false)}
- className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
- >
- <X className="h-5 w-5"/>
- </button>
- </div>
+            <div className="pt-4 md:pt-0 md:pl-6 space-y-1.5">
+              <span className="text-xs font-mono font-bold text-blue-600 block">03 · Instant Settlement</span>
+              <h3 className="text-xs font-bold text-slate-800">Immediate Unused Refund</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Upon interview completion, the exact consumed duration is deducted and any excess reserved hold is released back to your available balance in real time.
+              </p>
+            </div>
+          </div>
+        </div>
 
- <div className="space-y-4">
- <label className="text-xs font-semibold text-slate-500 block">
- Select Credit Package (₹1 = 1 Credit)
- </label>
+        {/* Recent Transactions Table */}
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+          <div className="px-6 py-4 border-b border-slate-200/80 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Transaction History</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Immutable Double-Entry Accounting Ledger</p>
+            </div>
+            <span className="text-[11px] font-mono text-slate-400">Currency: INR (₹)</span>
+          </div>
 
- <div className="grid gap-3 sm:grid-cols-3">
- {RECHARGE_PACKS.map((pack) => (
- <div
- key={pack.credits}
- onClick={() => {
- setSelectedPack(pack.credits);
- setCustomAmount('');
- }}
- className={`cursor-pointer p-4 rounded-2xl border text-center transition ${
- selectedPack === pack.credits && !customAmount
- ? 'border-blue-500 bg-blue-500/10 shadow-sm ring-1 ring-blue-500'
- : 'border-slate-200 hover:border-blue-500/40'
- }`}
- >
- <span className="block text-[10px] font-black uppercase text-blue-600">
- {pack.badge}
- </span>
- <span className="text-xl font-black block mt-1">₹{pack.inr}</span>
- <span className="text-xs text-slate-500 block mt-0.5">
- {pack.credits} Credits
- </span>
- <span className="text-[10px] text-slate-400 block mt-2">
- ~{pack.minutes} mins screening
- </span>
- </div>
- ))}
- </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200/80 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-4">Date & Time</th>
+                  <th className="py-3 px-4">Transaction Ref</th>
+                  <th className="py-3 px-4">Type</th>
+                  <th className="py-3 px-4">Description</th>
+                  <th className="py-3 px-4 text-right">Credits (₹)</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-500 text-xs">
+                      No billing transactions recorded yet.
+                    </td>
+                  </tr>
+                ) : (
+                  transactions.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-slate-50/60 transition">
+                      <td className="py-3.5 px-4 text-slate-600 font-medium whitespace-nowrap">
+                        {new Date(tx.createdAt).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-[11px] text-slate-700 whitespace-nowrap">
+                        {tx.txRef}
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${
+                            tx.entryType === 'recharge_paid'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : tx.entryType === 'service_debit'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : tx.entryType === 'service_hold'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-slate-100 text-slate-700 border border-slate-200'
+                          }`}
+                        >
+                          {tx.entryType.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-700 max-w-xs truncate">
+                        {tx.reason || 'General ledger mutation'}
+                      </td>
+                      <td
+                        className={`py-3.5 px-4 text-right font-mono font-bold whitespace-nowrap ${
+                          tx.amountCredits >= 0 ? 'text-emerald-700' : 'text-rose-600'
+                        }`}
+                      >
+                        {tx.amountCredits >= 0 ? `+${tx.amountCredits.toFixed(0)}` : `${tx.amountCredits.toFixed(0)}`} cr
+                      </td>
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {tx.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
 
- <div>
- <label className="text-xs font-semibold text-slate-500 block mb-1">
- Or Custom Amount (₹ / Credits)
- </label>
- <input
- type="number"
- min="10"
- step="10"
- placeholder="e.g. 1500"
- value={customAmount}
- onChange={(e) => setCustomAmount(e.target.value)}
- className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
- />
- </div>
+      {/* Recharge Modal */}
+      {rechargeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-200/80">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Add Wallet Credits</h3>
+                  <p className="text-[11px] text-slate-500">Official UPI Instant Payment Gateway</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setRechargeModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
- <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-800">
- <div className="flex items-center justify-between font-bold">
- <span>Total Payable:</span>
- <span className="text-base">
- ₹{customAmount ? parseFloat(customAmount) || 0 : selectedPack}.00
- </span>
- </div>
- <p className="mt-1 text-[11px] text-blue-600">
- Secured by <strong>Progeni Atlas UPI</strong> (Google Pay, PhonePe, Paytm, BHIM, QR). Instant credit addition (₹1 = 1 Credit).
- </p>
- </div>
- </div>
+            <div className="space-y-4">
+              <label className="text-xs font-semibold text-slate-700 block">
+                Select Credit Package (₹1.00 = 1 Credit)
+              </label>
 
- <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
- <button
- type="button"
- disabled={recharging}
- onClick={() => setRechargeModalOpen(false)}
- className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 hover:bg-slate-100 transition"
- >
- Cancel
- </button>
- <button
- type="button"
- disabled={recharging}
- onClick={() => void handleRecharge()}
- className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#185adb] hover:bg-blue-700 shadow-md transition disabled:opacity-50"
- >
- {recharging ? 'Creating UPI Order...':`Pay ₹${customAmount ? parseFloat(customAmount) || 0 : selectedPack} via UPI Gateway`}
- </button>
- </div>
- </div>
- </div>
- )}
- 
- {/* Mayank Singh Multi-Merchant UPI Gateway Modal */}
- <MayankUpiModal
- isOpen={upiModalOpen}
- onClose={() => setUpiModalOpen(false)}
- orderData={activeUpiOrder}
- onSuccess={async (data) => {
- setMessage({ text: data.message, type: 'success' });
- setCustomAmount('');
- await loadWallet();
- }}
- />
-</div>
- );
+              <div className="grid gap-3 sm:grid-cols-3">
+                {RECHARGE_PACKS.map((pack) => (
+                  <div
+                    key={pack.credits}
+                    onClick={() => {
+                      setSelectedPack(pack.credits);
+                      setCustomAmount('');
+                    }}
+                    className={`cursor-pointer p-4 rounded-xl border text-center transition-all ${
+                      selectedPack === pack.credits && !customAmount
+                        ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-600/20 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/60'
+                    }`}
+                  >
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                      {pack.badge}
+                    </span>
+                    <span className="text-xl font-extrabold text-slate-900 block mt-1">₹{pack.inr}</span>
+                    <span className="text-xs text-slate-600 font-medium block mt-0.5">
+                      {pack.credits} Credits
+                    </span>
+                    <span className="text-[11px] text-slate-400 block mt-2">
+                      ~{pack.minutes} mins screening
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Or Custom Amount (₹ / Credits)
+                </label>
+                <input
+                  type="number"
+                  min="10"
+                  step="10"
+                  placeholder="e.g. 1500"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-sm font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/15 transition"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80 text-xs">
+                <div className="flex items-center justify-between font-bold text-slate-900">
+                  <span>Total Payable:</span>
+                  <span className="text-base text-blue-700">
+                    ₹{customAmount ? parseFloat(customAmount) || 0 : selectedPack}.00
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-blue-800 leading-relaxed">
+                  Secured by <strong>Progeni Atlas UPI</strong> (Google Pay, PhonePe, Paytm, BHIM, QR). Instant credit top-up (₹1 = 1 Credit).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                disabled={recharging}
+                onClick={() => setRechargeModalOpen(false)}
+                className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={recharging}
+                onClick={() => void handleRecharge()}
+                className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition disabled:opacity-50 cursor-pointer"
+              >
+                {recharging ? 'Creating UPI Order...' : `Pay ₹${customAmount ? parseFloat(customAmount) || 0 : selectedPack} via UPI`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mayank Singh Multi-Merchant UPI Gateway Modal */}
+      <MayankUpiModal
+        isOpen={upiModalOpen}
+        onClose={() => setUpiModalOpen(false)}
+        orderData={activeUpiOrder}
+        onSuccess={async (data) => {
+          setMessage({ text: data.message, type: 'success' });
+          setCustomAmount('');
+          await loadWallet();
+        }}
+      />
+    </div>
+  );
 }

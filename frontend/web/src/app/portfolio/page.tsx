@@ -172,7 +172,7 @@ export default function PortfolioPage() {
           </div>
 
           {/* Interactive Mockup Container */}
-          <div id="demo" className="rounded-3xl border border-line bg-surface-deep shadow-2xl p-6 sm:p-10 scroll-mt-24">
+          <div id="demo" className="rounded-xl border border-line bg-surface-deep shadow-2xl p-6 sm:p-10 scroll-mt-24">
             {activeTab === 'interview' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center animate-fadeIn">
                 <div className="space-y-5">
@@ -353,7 +353,7 @@ export default function PortfolioPage() {
             {engineeringTracks.map((tr, idx) => (
               <div
                 key={idx}
-                className="p-8 rounded-3xl border border-line bg-surface shadow-xs hover:shadow-xl transition-all flex flex-col justify-between space-y-6"
+                className="p-8 rounded-xl border border-line bg-surface shadow-xs hover:shadow-xl transition-all flex flex-col justify-between space-y-6"
               >
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
