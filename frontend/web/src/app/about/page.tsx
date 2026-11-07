@@ -158,7 +158,7 @@ export default function AboutPage() {
             </div>
 
             <div className="relative">
-              <div className="rounded-3xl border border-line bg-surface-deep p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+              <div className="rounded-xl border border-line bg-surface-deep p-6 sm:p-8 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl" />
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-line">
                   <div className="w-12 h-12 rounded-2xl bg-[#072448] text-white flex items-center justify-center font-bold text-lg shadow-md">

@@ -143,7 +143,7 @@ export default function ContactPage() {
 
             {/* Right Column: Contact Inquiry Form (7 cols) */}
             <div className="lg:col-span-7">
-              <div className="p-8 sm:p-10 rounded-3xl border border-line bg-surface-deep shadow-xl relative">
+              <div className="p-8 sm:p-10 rounded-xl border border-line bg-surface-deep shadow-xl relative">
                 <h3 className="text-xl font-bold text-ink mb-1">Send an Inquiry</h3>
                 <p className="text-xs text-ink-muted mb-6">
                   Fill in your details below and our team will get in touch promptly.

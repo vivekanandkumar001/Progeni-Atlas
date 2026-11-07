@@ -352,7 +352,7 @@ export default function EvaluationRubricsPage() {
         )}
 
         {/* HERO HEADER */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-surface via-surface to-indigo-950/60 border border-line p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+        <section className="relative overflow-hidden rounded-xl bg-white border border-slate-200 p-6 sm:p-7 shadow-xs">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
             <div className="space-y-2 max-w-2xl">
               <div className="flex items-center gap-2.5 flex-wrap">

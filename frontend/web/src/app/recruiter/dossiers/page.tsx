@@ -608,7 +608,7 @@ export default function CandidateDossiersPage() {
  )}
 
  {/* HERO HEADER */}
- <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-surface via-surface to-indigo-950/60 border border-line p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+ <section className="relative overflow-hidden rounded-xl bg-white border border-slate-200 p-6 sm:p-7 shadow-xs">
  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
  <div className="space-y-2 max-w-2xl">
  <div className="flex items-center gap-3">
@@ -1020,7 +1020,7 @@ export default function CandidateDossiersPage() {
  aria-hidden="true"
  />
 
- <div className="relative z-10 w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl bg-surface border border-line shadow-2xl text-ink overflow-hidden">
+ <div className="relative z-10 w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl bg-surface border border-line shadow-2xl text-ink overflow-hidden">
  {/* Sticky Header */}
  <div className="flex items-start justify-between border-b border-line p-6 sm:p-7 bg-surface sticky top-0 z-20">
  <div className="flex items-center gap-4">
@@ -1231,7 +1231,7 @@ export default function CandidateDossiersPage() {
  {/* ================= RESCHEDULE MODAL ================= */}
  {rescheduleCandidate && (
  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
- <div className="bg-surface border border-line rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
+ <div className="bg-surface border border-line rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
  <div className="flex items-start justify-between">
  <div className="flex items-center gap-2">
  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">

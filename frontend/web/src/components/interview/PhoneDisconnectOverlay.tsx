@@ -23,7 +23,7 @@ export const PhoneDisconnectOverlay: React.FC<PhoneDisconnectOverlayProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-fadeIn">
-      <div className="w-full max-w-lg p-6 rounded-3xl bg-slate-900 border border-rose-500/40 shadow-2xl space-y-5">
+      <div className="w-full max-w-lg p-6 rounded-xl bg-slate-900 border border-rose-500/40 shadow-2xl space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-rose-500/20 text-rose-400">

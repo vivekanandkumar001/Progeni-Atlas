@@ -9,11 +9,11 @@
 :root {
   color-scheme: light;
 
-  /* Surfaces */
-  --canvas: #eef2f7;
+  /* Surfaces - Clean Crisp Modern Enterprise SaaS */
+  --canvas: #f8fafc;
   --surface: #ffffff;
   --surface-deep: #ffffff;
-  --surface-2: #f8fafc;
+  --surface-2: #f1f5f9;
   --surface-3: #e2e8f0;
   --inset: #f8fafc;
 
@@ -21,40 +21,41 @@
   --line: #e2e8f0;
   --line-strong: #cbd5e1;
 
-  /* Text - WCAG AA compliant 4.5:1 contrast ratio against light & dark surface cards */
-  --ink: #0f172a;
-  --ink-2: #1e293b;
-  --ink-muted: #334155;
-  --ink-faint: #64748b;
+  /* Text - High-Contrast WCAG AA Compliant Hierarchy */
+  --ink: #0f172a;        /* Slate 900 - Primary headings and key metrics */
+  --ink-2: #1e293b;      /* Slate 800 - Secondary headings */
+  --ink-muted: #475569;  /* Slate 600 - High-contrast body text */
+  --ink-faint: #64748b;  /* Slate 500 - Metadata, timestamps, captions */
 
-  /* Accents (light end of each ramp) */
-  --accent-cyan: #0e7490;
-  --accent-indigo: #4338ca;
-  --accent-emerald: #047857;
-  --accent-rose: #be123c;
-  --accent-amber: #b45309;
-  --accent-violet: #6d28d9;
+  /* Progeni Atlas Royal Blue & Semantic Accents */
+  --accent-blue: #2563eb;
+  --accent-blue-hover: #1d4ed8;
+  --accent-cyan: #0284c7;
+  --accent-indigo: #4f46e5;
+  --accent-emerald: #059669;
+  --accent-rose: #e11d48;
+  --accent-amber: #d97706;
+  --accent-violet: #7c3aed;
 
   /* Translucent chrome */
-  --header: rgba(255, 255, 255, 0.92);
-  --grid-line: rgba(15, 23, 42, 0.04);
-  --glass-from: rgba(255, 255, 255, 0.90);
-  --glass-to: rgba(248, 250, 252, 0.95);
-  --glass-border: rgba(15, 23, 42, 0.12);
-  --glow-cyan: rgba(8, 145, 178, 0.04);
-  --glow-indigo: rgba(79, 70, 229, 0.04);
+  --header: rgba(255, 255, 255, 0.95);
+  --grid-line: rgba(15, 23, 42, 0.03);
+  --glass-from: rgba(255, 255, 255, 0.98);
+  --glass-to: rgba(248, 250, 252, 0.98);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glow-cyan: rgba(37, 99, 235, 0.03);
+  --glow-indigo: rgba(79, 70, 229, 0.03);
 
-  /* Theme-invariant: stays dark in both themes so modal backdrops keep
-     separating the dialog from whatever is behind it */
-  --scrim: rgba(2, 6, 23, 0.82);
+  /* Modal Scrim Backdrop */
+  --scrim: rgba(15, 23, 42, 0.65);
 
-  /* Brand gradient + its label colour, identical in both themes */
-  --brand-from: #06b6d4;
-  --brand-to: #6366f1;
+  /* Official Progeni Atlas Royal Blue Brand Accent */
+  --brand-from: #2563eb;
+  --brand-to: #1d4ed8;
   --on-brand: #ffffff;
 
-  /* Subtle glow */
-  --brand-glow: rgba(8, 145, 178, 0.20);
+  /* Subtle card elevation */
+  --brand-glow: rgba(37, 99, 235, 0.12);
 }
 
 /* Expose the tokens as Tailwind utilities (bg-surface, text-ink, border-line...).
