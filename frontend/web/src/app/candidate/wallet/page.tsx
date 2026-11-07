@@ -268,7 +268,7 @@ export default function CandidateWalletPage() {
     <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans">
       <DashboardHeader />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <main className="flex-1 w-full max-w-7xl xl:max-w-screen-2xl mx-auto p-4 sm:px-6 lg:px-8 2xl:px-10 space-y-6">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

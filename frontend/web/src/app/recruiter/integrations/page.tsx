@@ -498,7 +498,7 @@ export default function ATSIntegrationsPage() {
       )}
 
       {/* Main Canvas */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-grow max-w-7xl xl:max-w-screen-2xl w-full mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-8">
         {/* Recruiter Header Banner */}
         <section className="p-6 sm:p-8 rounded-xl border border-line bg-surface shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />

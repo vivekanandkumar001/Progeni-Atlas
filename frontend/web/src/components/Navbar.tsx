@@ -115,7 +115,7 @@ export const Navbar: React.FC = () => {
         - Menu Items: Home, About Us ˅, Services ˅, Portfolio ˅, Pay Us Now, Career, Contact Us
       */}
       <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-xs transition-colors">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="max-w-7xl xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10">
           <div className="flex items-center justify-between h-16 sm:h-18">
             
             {/* ================= LEFT SECTION: BRAND LOGO ================= */}
