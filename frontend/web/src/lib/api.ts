@@ -1141,7 +1141,7 @@ export async function speakInterviewText(
   sessionId: string,
   text: string,
   signal?: AbortSignal,
-  voice: "en" | "hinglish" | "default" = "default",
+  voice: "en" | "hinglish" | "default" | string = "default",
 ): Promise<Blob> {
   const res = await apiFetch(`/api/interview/${sessionId}/speak`, {
     method: 'POST',
