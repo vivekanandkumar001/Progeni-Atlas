@@ -80,10 +80,66 @@ const benefits = [
 ];
 
 const pricing = [
-  { name: 'Starter Practice', price: '₹0', note: '2 Free Practice Sessions', items: ['2 Practice interviews', 'Basic feedback scorecard', 'Candidate profile'] },
-  { name: 'Candidate Pro', price: '₹999', note: 'For career advancement', items: ['20 Advanced practice sessions', 'Detailed AI analysis', 'Interview history'], popular: true },
-  { name: 'Hiring Team Growth', price: '₹8,999', note: 'For hiring teams & agencies', items: ['50 Candidate interviews', 'Recruiter dashboards', 'Candidate dossiers'] },
-  { name: 'Enterprise Scale', price: 'Custom', note: 'For large organizations', items: ['SSO & governance', 'Custom integrations', 'Security & audit controls'] },
+  {
+    name: 'Free Starter',
+    price: '₹0',
+    credits: '10 Credits',
+    note: 'Instant on OTP verification',
+    items: [
+      '1 Full AI Technical Mock Round',
+      'Live Coding & Spoken Voice Analysis',
+      'Instant Scorecard & Feedback',
+      'No Credit Card Required',
+    ],
+    popular: false,
+    cta: 'Start Free Trial',
+    href: '/register',
+  },
+  {
+    name: 'Warm-up Pack',
+    price: '₹49',
+    credits: '30 Credits',
+    note: 'Quick practice before real interview',
+    items: [
+      '30 AI Credits (~15-20 mins practice)',
+      '1 Full DSA or Behavioral Round',
+      'Turn-by-Turn Audio & Transcripts',
+      'Target Role & Topic Tailoring',
+    ],
+    popular: false,
+    cta: 'Get 30 Credits',
+    href: '/candidate/wallet',
+  },
+  {
+    name: 'Placement Ready',
+    price: '₹99',
+    credits: '70 Credits',
+    note: 'Most chosen for campus & job prep',
+    items: [
+      '70 AI Credits (~35-40 mins practice)',
+      '2-3 Full Technical & Design Rounds',
+      'Resume Defense + Custom JD Parsing',
+      'Company Benchmark Scoring (TCS, Google)',
+    ],
+    popular: true,
+    cta: 'Get 70 Credits (Save 30%)',
+    href: '/candidate/wallet',
+  },
+  {
+    name: 'Pro Mastery',
+    price: '₹199',
+    credits: '150 Credits',
+    note: 'Best value for placements',
+    items: [
+      '150 AI Credits (~75-80 mins practice)',
+      '5+ Full Technical, DSA & HR Rounds',
+      'Company-Specific Question Sets',
+      'Priority AI Speech & Audio Latency',
+    ],
+    popular: false,
+    cta: 'Get 150 Credits',
+    href: '/candidate/wallet',
+  },
 ];
 
 const faqs = [
@@ -692,12 +748,17 @@ export default function Home() {
                   </span>
                 )}
                 <div>
-                  <h3 className="text-lg font-bold text-ink">{plan.name}</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-ink">{plan.name}</h3>
+                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-600 border border-cyan-500/20">
+                      {plan.credits}
+                    </span>
+                  </div>
                   <p className="mt-1 text-xs text-ink-muted">{plan.note}</p>
-                  <p className="mt-5 text-3xl font-black text-ink">
+                  <p className="mt-4 text-3xl font-black text-ink">
                     {plan.price}
-                    {plan.price.startsWith('₹') && plan.price !== '₹0' && (
-                      <span className="text-xs font-medium text-ink-muted"> /mo</span>
+                    {plan.price !== '₹0' && (
+                      <span className="text-xs font-medium text-ink-muted"> one-time</span>
                     )}
                   </p>
                   <ul className="mt-6 space-y-3">
@@ -711,20 +772,14 @@ export default function Home() {
                 </div>
 
                 <Link
-                  href={plan.name === 'Enterprise Scale' ? '/contact' : '/register'}
+                  href={plan.href}
                   className={`mt-8 block rounded-xl px-4 py-3 text-center text-xs font-bold transition-all duration-300 ${
                     plan.popular
                       ? 'sheen-sweeper bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-md shadow-cyan-500/25 hover:brightness-110'
                       : 'border border-line bg-surface-2 text-ink hover:bg-surface-3 hover:border-cyan-500/40 hover:text-accent-cyan'
                   }`}
                 >
-                  {plan.name === 'Starter Practice'
-                    ? 'Start Practicing Free'
-                    : plan.name === 'Candidate Pro'
-                    ? 'Upgrade to Pro'
-                    : plan.name === 'Enterprise Scale'
-                    ? 'Contact Enterprise Sales'
-                    : 'Start Team Trial'}
+                  {plan.cta}
                 </Link>
               </div>
             ))}

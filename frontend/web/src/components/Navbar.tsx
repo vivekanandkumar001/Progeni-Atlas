@@ -368,12 +368,12 @@ export const Navbar: React.FC = () => {
                   )}
                 </div>
 
-                {/* 5. Pay Us Now */}
+                {/* 5. Pricing */}
                 <Link
                   href="/pricing"
                   className="flex items-center gap-1 text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors py-2 whitespace-nowrap shrink-0"
                 >
-                  <span className="whitespace-nowrap">Pay Us Now</span>
+                  <span className="whitespace-nowrap">Pricing</span>
                 </Link>
 
                 {/* 6. Career */}
@@ -492,7 +492,7 @@ export const Navbar: React.FC = () => {
                 onClick={() => setMobileOpen(false)}
                 className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
               >
-                Pay Us Now
+                Pricing
               </Link>
               <Link
                 href="/career"

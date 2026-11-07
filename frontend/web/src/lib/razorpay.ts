@@ -70,11 +70,13 @@ export function loadRazorpayScript(): Promise<boolean> {
  */
 export async function openRazorpayCheckout({
   amountCredits,
+  amountInr,
   onSuccess,
   onError,
   onDismiss,
 }: {
   amountCredits: number;
+  amountInr?: number;
   onSuccess: (data: { message: string; creditsAdded: number; paymentId: string }) => void;
   onError: (errorMsg: string) => void;
   onDismiss?: () => void;
@@ -90,7 +92,10 @@ export async function openRazorpayCheckout({
     const orderRes = await apiFetch('/api/billing/wallet/create-order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount_credits: amountCredits }),
+      body: JSON.stringify({
+        amount_credits: amountCredits,
+        amount_inr: amountInr ?? amountCredits,
+      }),
     });
 
     const orderData = (await orderRes.json().catch(() => ({}))) as RazorpayOrderResponse;
