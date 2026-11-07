@@ -153,6 +153,12 @@ JSON format:
                 s_idx, e_idx = clean_str.find("["), clean_str.rfind("]")
                 parsed = json.loads(clean_str[s_idx:e_idx + 1])
 
+        if isinstance(parsed, dict):
+            for k in ["questions", "interview_questions", "turns", "items", "data"]:
+                if k in parsed and isinstance(parsed[k], list):
+                    parsed = parsed[k]
+                    break
+
         if isinstance(parsed, list) and len(parsed) >= 4:
             clean_questions = []
             for idx, q_obj in enumerate(parsed[:4]):
@@ -169,40 +175,39 @@ JSON format:
     except Exception as llm_err:
         print(f"[Dynamic Questions LLM Warning] {llm_err} - Falling back to stack-adaptive synthesis")
 
-    # Step 2: Stack-Adaptive Contextual Procedural Synthesis (Diverse, personalized, non-generic)
+    # Step 2: Stack-Adaptive Contextual Procedural Synthesis (Warm, collegial, spoken English)
     s1 = skills[0] if len(skills) > 0 else "System Architecture"
     s2 = skills[1] if len(skills) > 1 else "High-Throughput Database Design"
     s3 = skills[2] if len(skills) > 2 else "Distributed Concurrency"
     s4 = skills[3] if len(skills) > 3 else "Cloud Observability & Reliability"
 
-    # Adapt question context to technical category
     lower_s1 = s1.lower()
     if any(k in lower_s1 for k in ["react", "next", "vue", "frontend", "typescript", "javascript"]):
-        t1 = f"Hey {cand_name}! Great to meet you. I'm Sarah, leading our technical conversation today for {job_title}. To get us started, walk me through how you structured client-server data flow, state management, and performance hydration in your recent {s1} projects."
+        t1 = f"Hi {cand_name}, great to meet you! I'm Sarah, leading our technical conversation today for {job_title}. To kick things off, could you walk me through how you structured state management, data caching, and performance hydration in a recent {s1} project?"
         c1 = [s1, "Component Reconciliation", "State Architecture"]
-        t2 = f"When optimizing large-scale applications with {s2}, how do you prevent unneeded re-renders, isolate bundle bloat, and handle race conditions in async API calls?"
+        t2 = f"When you're scaling out an application with {s2}, how do you usually prevent unnecessary re-renders, keep bundle sizes lean, and handle race conditions across async API calls?"
         c2 = [s2, "Bundle Optimization", "Async Race Prevention"]
-        t3 = f"Architect an edge-rendered web application that integrates {s3} with real-time websocket updates under sudden 50,000 concurrent user spikes."
+        t3 = f"Let's imagine you're architecting a real-time web application integrating {s3} with live WebSocket streams under a sudden 50,000-user spike. How do you design the edge rendering and backpressure so the clients stay responsive?"
         c3 = [s3, "WebSockets", "Edge Rendering", "Load Balancing"]
-        t4 = f"In production deployments with {s4}, what telemetry (Core Web Vitals, error boundary logs, Sentry tracing) do you monitor to catch client-side memory leaks?"
+        t4 = f"Once everything is running in production with {s4}, what telemetry — like Core Web Vitals, error boundary logs, or client-side distributed tracing — do you watch closely to spot memory leaks before users notice?"
         c4 = [s4, "Core Web Vitals", "Telemetry", "Client Error Budgets"]
     elif any(k in lower_s1 for k in ["python", "fastapi", "django", "flask", "backend"]):
-        t1 = f"Hey {cand_name}! Great to meet you. I'm Sarah, leading our technical session today for {job_title}. To get us started, walk me through how you architected production backend microservices using {s1} and structured your domain layer."
+        t1 = f"Hi {cand_name}, great to meet you! I'm Sarah, leading our technical session today for {job_title}. To start us off, could you walk me through how you designed a recent backend service using {s1} and structured your domain boundaries?"
         c1 = [s1, "Service Architecture", "Clean Domain Layer"]
-        t2 = f"In high-throughput services powered by {s2}, how do you eliminate database connection pool exhaustion and structure indexing for complex filter queries?"
+        t2 = f"In high-throughput services with {s2}, how do you prevent connection pool exhaustion and structure your database indexing when handling complex search or filtering queries?"
         c2 = [s2, "Connection Pooling", "Indexing Mechanics", "Query Plans"]
-        t3 = f"Walk me through your design for an asynchronous task execution pipeline handling {s3} with distributed locking and worker backpressure."
+        t3 = f"Let's say you're building an asynchronous processing pipeline around {s3}. How would you approach distributed locking, idempotency, and backpressure when worker queues get hammered?"
         c3 = [s3, "Distributed Locking", "Backpressure", "Worker Clusters"]
-        t4 = f"When operating mission-critical services under {s4}, how do you structure structured logging, OpenTelemetry spans, and dead-letter queue replay mechanisms?"
+        t4 = f"When operating mission-critical services under {s4}, what structured logging, OpenTelemetry tracing, and dead-letter queue replay strategies do you put in place to debug tricky production outages?"
         c4 = [s4, "OpenTelemetry", "Dead-Letter Queues", "Fault Isolation"]
     else:
-        t1 = f"Hey {cand_name}! Great to meet you. I'm Sarah, leading our technical session today for {job_title}. To get us started, tell me a bit about your engineering journey and a complex production challenge you recently resolved using {s1}."
+        t1 = f"Hi {cand_name}, great to meet you! I'm Sarah, leading our technical conversation today for {job_title}. To get us started, could you walk me through a complex production engineering challenge you recently tackled using {s1}?"
         c1 = [s1, "Production Architecture", "Engineering Ownership"]
-        t2 = f"For a {job_title}, how do you design and structure high-throughput queries, caching topologies, and latency reduction strategies in {s2}?"
+        t2 = f"For a {job_title}, how do you typically approach database indexing, caching layers, and latency optimization when query volumes surge in {s2}?"
         c2 = [s2, "Query Optimization", "Caching Topologies", "Latency Profiling"]
-        t3 = f"Walk me through how you architect a resilient, distributed service that processes {s3} while maintaining strict consistency and fault tolerance."
+        t3 = f"Let's imagine you're designing a resilient distributed system around {s3}. How do you ensure high throughput while maintaining data consistency and graceful fault tolerance when a node drops?"
         c3 = [s3, "Fault Tolerance", "Consensus & Consistency", "Horizontal Scaling"]
-        t4 = f"When operating high-availability systems with {s4}, what telemetry dashboards, circuit breakers, and zero-downtime failover procedures do you rely on?"
+        t4 = f"Finally, when running high-availability systems with {s4}, what telemetry dashboards, circuit breakers, and zero-downtime deployment practices do you rely on to keep reliability high?"
         c4 = [s4, "Circuit Breakers", "Telemetry Dashboards", "Zero-Downtime Failover"]
 
     return [
@@ -246,11 +251,22 @@ def get_session_questions_data(session_id, req=None):
     db = get_mongo_db()
     session_doc = None
     if db is not None and session_id:
-        session_doc = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
+        try:
+            session_doc = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
+        except Exception:
+            session_doc = None
 
     # Return existing persisted questions if already created for this session
     if session_doc and isinstance(session_doc.get("questions"), list) and len(session_doc["questions"]) > 0:
-        return session_doc["questions"]
+        persisted = session_doc["questions"]
+        # If the persisted questions contain the old robotic fallback strings, re-synthesize them dynamically with Gemini
+        is_old_robotic = any(
+            "Architect an edge-rendered web application" in str(q.get("prompt_text", "")) or
+            "To get us started, walk me through how you structured client-server data flow" in str(q.get("prompt_text", ""))
+            for q in persisted
+        )
+        if not is_old_robotic:
+            return persisted
 
     questions = generate_dynamic_session_questions(session_id, session_doc, req)
 
@@ -1072,6 +1088,45 @@ def interview_start_route(session_id):
         return jsonify({"error": str(e)}), 500
 
 
+def synthesize_conversational_next_question(
+    *,
+    cand_name: str,
+    previous_answer: str,
+    acknowledgement: str,
+    next_stage: str,
+    planned_focus: str,
+    job_title: str
+) -> str:
+    """Dynamically bridge from the candidate's last answer into the next planned stage like a human interviewer."""
+    try:
+        from app.services import llm_service
+        sys_msg = (
+            "You are Sarah Chen, Staff Systems Engineer and Technical Hiring Lead, in a live 1-on-1 technical conversation on video. "
+            "You are collegial, sharp, engaged, and warm — speaking naturally to an engineering peer. "
+            "Never use robotic transition phrases like 'Moving to stage 2', 'Now for the next question', or 'I have recorded your answer'. "
+            "Your question must sound spoken aloud (under 38 words), bridging organically from what the candidate just discussed into the next focus."
+        )
+        user_msg = (
+            f"Candidate: {cand_name}\n"
+            f"Target Role: {job_title}\n"
+            f"What candidate just shared: \"{previous_answer[:400]}\"\n"
+            f"Sarah's immediate acknowledgement: \"{acknowledgement[:180]}\"\n\n"
+            f"Next Topic Target:\n"
+            f"Stage: {next_stage}\n"
+            f"Planned Question/Focus: {planned_focus}\n\n"
+            "Generate ONLY the single question to speak next aloud. "
+            "Bridge smoothly from their previous points (e.g., 'Building on how you handled...', 'Shifting gears to the data layer...', 'To take that scale a step further...'). "
+            "Keep it under 38 words. Output ONLY the plain text of the question, no JSON, no quotes."
+        )
+        resp = llm_service.call_llm(user_msg, system=sys_msg, temperature=0.3)
+        clean = resp.strip().strip('"').strip("'").strip()
+        if len(clean) > 20 and ("?" in clean or len(clean.split()) >= 6):
+            return clean
+    except Exception as err:
+        print(f"[Conversational Bridge Warning] {err}")
+    return planned_focus
+
+
 @interview_bp.route("/api/interview/<session_id>/answer", methods=["POST"])
 def interview_answer_route(session_id):
     """Submit a candidate turn, assess it, optionally probe, then advance.
@@ -1312,6 +1367,26 @@ def interview_answer_route(session_id):
                 if not is_finished and (next_turn_idx - 1) < len(questions)
                 else None
             )
+            if next_q and not is_finished:
+                cand_name = (
+                    (session_doc and (session_doc.get("candidate_name") or session_doc.get("full_name")))
+                    or "Candidate"
+                )
+                bridged_prompt = synthesize_conversational_next_question(
+                    cand_name=cand_name,
+                    previous_answer=clean_ans,
+                    acknowledgement=interviewer_line,
+                    next_stage=next_q.get("stage", f"Turn {next_turn_idx}"),
+                    planned_focus=next_q.get("prompt_text", ""),
+                    job_title=(
+                        (session_doc and (session_doc.get("job_title") or session_doc.get("role_title")))
+                        or "Software Engineer"
+                    )
+                )
+                if bridged_prompt:
+                    next_q["prompt_text"] = bridged_prompt
+                    questions[next_turn_idx - 1]["prompt_text"] = bridged_prompt
+
             update_fields = {
                 "id": session_id,
                 "session_id": session_id,
@@ -1326,6 +1401,7 @@ def interview_answer_route(session_id):
                 "state": "COMPLETED" if is_finished else "QUESTION_READY",
                 "status": "completed" if is_finished else "in_progress",
                 "updated_at": now_ans_iso,
+                "questions": questions,
             }
             next_question_payload = {
                 "text": next_q["prompt_text"],
@@ -1617,12 +1693,22 @@ def _generate_edge_tts_sync(text: str, voice: str = "en-US-AvaNeural", rate: str
         return asyncio.run(_runner())
 
 
-def generate_speech_audio(text: str) -> tuple[bytes, str]:
+def generate_speech_audio(text: str, voice: str = "default") -> tuple[bytes, str]:
     """
-    Generate natural human-like voice audio with multi-tier fallback:
-    Tier 1: OpenAI TTS (tts-1 with natural voice 'nova' or 'alloy')
-    Tier 2: Microsoft Azure Neural Voice via edge-tts (ultra-realistic, fast, free)
-    Tier 3: gTTS (Google Translate fallback)
+    Generate natural human-like voice audio with multi-tier fallback.
+    Only supports English and Hinglish language variants.
+    
+    Supported voices:
+    - "default" or "en": English (OpenAI tts-1 with 'nova' or 'alloy'
+      Azure Neural Voice: en-US-AvaNeural)
+    - "hinglish": Hinglish (Hindi-English mix) with appropriate intonation
+      Falls back to English if unavailable
+    - Any other value defaults to "default" (English)
+    
+    Tiers:
+    Tier 1: OpenAI TTS (tts-1 with selected voice)
+    Tier 2: Microsoft Azure Neural Voice via edge-tts
+    Tier 3: gTTS (Google Translate fallback, English only)
     Returns: (audio_bytes, mimetype)
     """
     clean_text = _sanitize_text_for_speech(text)
@@ -1631,17 +1717,27 @@ def generate_speech_audio(text: str) -> tuple[bytes, str]:
     if cache_key in _TTS_AUDIO_CACHE:
         return _TTS_AUDIO_CACHE[cache_key], "audio/mpeg"
 
+    # Normalize voice parameter
+    v = (voice or "default").strip().lower()
+    if v not in ("default", "en", "hinglish"):
+        v = "default"  # Unknown voice -> fall back to English
+
     # Tier 1: OpenAI TTS (if API key available & valid)
     openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if openai_key and not openai_key.startswith("sk-proj-your-openai"):
         try:
             from openai import OpenAI
             client = OpenAI(api_key=openai_key)
-            voice = os.environ.get("TTS_VOICE", "nova").strip() or "nova"
+            # Map voice choice to OpenAI voice id
+            if v == "hinglish":
+                # For Hinglish, use a voice with good Hindi-English code-switching ability
+                tt_voice = os.environ.get("TTS_VOICE_HINGLISH", "nova").strip() or "nova"
+            else:
+                tt_voice = os.environ.get("TTS_VOICE", "nova").strip() or "nova"
             model = os.environ.get("TTS_MODEL", "tts-1").strip() or "tts-1"
             response = client.audio.speech.create(
                 model=model,
-                voice=voice,
+                voice=tt_voice,
                 input=clean_text[:4096]
             )
             audio_bytes = response.read()
@@ -1655,8 +1751,12 @@ def generate_speech_audio(text: str) -> tuple[bytes, str]:
 
     # Tier 2: Microsoft Azure Neural Voice via edge-tts (studio-grade quality)
     try:
-        voice = os.environ.get("EDGE_TTS_VOICE", "en-US-AvaNeural")
-        audio_bytes = _generate_edge_tts_sync(clean_text[:4096], voice=voice)
+        if v == "hinglish":
+            # Use Hinglish-aware Azure voice configuration
+            edge_voice = os.environ.get("EDGE_TTS_HINGLISH_VOICE", "en-IN-EditorialCellular")
+        else:
+            edge_voice = os.environ.get("EDGE_TTS_VOICE", "en-US-AvaNeural")
+        audio_bytes = _generate_edge_tts_sync(clean_text[:4096], voice=edge_voice)
         if audio_bytes and len(audio_bytes) > 500:
             if len(_TTS_AUDIO_CACHE) > 500:
                 _TTS_AUDIO_CACHE.clear()
@@ -1665,7 +1765,7 @@ def generate_speech_audio(text: str) -> tuple[bytes, str]:
     except Exception as edge_err:
         print(f"[TTS Edge-TTS Fallback] {edge_err} -> Switching to gTTS")
 
-    # Tier 3: gTTS fallback
+    # Tier 3: gTTS fallback (English only)
     if gTTS is not None:
         buf = io.BytesIO()
         tts = gTTS(text=clean_text[:4096], lang="en")
@@ -1684,10 +1784,11 @@ def interview_speak_route(session_id):
     try:
         data = request.get_json(silent=True) or {}
         text = data.get("text", "").strip()
+        voice = data.get("voice", "default")  # Allow voice selection: "nova", "alloy", "en-US-AvaNeural", etc.
         if not text:
             return jsonify({"error": "No text provided"}), 400
 
-        audio_bytes, mimetype = generate_speech_audio(text)
+        audio_bytes, mimetype = generate_speech_audio(text, voice=voice)
         return Response(audio_bytes, mimetype=mimetype)
     except Exception as e:
         print(f"[TTS Error] {e}")

@@ -18,6 +18,15 @@ export interface UseInterviewerSpeechOptions {
    * (V-12). Values outside 0.5-2.0 are clamped.
    */
   playbackRate?: number;
+  /**
+   * TTS voice selection for interviewer audio.
+   * Only English and Hinglish variants supported:
+   * - "en": English (default, OpenAI nova/alloy, Azure en-US-AvaNeural)
+   * - "hinglish": Hinglish (Hindi-English mix with Hindi intonation patterns)
+   * - "default": Uses provider-configured default (English)
+   * (V-24) Exposed so interview sessions can customize interviewer voice language.
+   */
+  voice?: "en" | "hinglish" | "default";
 }
 
 export interface UseInterviewerSpeechReturn {
@@ -183,7 +192,7 @@ export function useInterviewerSpeech({
   );
 
   const speakQuestion = useCallback(
-    async (text: string, dialogueKey?: string) => {
+    async (text: string, dialogueKey?: string, voice?: string) => {
       const cleanText = text.trim();
       if (!cleanText) return;
 
@@ -199,6 +208,7 @@ export function useInterviewerSpeech({
         text_hash: textHash,
         active_dialogue: activeDialogueIdRef.current,
         playback_state: playbackState,
+        voice,
       });
 
       if (
@@ -225,7 +235,7 @@ export function useInterviewerSpeech({
         logAudioEvent('TTS_REQUEST_START', { dialogue_id: dialogueId, request_id: requestId, text_hash: textHash });
         const controller = new AbortController();
         ttsAbortRef.current = controller;
-        const blob = await speakInterviewText(sessionId, cleanText, controller.signal);
+        const blob = await speakInterviewText(sessionId, cleanText, controller.signal, voice);
         if (ttsAbortRef.current === controller) ttsAbortRef.current = null;
         logAudioEvent('TTS_REQUEST_END', { dialogue_id: dialogueId, request_id: requestId, blob_size: blob.size });
 

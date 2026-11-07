@@ -294,6 +294,7 @@ def submit_answer(
         "red_flags": list(response.red_flags or []),
         "action_decision": response.action_decision.value if response.action_decision else None,
         "recommended_follow_up": response.recommended_follow_up,
+        "follow_up_context": response.follow_up_context,
     }
 
 

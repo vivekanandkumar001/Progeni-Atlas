@@ -660,6 +660,12 @@ def accept_answer(db: Session, session: InterviewSession, question: InterviewQue
 
     _transition(db, session, "INTERVIEWER_RESPONDING", reason="interviewer response generated")
     _transition(db, session, "FOLLOW_UP_OR_NEXT_QUESTION", reason="evaluator notes reviewed")
+
+    # Auto-advance to QUESTION_GENERATING so the next question is ready for the client
+    # This eliminates the "break in between" where the loop would stall at FOLLOW_UP_OR_NEXT_QUESTION
+    if engine.lifecycle_state(session) == "FOLLOW_UP_OR_NEXT_QUESTION":
+        _transition(db, session, "QUESTION_GENERATING", reason="preparing the next question after evaluation")
+
     return response, _turn_outcome(db, session, response, limits)
 
 

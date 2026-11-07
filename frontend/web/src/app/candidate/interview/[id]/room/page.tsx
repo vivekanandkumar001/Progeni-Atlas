@@ -804,9 +804,9 @@ export default function LiveInterviewRoomPage() {
           ]);
         }
 
-        // Natural human conversational flow: speak the acknowledgment followed by the next question!
+        // Natural human conversational flow: speak the acknowledgment seamlessly followed by the next question!
         const fullSpokenDialogue = ackText && nextQText
-          ? `${ackText} ... Now, ${nextQText}`
+          ? `${ackText} ${nextQText}`
           : (ackText || nextQText);
 
         if (fullSpokenDialogue) {

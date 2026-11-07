@@ -92,31 +92,34 @@ def get_current_candidate(req=None):
 
     resume_doc = None
     if db is not None:
-        query_conditions = []
-        if user:
-            u_id = str(user.get("id") or "")
-            u_oid = str(user.get("_id") or "")
-            u_email = user.get("email")
-            if u_id:
-                query_conditions.append({"candidate_id": u_id})
-            if u_oid and u_oid != u_id:
-                query_conditions.append({"candidate_id": u_oid})
-            if u_email:
-                query_conditions.append({"candidate_email": u_email.strip().lower()})
-                query_conditions.append({"candidate_id": u_email.strip().lower()})
+        try:
+            query_conditions = []
+            if user:
+                u_id = str(user.get("id") or "")
+                u_oid = str(user.get("_id") or "")
+                u_email = user.get("email")
+                if u_id:
+                    query_conditions.append({"candidate_id": u_id})
+                if u_oid and u_oid != u_id:
+                    query_conditions.append({"candidate_id": u_oid})
+                if u_email:
+                    query_conditions.append({"candidate_email": u_email.strip().lower()})
+                    query_conditions.append({"candidate_id": u_email.strip().lower()})
 
-        if query_conditions:
-            resume_doc = db.candidate_resumes.find_one(
-                {"$or": query_conditions},
-                sort=[("uploaded_at", -1)]
-            )
-        if not resume_doc:
-            resume_doc = db.candidate_resumes.find_one(
-                {"is_active": True},
-                sort=[("uploaded_at", -1)]
-            )
-        if not resume_doc:
-            resume_doc = db.candidate_resumes.find_one({}, sort=[("uploaded_at", -1)])
+            if query_conditions:
+                resume_doc = db.candidate_resumes.find_one(
+                    {"$or": query_conditions},
+                    sort=[("uploaded_at", -1)]
+                )
+            if not resume_doc:
+                resume_doc = db.candidate_resumes.find_one(
+                    {"is_active": True},
+                    sort=[("uploaded_at", -1)]
+                )
+            if not resume_doc:
+                resume_doc = db.candidate_resumes.find_one({}, sort=[("uploaded_at", -1)])
+        except Exception:
+            pass
 
     skills = []
     if resume_doc and resume_doc.get("extracted_skills"):
