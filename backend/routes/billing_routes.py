@@ -351,8 +351,9 @@ def create_wallet_order():
         phone = (user and user.get("phone")) or ""
 
         data = request.get_json(silent=True) or {}
-        amount_credits = float(data.get("amount_credits") or data.get("amount") or 100)
-        amount_paise = int(round(amount_credits * 100))
+        amount_credits = float(data.get("amount_credits") or data.get("amount") or 30)
+        amount_inr = float(data.get("amount_inr") or data.get("inr") or data.get("amount") or amount_credits)
+        amount_paise = int(round(amount_inr * 100))
 
         key_id = os.environ.get("RAZORPAY_KEY_ID") or "rzp_test_TqS8bk0XrF3mzv"
         key_secret = os.environ.get("RAZORPAY_KEY_SECRET") or "5WL8bG9ocsHrxu0PBNh7mC9Q"
@@ -367,7 +368,8 @@ def create_wallet_order():
                 "receipt": f"rcpt_{uuid.uuid4().hex[:12]}",
                 "notes": {
                     "user_id": user_id,
-                    "amount_credits": str(amount_credits)
+                    "amount_credits": str(amount_credits),
+                    "amount_inr": str(amount_inr)
                 }
             })
             order_id = order.get("id")
