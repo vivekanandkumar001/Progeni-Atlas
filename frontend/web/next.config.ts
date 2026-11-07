@@ -99,6 +99,7 @@ const nextConfig: NextConfig = {
      re-export pages from the router. */
   async redirects() {
     return [
+      { source: '/sitemap', destination: '/sitemap.xml', permanent: true },
       {
         source: '/super-admin/permissions',
         destination: '/super-admin/roles',
