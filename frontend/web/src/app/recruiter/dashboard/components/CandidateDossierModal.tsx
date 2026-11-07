@@ -21,7 +21,7 @@ export function CandidateDossierModal({
 }) {
  return (
  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-md animate-fadeIn">
- <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 rounded-3xl bg-surface border border-line space-y-6 shadow-2xl text-ink">
+ <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 rounded-xl bg-surface border border-line space-y-6 shadow-2xl text-ink">
  
  {/* MODAL HEADER */}
  <div className="flex items-start justify-between border-b border-line pb-4">

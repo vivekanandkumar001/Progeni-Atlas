@@ -354,7 +354,7 @@ export function PracticeInterviewSetup() {
   return (
     <div className="w-full space-y-8 animate-in fade-in duration-300">
       {/* ------------------------------------------------------------- HERO SECTION */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-surface via-surface-2 to-canvas border border-line p-6 sm:p-8 lg:p-10 shadow-2xl">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-surface via-surface-2 to-canvas border border-line p-6 sm:p-8 lg:p-10 shadow-2xl">
         {/* Glow ambient spots */}
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-80 h-80 bg-accent-cyan/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 -mb-10 w-80 h-80 bg-accent-indigo/10 rounded-full blur-3xl pointer-events-none" />
@@ -415,7 +415,7 @@ export function PracticeInterviewSetup() {
         <div className="lg:col-span-8 space-y-6">
           {/* STEP 1: TARGET JOB ROLE */}
           <div
-            className={`relative bg-surface/90 backdrop-blur-xl border border-line rounded-3xl p-6 sm:p-7 shadow-xl space-y-5 transition-all hover:border-accent-cyan/30 ${
+            className={`relative bg-surface/90 backdrop-blur-xl border border-line rounded-xl p-6 sm:p-7 shadow-xl space-y-5 transition-all hover:border-accent-cyan/30 ${
               roleOpen ? 'z-20' : 'z-0'
             }`}
           >
@@ -531,7 +531,7 @@ export function PracticeInterviewSetup() {
           </div>
 
           {/* STEP 2: JOB DESCRIPTION */}
-          <div className="bg-surface/90 backdrop-blur-xl border border-line rounded-3xl p-6 sm:p-7 shadow-xl space-y-5 transition-all hover:border-accent-indigo/30">
+          <div className="bg-surface/90 backdrop-blur-xl border border-line rounded-xl p-6 sm:p-7 shadow-xl space-y-5 transition-all hover:border-accent-indigo/30">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-start gap-3 sm:items-center">
                 <div className="w-10 h-10 flex-shrink-0 rounded-2xl bg-accent-indigo/10 border border-accent-indigo/20 text-accent-indigo flex items-center justify-center font-bold">
@@ -704,7 +704,7 @@ export function PracticeInterviewSetup() {
           </div>
 
           {/* STEP 3: RESUME CONTEXT */}
-          <div className="bg-surface/90 backdrop-blur-xl border border-line rounded-3xl p-6 sm:p-7 shadow-xl space-y-4 transition-all hover:border-accent-violet/30">
+          <div className="bg-surface/90 backdrop-blur-xl border border-line rounded-xl p-6 sm:p-7 shadow-xl space-y-4 transition-all hover:border-accent-violet/30">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-start gap-3 sm:items-center">
                 <div className="w-10 h-10 flex-shrink-0 rounded-2xl bg-accent-violet/10 border border-accent-violet/20 text-accent-violet flex items-center justify-center font-bold">
@@ -877,7 +877,7 @@ export function PracticeInterviewSetup() {
         {/* RIGHT COLUMN: SIDEBAR TIPS & SIMULATION GUIDE (4 Cols) */}
         <div className="lg:col-span-4 space-y-6">
           {/* SIMULATION SUMMARY CARD */}
-          <div className="bg-surface/90 backdrop-blur-xl border border-line rounded-3xl p-6 shadow-xl space-y-4">
+          <div className="bg-surface/90 backdrop-blur-xl border border-line rounded-xl p-6 shadow-xl space-y-4">
             <h3 className="text-base font-bold text-ink flex items-center gap-2">
               <Cpu className="w-4 h-4 text-accent-cyan" />
               Screening Room Specs
@@ -910,7 +910,7 @@ export function PracticeInterviewSetup() {
           </div>
 
           {/* PRO TIPS CARD */}
-          <div className="bg-gradient-to-br from-surface via-surface-2 to-canvas border border-line rounded-3xl p-6 shadow-xl space-y-4">
+          <div className="bg-gradient-to-br from-surface via-surface-2 to-canvas border border-line rounded-xl p-6 shadow-xl space-y-4">
             <h3 className="text-base font-bold text-ink flex items-center gap-2">
               <Lightbulb className="w-4 h-4 text-accent-amber" />
               Pro Practice Advice

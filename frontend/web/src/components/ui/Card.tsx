@@ -6,7 +6,7 @@ import React from 'react';
    soft shadow and glass blur. Class names must stay static literals (or @theme
    token references) so Tailwind can discover them at build time. */
 export function cardClass(className = '') {
-  return `rounded-2xl border border-line bg-surface shadow-lg backdrop-blur-md ${className} transition-colors`.trim();
+  return `rounded-xl border border-slate-200 bg-white shadow-xs ${className} transition-all`.trim();
 }
 
 export type CardProps = React.HTMLAttributes<HTMLDivElement>;
@@ -17,8 +17,7 @@ export const Card: React.FC<CardProps> = ({ className = '', children, ...props }
   </div>
 );
 
-/* Featured card with a cyan→indigo gradient hairline ring. Used for the
-   authentication screens so they share one premium treatment. */
+/* Clean, modern enterprise auth container */
 export interface AuthCardProps {
   children: React.ReactNode;
   className?: string;
@@ -28,12 +27,12 @@ export interface AuthCardProps {
 export const AuthCard: React.FC<AuthCardProps> = ({
   children,
   className = '',
-  innerClassName = ''
+  innerClassName = '',
 }) => (
   <div
-    className={`w-full rounded-3xl bg-gradient-to-br from-brand-from/50 via-[#8b5cf6]/50 to-brand-to/50 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_24px_60px_-24px_rgba(6,182,212,0.45)] ${className} transition-colors hover:bg-surface/95`}
+    className={`w-full rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xl ${className} transition-all`}
   >
-    <div className={`rounded-[29px] bg-surface p-6 sm:p-8 ${innerClassName}`.trim()}>
+    <div className={`${innerClassName}`.trim()}>
       {children}
     </div>
   </div>

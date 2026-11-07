@@ -233,7 +233,7 @@ export default function CareerPage() {
             {perks.map((p, i) => {
               const IconComp = p.icon;
               return (
-                <div key={i} className="p-6 rounded-3xl border border-line bg-surface-deep space-y-4 shadow-xs">
+                <div key={i} className="p-6 rounded-xl border border-line bg-surface-deep space-y-4 shadow-xs">
                   <div className="w-12 h-12 rounded-2xl bg-[#072448] text-white flex items-center justify-center shadow-md">
                     <IconComp className="w-6 h-6" />
                   </div>
@@ -281,7 +281,7 @@ export default function CareerPage() {
             {filteredJobs.map((job) => (
               <div
                 key={job.id}
-                className="p-6 sm:p-7 rounded-3xl border border-line bg-surface shadow-xs hover:border-cyan-400/50 hover:shadow-lg transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6"
+                className="p-6 sm:p-7 rounded-xl border border-line bg-surface shadow-xs hover:border-cyan-400/50 hover:shadow-lg transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6"
               >
                 <div className="space-y-2 max-w-2xl">
                   <div className="flex items-center gap-2.5 flex-wrap">
@@ -321,7 +321,7 @@ export default function CareerPage() {
       {/* Interactive Application Modal */}
       {applyModalOpen && selectedJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-lg rounded-3xl bg-white  border border-slate-200  p-6 sm:p-8 shadow-2xl">
+          <div className="relative w-full max-w-lg rounded-xl bg-white  border border-slate-200  p-6 sm:p-8 shadow-2xl">
             <button
               type="button"
               onClick={() => setApplyModalOpen(false)}

@@ -109,12 +109,12 @@ export const Navbar: React.FC = () => {
     <>
       {/* 
         HEADER DESIGN MATCHING SCREENSHOT:
-        - Dark navy top border strip (border-t-4 border-[#072448])
+        - Dark navy top border strip ()
         - Clean white background (bg-white )
-        - Typography: Bold dark navy font (text-[#072448] font-bold text-[15px])
+        - Typography: Bold dark navy font (text-slate-700 font-bold text-[15px])
         - Menu Items: Home, About Us ˅, Services ˅, Portfolio ˅, Pay Us Now, Career, Contact Us
       */}
-      <header className="sticky top-0 z-50 w-full border-t-4 border-[#072448]  border-b border-line bg-white/95  backdrop-blur-md shadow-xs transition-colors">
+      <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-xs transition-colors">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-18">
             
@@ -128,7 +128,7 @@ export const Navbar: React.FC = () => {
                 {/* 1. Home */}
                 <Link
                   href="/"
-                  className="text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors py-2 whitespace-nowrap shrink-0"
+                  className="text-[15px] font-semibold text-slate-700  hover:text-blue-600  transition-colors py-2 whitespace-nowrap shrink-0"
                 >
                   Home
                 </Link>
@@ -142,18 +142,18 @@ export const Navbar: React.FC = () => {
                   <Link
                     href="/about"
                     onClick={() => setActiveDropdown(null)}
-                    className="flex items-center gap-1 text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors cursor-pointer whitespace-nowrap"
+                    className="flex items-center gap-1 text-[15px] font-semibold text-slate-700  hover:text-blue-600  transition-colors cursor-pointer whitespace-nowrap"
                   >
                     <span className="whitespace-nowrap">About Us</span>
                     <ChevronDown
-                      className={`w-3.5 h-3.5 text-[#072448]  transition-transform duration-200 ${
-                        activeDropdown === 'about' ? 'rotate-180 text-[#185adb]' : 'group-hover:rotate-180'
+                      className={`w-3.5 h-3.5 text-slate-700  transition-transform duration-200 ${
+                        activeDropdown === 'about' ? 'rotate-180 text-blue-600' : 'group-hover:rotate-180'
                       }`}
                     />
                   </Link>
 
                   {activeDropdown === 'about' && (
-                    <div className="absolute left-0 top-full -mt-1 w-72 rounded-2xl bg-white  border border-slate-200  p-3 shadow-2xl backdrop-blur-xl animate-fadeIn z-50">
+                    <div className="absolute left-0 top-full -mt-1 w-72 rounded-xl bg-white border border-slate-200 p-2 shadow-lg backdrop-blur-xl animate-fadeIn z-50">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
                         About Progeni Atlas
                       </p>
@@ -162,9 +162,9 @@ export const Navbar: React.FC = () => {
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
-                        <Award className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <Award className="w-4 h-4 text-blue-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-900  group-hover:text-blue-600 whitespace-nowrap">
                             Our Mission &amp; Vision
                           </p>
                           <p className="text-[11px] text-slate-500 ">
@@ -177,9 +177,9 @@ export const Navbar: React.FC = () => {
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
-                        <ShieldCheck className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <ShieldCheck className="w-4 h-4 text-blue-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-900  group-hover:text-blue-600 whitespace-nowrap">
                             Anti-Bias &amp; Integrity
                           </p>
                           <p className="text-[11px] text-slate-500 ">
@@ -192,9 +192,9 @@ export const Navbar: React.FC = () => {
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
-                        <Users className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <Users className="w-4 h-4 text-blue-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-900  group-hover:text-blue-600 whitespace-nowrap">
                             Engineering Pillars
                           </p>
                           <p className="text-[11px] text-slate-500 ">
@@ -215,18 +215,18 @@ export const Navbar: React.FC = () => {
                   <Link
                     href="/services"
                     onClick={() => setActiveDropdown(null)}
-                    className="flex items-center gap-1 text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors cursor-pointer whitespace-nowrap"
+                    className="flex items-center gap-1 text-[15px] font-semibold text-slate-700  hover:text-blue-600  transition-colors cursor-pointer whitespace-nowrap"
                   >
                     <span className="whitespace-nowrap">Services</span>
                     <ChevronDown
-                      className={`w-3.5 h-3.5 text-[#072448]  transition-transform duration-200 ${
-                        activeDropdown === 'services' ? 'rotate-180 text-[#185adb]' : 'group-hover:rotate-180'
+                      className={`w-3.5 h-3.5 text-slate-700  transition-transform duration-200 ${
+                        activeDropdown === 'services' ? 'rotate-180 text-blue-600' : 'group-hover:rotate-180'
                       }`}
                     />
                   </Link>
 
                   {activeDropdown === 'services' && (
-                    <div className="absolute left-0 top-full -mt-1 w-80 rounded-2xl bg-white  border border-slate-200  p-3 shadow-2xl backdrop-blur-xl animate-fadeIn z-50">
+                    <div className="absolute left-0 top-full -mt-1 w-80 rounded-xl bg-white border border-slate-200 p-2 shadow-lg backdrop-blur-xl animate-fadeIn z-50">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
                         AI Services &amp; Solutions
                       </p>
@@ -235,9 +235,9 @@ export const Navbar: React.FC = () => {
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
-                        <Sparkles className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <Sparkles className="w-4 h-4 text-blue-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-900  group-hover:text-blue-600 whitespace-nowrap">
                             AI Voice &amp; Video Interviewer
                           </p>
                           <p className="text-[11px] text-slate-500 ">
@@ -250,9 +250,9 @@ export const Navbar: React.FC = () => {
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
-                        <FileText className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <FileText className="w-4 h-4 text-blue-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-900  group-hover:text-blue-600 whitespace-nowrap">
                             Live Coding &amp; Sandboxes
                           </p>
                           <p className="text-[11px] text-slate-500 ">
@@ -265,9 +265,9 @@ export const Navbar: React.FC = () => {
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
-                        <Briefcase className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <Briefcase className="w-4 h-4 text-blue-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-900  group-hover:text-blue-600 whitespace-nowrap">
                             Candidate Dossiers &amp; Reports
                           </p>
                           <p className="text-[11px] text-slate-500 ">
@@ -280,9 +280,9 @@ export const Navbar: React.FC = () => {
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
-                        <FileCheck className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <FileCheck className="w-4 h-4 text-blue-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-900  group-hover:text-blue-600 whitespace-nowrap">
                             Custom Evaluation Rubrics
                           </p>
                           <p className="text-[11px] text-slate-500 ">
@@ -303,18 +303,18 @@ export const Navbar: React.FC = () => {
                   <Link
                     href="/portfolio"
                     onClick={() => setActiveDropdown(null)}
-                    className="flex items-center gap-1 text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors cursor-pointer whitespace-nowrap"
+                    className="flex items-center gap-1 text-[15px] font-semibold text-slate-700  hover:text-blue-600  transition-colors cursor-pointer whitespace-nowrap"
                   >
                     <span className="whitespace-nowrap">Portfolio</span>
                     <ChevronDown
-                      className={`w-3.5 h-3.5 text-[#072448]  transition-transform duration-200 ${
-                        activeDropdown === 'portfolio' ? 'rotate-180 text-[#185adb]' : 'group-hover:rotate-180'
+                      className={`w-3.5 h-3.5 text-slate-700  transition-transform duration-200 ${
+                        activeDropdown === 'portfolio' ? 'rotate-180 text-blue-600' : 'group-hover:rotate-180'
                       }`}
                     />
                   </Link>
 
                   {activeDropdown === 'portfolio' && (
-                    <div className="absolute left-0 top-full -mt-1 w-72 rounded-2xl bg-white  border border-slate-200  p-3 shadow-2xl backdrop-blur-xl animate-fadeIn z-50">
+                    <div className="absolute left-0 top-full -mt-1 w-72 rounded-xl bg-white border border-slate-200 p-2 shadow-lg backdrop-blur-xl animate-fadeIn z-50">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
                         Platform Showcase
                       </p>
@@ -323,9 +323,9 @@ export const Navbar: React.FC = () => {
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
-                        <Video className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <Video className="w-4 h-4 text-blue-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-900  group-hover:text-blue-600 whitespace-nowrap">
                             Interactive Platform Tour
                           </p>
                           <p className="text-[11px] text-slate-500 ">
@@ -338,9 +338,9 @@ export const Navbar: React.FC = () => {
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
-                        <Building2 className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <Building2 className="w-4 h-4 text-blue-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-900  group-hover:text-blue-600 whitespace-nowrap">
                             Engineering Tracks
                           </p>
                           <p className="text-[11px] text-slate-500 ">
@@ -354,9 +354,9 @@ export const Navbar: React.FC = () => {
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
-                        <Compass className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <Compass className="w-4 h-4 text-blue-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
+                          <p className="text-xs font-bold text-slate-900  group-hover:text-blue-600 whitespace-nowrap">
                             Practice Drill Lab
                           </p>
                           <p className="text-[11px] text-slate-500 ">
@@ -371,7 +371,7 @@ export const Navbar: React.FC = () => {
                 {/* 5. Pricing */}
                 <Link
                   href="/pricing"
-                  className="flex items-center gap-1 text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors py-2 whitespace-nowrap shrink-0"
+                  className="flex items-center gap-1 text-[15px] font-semibold text-slate-700  hover:text-blue-600  transition-colors py-2 whitespace-nowrap shrink-0"
                 >
                   <span className="whitespace-nowrap">Pricing</span>
                 </Link>
@@ -379,7 +379,7 @@ export const Navbar: React.FC = () => {
                 {/* 6. Career */}
                 <Link
                   href="/career"
-                  className="text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors py-2 whitespace-nowrap shrink-0"
+                  className="text-[15px] font-semibold text-slate-700  hover:text-blue-600  transition-colors py-2 whitespace-nowrap shrink-0"
                 >
                   Career
                 </Link>
@@ -387,7 +387,7 @@ export const Navbar: React.FC = () => {
                 {/* 7. Contact Us */}
                 <Link
                   href="/contact"
-                  className="text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors py-2 whitespace-nowrap shrink-0"
+                  className="text-[15px] font-semibold text-slate-700  hover:text-blue-600  transition-colors py-2 whitespace-nowrap shrink-0"
                 >
                   Contact Us
                 </Link>
@@ -404,7 +404,7 @@ export const Navbar: React.FC = () => {
                     <Link
                       href={getDashboardLink(currentUser.role)}
                       prefetch={false}
-                      className="inline-flex items-center justify-center rounded-full bg-[#072448] hover:bg-[#0c3666]   text-white px-5 py-1.5 text-xs sm:text-sm font-bold transition-all shadow-sm cursor-pointer whitespace-nowrap"
+                      className="inline-flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer whitespace-nowrap"
                     >
                       Dashboard
                     </Link>
@@ -415,7 +415,7 @@ export const Navbar: React.FC = () => {
                         setCurrentUser(null);
                         window.location.href = '/login?logout=1';
                       }}
-                      className="inline-flex items-center justify-center rounded-full border border-slate-300  hover:bg-slate-100  text-slate-700  px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap"
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 px-3 py-1.5 text-xs font-medium transition-all shadow-xs cursor-pointer whitespace-nowrap"
                     >
                       Logout
                     </button>
@@ -424,14 +424,14 @@ export const Navbar: React.FC = () => {
                   <>
                     <Link
                       href="/login"
-                      className="inline-flex items-center justify-center rounded-full border-2 border-[#072448]  text-[#072448]  hover:bg-slate-100  px-5 py-1.5 text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap"
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer whitespace-nowrap"
                     >
                       Login
                     </Link>
 
                     <Link
                       href="/register"
-                      className="inline-flex items-center justify-center rounded-full bg-[#072448] hover:bg-[#0c3666]   text-white px-5 py-1.5 text-xs sm:text-sm font-bold transition-all shadow-sm cursor-pointer whitespace-nowrap"
+                      className="inline-flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer whitespace-nowrap"
                     >
                       Register
                     </Link>
@@ -445,7 +445,7 @@ export const Navbar: React.FC = () => {
                   type="button"
                   aria-label="Toggle navigation menu"
                   onClick={() => setMobileOpen(!mobileOpen)}
-                  className="rounded-xl border border-line p-1.5 sm:p-2 text-[#072448]  hover:bg-slate-100  transition-colors cursor-pointer shrink-0"
+                  className="rounded-xl border border-line p-1.5 sm:p-2 text-slate-700  hover:bg-slate-100  transition-colors cursor-pointer shrink-0"
                 >
                   {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                 </button>
@@ -462,49 +462,49 @@ export const Navbar: React.FC = () => {
               <Link
                 href="/"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-slate-700  hover:bg-slate-100  rounded-lg"
               >
                 Home
               </Link>
               <Link
                 href="/about"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-slate-700  hover:bg-slate-100  rounded-lg"
               >
                 About Us
               </Link>
               <Link
                 href="/services"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-slate-700  hover:bg-slate-100  rounded-lg"
               >
                 Services
               </Link>
               <Link
                 href="/portfolio"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-slate-700  hover:bg-slate-100  rounded-lg"
               >
                 Portfolio
               </Link>
               <Link
                 href="/pricing"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-slate-700  hover:bg-slate-100  rounded-lg"
               >
                 Pricing
               </Link>
               <Link
                 href="/career"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-slate-700  hover:bg-slate-100  rounded-lg"
               >
                 Career
               </Link>
               <Link
                 href="/contact"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-slate-700  hover:bg-slate-100  rounded-lg"
               >
                 Contact Us
               </Link>
@@ -539,7 +539,7 @@ export const Navbar: React.FC = () => {
                   <Link
                     href="/login"
                     onClick={() => setMobileOpen(false)}
-                    className="text-center rounded-full border-2 border-[#072448]  text-[#072448]  px-4 py-2 text-xs font-bold"
+                    className="text-center rounded-full border-2 border-[#072448]  text-slate-700  px-4 py-2 text-xs font-bold"
                   >
                     Login
                   </Link>
@@ -560,7 +560,7 @@ export const Navbar: React.FC = () => {
       {/* ================= CONTACT US MODAL ================= */}
       {contactModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-lg rounded-3xl bg-white  border border-slate-200  p-6 sm:p-8 shadow-2xl">
+          <div className="relative w-full max-w-lg rounded-xl bg-white  border border-slate-200  p-6 sm:p-8 shadow-2xl">
             <button
               type="button"
               onClick={() => setContactModalOpen(false)}
@@ -574,7 +574,7 @@ export const Navbar: React.FC = () => {
                 <PhoneCall className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-[#072448] ">Contact Us</h3>
+                <h3 className="text-xl font-bold text-slate-700 ">Contact Us</h3>
                 <p className="text-xs text-slate-500">Reach our team for inquiries &amp; enterprise support</p>
               </div>
             </div>
