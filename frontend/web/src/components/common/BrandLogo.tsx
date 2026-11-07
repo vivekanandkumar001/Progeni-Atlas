@@ -17,40 +17,61 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   return (
     <Link
       href={href}
-      className={`inline-flex items-center gap-2 sm:gap-2.5 group cursor-pointer select-none whitespace-nowrap shrink-0 ${className}`}
+      className={`inline-flex items-center gap-2.5 sm:gap-3 group cursor-pointer select-none whitespace-nowrap shrink-0 ${className}`}
       title="Progeni Atlas"
       aria-label="Progeni Atlas"
     >
-      <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-[#185adb] to-[#0891b2] shadow-sm transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9 sm:rounded-xl">
+      {/* Dynamic Atlas AI Emblem */}
+      <div className="relative flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0284c7] via-[#2563eb] to-[#4f46e5] shadow-md shadow-blue-500/20 transition-all duration-300 group-hover:scale-105 group-hover:shadow-blue-500/35 border border-white/20">
         <svg
           viewBox="0 0 48 48"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4 sm:h-5 sm:w-5"
+          className="h-5 w-5 sm:h-5.5 sm:w-5.5 drop-shadow-sm"
           aria-hidden="true"
         >
+          {/* Left ascending facet / bracket */}
           <path
-            d="M9 25h8l4-9 7 17 4-9h7"
-            stroke="white"
-            strokeWidth="3.5"
+            d="M13 35L24 11L28 19"
+            stroke="#ffffff"
+            strokeWidth="3.6"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          <circle cx="39" cy="24" r="2" fill="#a5f3fc" />
+          {/* Right descending facet */}
+          <path
+            d="M35 35L28.5 21"
+            stroke="#a5f3fc"
+            strokeWidth="3.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* Central data nexus cross-beam */}
+          <path
+            d="M17.5 27H30.5"
+            stroke="#38bdf8"
+            strokeWidth="3.2"
+            strokeLinecap="round"
+          />
+          {/* Glowing AI Intelligence Core Orb */}
+          <circle cx="24" cy="19.5" r="2.75" fill="#ffffff" />
+          <circle cx="24" cy="19.5" r="4.75" stroke="#38bdf8" strokeWidth="1" strokeOpacity="0.8" />
         </svg>
       </div>
 
-      {/* Wordmark: clean bold text "progeni atlas" strictly single line */}
-      <div className={`${hideTextOnMobile ? 'hidden sm:flex' : 'flex'} items-center gap-1 sm:gap-1.5 whitespace-nowrap`}>
-        <span className="text-lg sm:text-2xl font-bold tracking-tight text-[#1b2437] dark:text-white font-sans whitespace-nowrap">
-          progeni<span className="text-[#185adb] dark:text-cyan-400">atlas</span>
+      {/* Wordmark: Crystal-clear "Progeni Atlas" with permanent high-contrast colors */}
+      <div className={`${hideTextOnMobile ? 'hidden sm:flex' : 'flex'} items-center gap-1.5 whitespace-nowrap`}>
+        <span className="text-xl sm:text-2xl font-black tracking-tight font-sans whitespace-nowrap flex items-center">
+          <span className="text-[#072448]">Progeni</span>
+          <span className="ml-1 bg-gradient-to-r from-[#185adb] via-[#0284c7] to-[#0ea5e9] bg-clip-text text-transparent">
+            Atlas
+          </span>
         </span>
 
-        {badge && (
-          <span className="hidden sm:inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100  text-blue-700  border border-blue-200  ml-1 whitespace-nowrap">
-            {badge}
-          </span>
-        )}
+        {/* AI Tech Badge */}
+        <span className="inline-flex items-center text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-blue-500/10 text-[#185adb] border border-blue-500/25 ml-0.5 whitespace-nowrap shadow-xs">
+          {badge || 'AI'}
+        </span>
       </div>
     </Link>
   );
