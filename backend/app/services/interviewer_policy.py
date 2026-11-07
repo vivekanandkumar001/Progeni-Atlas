@@ -256,12 +256,14 @@ _CLARIFICATION_PATTERNS = (
 _CLARIFICATION_MAX_WORDS = 45
 
 _FALLBACK_LINES = (
-    "Got it, that makes a lot of sense. Thanks for walking me through that.",
-    "Makes sense. I see where you're coming from with that approach.",
-    "Understood. That's a practical perspective on this.",
-    "Fair point, thanks for clarifying your thought process there.",
-    "Got it, that gives good context on how you think about that piece.",
-    "Right on, I appreciate you breaking down the tradeoffs there.",
+    "Got it, that makes a lot of sense. Thanks for walking me through the reasoning there.",
+    "Makes sense. I see where you're coming from with that architectural approach.",
+    "Understood. That's a very practical way to balance those constraints.",
+    "Fair point, appreciate you clarifying how that was structured under the hood.",
+    "Got it, that gives really helpful context on how you approach that layer.",
+    "Right on, breaking down those latency and reliability constraints is key.",
+    "That makes total sense, especially keeping operational overhead low.",
+    "Understood. Having that clear separation of concerns definitely pays off.",
 )
 
 
@@ -333,7 +335,16 @@ def _clean_interviewer_line(
         return ""
     sentences = re.split(r"(?<=[.!?])\s+", text)
     if not allow_question:
-        sentences = [sentence for sentence in sentences if "?" not in sentence]
+        statement_sentences = [sentence for sentence in sentences if "?" not in sentence]
+        if statement_sentences:
+            sentences = statement_sentences
+        else:
+            # If all sentences ended in '?', convert rhetorical question into an acknowledgment statement
+            first_s = sentences[0].rstrip("?").strip()
+            if first_s.lower().startswith(("did ", "how ", "was ", "is ", "could ")):
+                sentences = [f"I see: {first_s}."]
+            else:
+                sentences = [f"{first_s}."]
     text = " ".join(sentences[:2]).strip()
     if len(text) > MAX_INTERVIEWER_LINE_CHARS:
         text = text[: MAX_INTERVIEWER_LINE_CHARS - 3].rstrip() + "..."
@@ -387,10 +398,20 @@ def _validate_follow_up(
     anchor_tokens = _tokens(anchored_on)
     if not anchor_tokens or not answer_tokens:
         return None
-    anchor_overlap = len(answer_tokens & anchor_tokens) / len(anchor_tokens)
-    if anchor_overlap < 0.6:
+
+    # Use stem / prefix matching and relaxed overlap so natural paraphrasing isn't rejected
+    def _stem(w):
+        return w[:4] if len(w) >= 4 else w
+
+    sta = {_stem(w) for w in answer_tokens}
+    stk = {_stem(w) for w in anchor_tokens}
+    stem_overlap = len(sta & stk) / len(stk) if stk else 0.0
+    raw_overlap = len(answer_tokens & anchor_tokens) / len(anchor_tokens) if anchor_tokens else 0.0
+    common_tokens = len(answer_tokens & anchor_tokens)
+
+    if stem_overlap < 0.4 and raw_overlap < 0.35 and common_tokens < 2:
         return None
-    if not (answer_tokens & _tokens(question)):
+    if not (answer_tokens & _tokens(question)) and not (sta & {_stem(w) for w in _tokens(question)}):
         return None
     if _jaccard(question, base_question) >= 0.6:
         return None

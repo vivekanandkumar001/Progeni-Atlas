@@ -54,11 +54,27 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     # --- llm ---
-    LLM_PROVIDER: str = "openai"
+    LLM_PROVIDER: str = "gemini"
     LLM_FALLBACK_PROVIDER: str = "openrouter"
     OPENAI_API_KEY: str | None = None
     OPENAI_API_BASE: str = "https://api.openai.com/v1"
     LLM_MODEL: str = "gpt-4o-mini"
+
+    # --- gemini (google ai studio - primary) ---
+    GEMINI_API_KEY: str | None = None
+    GEMINI_API: str | None = None
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
+    GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
+
+    @property
+    def effective_gemini_key(self) -> str | None:
+        key = (
+            self.GEMINI_API_KEY
+            or self.GEMINI_API
+            or os.environ.get("GEMINI_API_KEY")
+            or os.environ.get("GEMINI_API")
+        )
+        return key.strip() if key and key.strip() else None
 
     # --- openrouter (secondary fallback) ---
     OPENROUTER_API_KEY: str | None = None
