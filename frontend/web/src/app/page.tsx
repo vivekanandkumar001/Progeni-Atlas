@@ -8,199 +8,90 @@ import {
   ArrowRight,
   BrainCircuit,
   Code2,
+  ShieldCheck,
   FileText,
   Video,
   Sparkles,
   Users,
+  Building2,
   CheckCircle2,
   Mic2,
+  BarChart3,
   PlayCircle,
   ChevronDown,
   Terminal,
   Cpu,
   Flame,
   Check,
-  GraduationCap,
-  Building2,
-  Lightbulb,
-  ShieldCheck,
-  Clock,
-  HeartHandshake,
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 
-const practiceRounds = [
-  {
-    icon: Code2,
-    badge: 'Coding Round',
-    badgeColor: 'text-cyan-600 bg-cyan-50 border-cyan-200',
-    title: 'Live DSA & Coding Round',
-    desc: 'Solve algorithmic challenges in Python, C++, Java, or JavaScript on a real compiler. The AI gives intelligent hints when you stall, never giving away the answer.',
-  },
-  {
-    icon: FileText,
-    badge: 'Resume Round',
-    badgeColor: 'text-blue-600 bg-blue-50 border-blue-200',
-    title: 'Resume & Project Defense',
-    desc: 'Upload your PDF resume. The AI reads your actual projects, frameworks, and internships, questioning your implementation choices and technical claims.',
-  },
-  {
-    icon: Cpu,
-    badge: 'Architecture',
-    badgeColor: 'text-purple-600 bg-purple-50 border-purple-200',
-    title: 'System Design Round',
-    desc: 'Explain database schema trade-offs, caching layers (Redis), and horizontal scalability out loud. Defend your design against sudden traffic spikes.',
-  },
-  {
-    icon: Users,
-    badge: 'HR / Culture',
-    badgeColor: 'text-emerald-600 bg-emerald-50 border-emerald-200',
-    title: 'Behavioral & HR Round',
-    desc: 'Master the STAR framework (Situation, Task, Action, Result). Answer tough situational and leadership questions without stage fright or stumbling.',
-  },
+const featureCards = [
+  { icon: Video, title: 'Two-Way AI Video Interviews', text: 'A natural candidate ↔ AI interviewer conversation with live voice, video and adaptive follow-up questions.' },
+  { icon: BrainCircuit, title: 'Resume + JD + Role Intelligence', text: 'The interview context is built from the candidate resume, job description, target role and skills.' },
+  { icon: Code2, title: 'Live Coding & System Design', text: 'Assess coding, architecture and technical reasoning inside a focused interview workspace.' },
+  { icon: ShieldCheck, title: 'AI Proctoring', text: 'Monitor interview integrity signals such as focus changes and unauthorized actions.' },
+  { icon: BarChart3, title: 'Evidence-Based Scorecards', text: 'Turn answers, coding performance and competency signals into a structured assessment.' },
 ];
 
 const panelInterviewers = [
   {
     name: 'Sarah Chen',
-    role: 'Staff Systems Lead',
-    company: 'Ex-Google',
+    role: 'Staff Systems Engineer',
     level: 'Hard',
-    levelColor: 'text-rose-500 bg-rose-50 border-rose-200',
-    desc: 'Probes deep distributed concurrency, sliding window algorithms & edge case handling.',
+    levelColor: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    desc: 'Deep dives on distributed concurrency, locking semantics & high-throughput pipelines.',
     avatar: '/avatars/interviewer_female.jpg',
   },
   {
     name: 'Alex Rivera',
-    role: 'Principal Architect',
-    company: 'Ex-Meta',
+    role: 'Principal Frontend Architect',
     level: 'Medium',
-    levelColor: 'text-amber-600 bg-amber-50 border-amber-200',
-    desc: 'Evaluates real DOM performance, scalable API design, and clean modular code architecture.',
+    levelColor: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    desc: 'Tests real DOM performance, state reactivity, micro-frontends and accessibility.',
     avatar: '/avatars/interviewer_female.jpg',
   },
   {
     name: 'Dr. Vikram Sethi',
-    role: 'Algorithms & DP Specialist',
-    company: 'Competitive Programmer',
+    role: 'Lead ML & Algorithms Lead',
     level: 'Hard',
-    levelColor: 'text-rose-500 bg-rose-50 border-rose-200',
-    desc: 'Focuses on dynamic programming, graph invariants, asymptotic time & space bounds.',
+    levelColor: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    desc: 'Probes dynamic programming, graph invariants, transformer latency & memory bounds.',
     avatar: '/avatars/interviewer_female.jpg',
   },
   {
     name: 'Maya Patel',
-    role: 'Engineering Manager',
-    company: 'Ex-Amazon',
+    role: 'Engineering Manager (Behavioral)',
     level: 'Warm-up',
-    levelColor: 'text-emerald-600 bg-emerald-50 border-emerald-200',
-    desc: 'Friendly and supportive. Great for first-timers to practice behavioral and resume defense.',
+    levelColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    desc: 'Evaluates architecture trade-offs, cross-functional leadership, and conflict resolution.',
     avatar: '/avatars/interviewer_female.jpg',
   },
 ];
 
-const targetCompanies = [
-  'Google',
-  'Amazon',
-  'Microsoft',
-  'TCS Digital',
-  'Infosys',
-  'Wipro Turbo',
-  'Flipkart',
-  'Uber',
-  'Oracle',
-  'Accenture',
+const benefits = [
+  ['AI-Driven Technical Assessment', 'Evaluate demonstrated skills, not just resume keywords.', BrainCircuit],
+  ['Consistent Candidate Evaluation', 'Use structured criteria across interviews and roles.', CheckCircle2],
+  ['Real-Time Interviewing', 'Let the AI interviewer listen, ask and adapt naturally.', Mic2],
+  ['Secure AI Proctoring', 'Protect interview integrity throughout the session.', ShieldCheck],
+  ['Automated Scorecards', 'Generate competency breakdowns and evidence for review.', FileText],
+  ['Enterprise Governance', 'Centralize organizations, users, interviews and audit visibility.', Building2],
 ];
 
-const candidatePricing = [
-  {
-    name: 'Starter Practice',
-    price: '₹0',
-    note: '100% Free · No Card Needed',
-    badge: 'Free Trial',
-    items: [
-      '1 Full Mock Interview (20-30 mins)',
-      'Spoken audio & video with Sarah Chen',
-      'Live code compiler (Python, C++, Java, JS)',
-      'Instant post-interview report card',
-      'Actionable improvement tips',
-    ],
-    cta: 'Start Free Mock',
-    popular: false,
-  },
-  {
-    name: 'Warm-Up Pack',
-    price: '₹49',
-    note: '30 Credits included',
-    badge: 'Quick Practice',
-    items: [
-      '30 Practice Credits',
-      'Targeted DSA or Resume Round',
-      'Adaptive AI hints when stuck',
-      'Detailed code efficiency grading',
-      'No expiration date on credits',
-    ],
-    cta: 'Get 30 Credits',
-    popular: false,
-  },
-  {
-    name: 'Placement Ready',
-    price: '₹99',
-    note: '70 Credits included',
-    badge: 'Most Popular',
-    items: [
-      '70 Practice Credits (Best value)',
-      'Multiple full-length mock rounds',
-      'Company-specific interview tracks',
-      'Complete turn-by-turn audio transcript',
-      'Benchmark score vs other applicants',
-    ],
-    cta: 'Get 70 Credits',
-    popular: true,
-  },
-  {
-    name: 'Pro Mastery',
-    price: '₹199',
-    note: '150 Credits included',
-    badge: 'Total Prep',
-    items: [
-      '150 Practice Credits',
-      'Unlimited system design & coding drills',
-      'Custom role & resume fine-tuning',
-      'Comprehensive performance analytics',
-      'Priority access to new AI personas',
-    ],
-    cta: 'Get 150 Credits',
-    popular: false,
-  },
+const pricing = [
+  { name: 'Starter Practice', price: '₹0', note: '2 Free Practice Sessions', items: ['2 Practice interviews', 'Basic feedback scorecard', 'Candidate profile'] },
+  { name: 'Candidate Pro', price: '₹999', note: 'For career advancement', items: ['20 Advanced practice sessions', 'Detailed AI analysis', 'Interview history'], popular: true },
+  { name: 'Hiring Team Growth', price: '₹8,999', note: 'For hiring teams & agencies', items: ['50 Candidate interviews', 'Recruiter dashboards', 'Candidate dossiers'] },
+  { name: 'Enterprise Scale', price: 'Custom', note: 'For large organizations', items: ['SSO & governance', 'Custom integrations', 'Security & audit controls'] },
 ];
 
-const candidateFaqs = [
-  [
-    'Is the first mock interview really free?',
-    'Yes! Your first full mock interview is completely free. You do not need to enter any credit card or payment details. Just sign up and start talking to the AI interviewer right away.',
-  ],
-  [
-    'Which programming languages can I code in?',
-    'The live compiler supports Python 3, C++, Java, and TypeScript/JavaScript. Your code is executed in real time against hidden test cases just like in a real technical screening.',
-  ],
-  [
-    'Does the AI actually analyze my resume?',
-    'Yes. When you upload your resume PDF, our AI reads your listed projects, internships, and tech stack. It will ask you specific questions about your architectural decisions, libraries used, and how you solved real engineering problems.',
-  ],
-  [
-    'What happens if I get stuck while coding?',
-    'Just like a great human interviewer, the AI listens to your explanation. If you stall or get stuck on an edge case, it gives gentle conversational hints to nudge you forward without spoiling the solution.',
-  ],
-  [
-    'Can I practice for campus placements (TCS, Infosys, Wipro)?',
-    'Absolutely. Progeni Atlas includes targeted interview tracks for mass recruiters as well as top product companies like Google, Amazon, and Microsoft.',
-  ],
-  [
-    'What do I get in my report card after the interview?',
-    'Within seconds of finishing, you receive a detailed score breakdown covering Algorithmic Accuracy, Coding Speed, Communication Clarity, and Resume Defense, along with concrete tips on what to fix first.',
-  ],
+const faqs = [
+  ['How does the AI interviewer create questions?', 'It uses the interview context — resume, job description, role, skills and previous answers — to determine the next question in real time.'],
+  ['Is the interview two-way?', 'Yes. The candidate communicates with the AI interviewer through real-time neural voice and video. The AI adapts and asks organic follow-up questions.'],
+  ['Can HR schedule real interviews?', 'Yes. Recruiters can create positions, invite candidates and use the scheduled interview workflow. Practice interviews remain separate.'],
+  ['Does Progeni Atlas support coding interviews?', 'Yes. The candidate experience includes a live code workspace, terminal execution, and system-design stages.'],
+  ['What does the final scorecard contain?', 'It includes technical depth, coding speed, architecture trade-offs, problem solving, and evidence-linked transcripts.'],
 ];
 
 export default function Home() {
@@ -251,109 +142,104 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-canvas text-ink overflow-x-clip selection:bg-cyan-500/20 selection:text-cyan-700">
+    <main className="min-h-screen bg-canvas text-ink overflow-x-clip selection:bg-cyan-500/20 selection:text-cyan-200">
       <Navbar />
 
       {/* =====================================================================
-          HERO SECTION: CANDIDATE-FIRST HEADLINE & INTERACTIVE SIMULATOR
+          HERO SECTION - SAKSHAAT-STYLE DYNAMIC AMBIENT MOTION
           ===================================================================== */}
-      <section id="hero" className="relative border-b border-line overflow-hidden pt-10 pb-16 lg:pt-16 lg:pb-24">
+      <section id="hero" className="relative border-b border-line overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28">
         {/* Masked Geometric Grid */}
         <div className="sakshaat-grid" />
 
-        {/* Ambient Drifting Glow Orbs */}
+        {/* Floating Ambient Glow Orbs (Sakshaat lpDriftA & lpDriftB) */}
         <div className="absolute -left-20 -top-32 h-[680px] w-[680px] rounded-full bg-radial from-cyan-500/20 via-cyan-500/5 to-transparent blur-3xl pointer-events-none anim-drift-a" />
         <div className="absolute right-[-140px] top-10 h-[620px] w-[620px] rounded-full bg-radial from-indigo-500/20 via-purple-500/5 to-transparent blur-3xl pointer-events-none anim-drift-b" />
         <div className="absolute left-1/3 bottom-0 h-[480px] w-[480px] rounded-full bg-radial from-amber-500/10 via-cyan-500/5 to-transparent blur-3xl pointer-events-none anim-drift-a" />
 
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[0.96fr_1.04fr] lg:px-10">
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[0.95fr_1.05fr] lg:px-10">
           
-          {/* Left Column: Candidate Value Proposition */}
+          {/* Left Column: Headline & Action */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: [0.2, 0.7, 0.2, 1] }}
           >
-            {/* Live Kicker Pill: First Mock Free */}
+            {/* Live Kicker Pill with Radar Beacon Dot & Brand Aura */}
             <div className="relative inline-flex mb-6">
               <span className="absolute -inset-1 rounded-full bg-cyan-400/25 blur-md anim-aura pointer-events-none" />
-              <div className="relative inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-surface/90 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-cyan shadow-sm backdrop-blur-md">
+              <div className="relative inline-flex items-center gap-2.5 rounded-full border border-cyan-400/40 bg-surface/90 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-cyan shadow-sm backdrop-blur-md">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 shadow-[0_0_8px_#34d399]" />
                 </span>
-                1st Mock Interview Free · No Card Needed
+                Spoken Interviews · Live Coding · Instant Dossier
               </div>
             </div>
 
-            {/* Main Headline */}
-            <h1 className="max-w-2xl text-4xl font-black tracking-tight text-ink sm:text-5xl lg:text-6xl lg:leading-[1.08]">
-              Crack your next
+            {/* Title with Gradient Highlight */}
+            <h1 className="max-w-2xl text-4xl font-black tracking-tight text-ink sm:text-5xl lg:text-6xl lg:leading-[1.06]">
+              Face your interview
               <br />
-              <span className="bg-gradient-to-r from-cyan-600 via-sky-600 to-indigo-600 bg-clip-text text-transparent">
-                tech interview.
+              <span className="bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-400 bg-clip-text text-transparent">
+                before it&apos;s real.
               </span>
-              <br />
-              Practice out loud.
             </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-7 text-ink-muted sm:text-lg">
-              Face a Senior AI Lead before your real placement or company interview. Solve live DSA problems on a shared compiler, defend your resume line-by-line, and get an honest report on what to fix.
+            <p className="mt-6 max-w-xl text-base leading-7 text-ink-muted sm:text-lg">
+              Spoken mock interviews with an adaptive AI interviewer. Solve real coding problems on a live editor, defend your system architecture, and receive an audit-ready scorecard.
             </p>
 
-            {/* CTAs */}
+            {/* CTAs with Sheen Sweeper Effect */}
             <div className="mt-8 flex flex-col gap-3.5 sm:flex-row items-stretch sm:items-center">
               <Link
-                href="/candidate/practice"
-                className="sheen-sweeper group relative inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-cyan-600 via-sky-600 to-indigo-600 px-7 py-4 text-sm font-bold text-white shadow-lg shadow-cyan-600/25 transition-all duration-300 hover:brightness-110 hover:shadow-cyan-600/35 hover:scale-[1.02] active:scale-[0.98]"
+                href="/register"
+                className="sheen-sweeper group relative inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600 px-7 py-4 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:brightness-110 hover:shadow-cyan-500/35 hover:scale-[1.02] active:scale-[0.98]"
               >
-                <span>Start Free Mock Round</span>
+                <span>Start Free Interview</span>
                 <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
               
               <a
-                href="#how-it-works"
+                href="#live-demo"
                 className="inline-flex items-center justify-center gap-2.5 rounded-xl border border-line-strong bg-surface/80 px-6 py-4 text-sm font-semibold text-ink backdrop-blur-md transition-all duration-300 hover:border-cyan-400/50 hover:bg-surface-2 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <PlayCircle className="h-4 w-4 text-accent-cyan" />
-                <span>See How It Works</span>
+                <span>Watch Interactive Demo</span>
               </a>
             </div>
 
-            {/* Key Candidate Guarantees */}
-            <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-muted">
-              {[
-                '100% Private & Zero Judgment',
-                'Live Hints When Stuck',
-                'Instant Post-Call Report Card',
-                'Credits Start at Just ₹49',
-              ].map((item) => (
+            {/* Checked features list with micro-animations */}
+            <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2.5 text-xs text-ink-muted">
+              {['Live DSA Coding', 'Spoken Voice Follow-ups', 'MediaPipe Proctoring', 'Server-Graded Rubrics'].map((item, idx) => (
                 <span key={item} className="inline-flex items-center gap-1.5 font-medium">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-accent-cyan" />
+                  <CheckCircle2 className="h-4 w-4 text-accent-cyan" />
                   {item}
                 </span>
               ))}
             </div>
 
-            {/* Trust badge with Twinkling Star Sparks */}
+            {/* Trust badge with Sakshaat-style twinkling star sparks */}
             <div className="relative mt-8 max-w-sm">
-              <svg className="trust-sparkle -top-3 -right-2 w-5 h-5 text-cyan-500 fill-cyan-500" viewBox="0 0 24 24">
+              {/* Twinkling Star Sparks */}
+              <svg className="trust-sparkle -top-3 -right-2 w-5 h-5 text-cyan-400 fill-cyan-400" viewBox="0 0 24 24">
                 <path d="M12 0C12.9 7.6 16.4 11.1 24 12C16.4 12.9 12.9 16.4 12 24C11.1 16.4 7.6 12.9 0 12C7.6 11.1 11.1 7.6 12 0Z" />
               </svg>
-              <svg className="trust-sparkle top-7 -left-3 w-3.5 h-3.5 text-indigo-500 fill-indigo-500" style={{ animationDelay: '1.2s' }} viewBox="0 0 24 24">
+              <svg className="trust-sparkle top-7 -left-3 w-3.5 h-3.5 text-indigo-400 fill-indigo-400" style={{ animationDelay: '1.2s' }} viewBox="0 0 24 24">
                 <path d="M12 0C12.9 7.6 16.4 11.1 24 12C16.4 12.9 12.9 16.4 12 24C11.1 16.4 7.6 12.9 0 12C7.6 11.1 11.1 7.6 12 0Z" />
               </svg>
 
+              {/* Rotating Conic Border Frame */}
               <div className="conic-border-box">
                 <div className="sheen-sweeper relative z-10 flex items-center gap-3.5 rounded-[1.15rem] bg-surface/95 px-4 py-3 backdrop-blur-md">
-                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-indigo-600 text-white shadow-md shadow-cyan-500/20">
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-indigo-600 text-white shadow-md shadow-cyan-500/20">
                     <span className="ping-ripple" />
                     <Check className="h-5 w-5 stroke-[2.5]" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-accent-cyan">Placement &amp; Job Prep</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-accent-cyan">Verified Technical Rigor</p>
                     <p className="text-xs font-semibold text-ink">
-                      <strong className="font-extrabold text-sm text-cyan-600">10,000+</strong> candidates prepped for tech interviews
+                      <strong className="font-extrabold text-sm text-cyan-500">10,000+</strong> technical screenings completed
                     </p>
                   </div>
                 </div>
@@ -361,49 +247,50 @@ export default function Home() {
             </div>
           </motion.div>
 
-          {/* Right Column: Live Mock Interview Call Simulator */}
+          {/* Right Column: Interactive Live Video Call & Code Editor Mockup */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.15, ease: [0.2, 0.7, 0.2, 1] }}
             className="relative"
           >
+            {/* Ambient Aura Background */}
             <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-cyan-500/20 via-indigo-500/15 to-purple-500/20 blur-2xl pointer-events-none anim-aura" />
 
-            {/* The Live Video Interview Room Window */}
+            {/* The Live Video Interview Room Window (Sakshaat Style) */}
             <div className="relative overflow-hidden rounded-2xl border border-cyan-400/40 bg-slate-950 text-white shadow-2xl shadow-cyan-500/15">
               
-              {/* Window Status Bar */}
+              {/* Window Titlebar / Live Status Bar */}
               <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 py-3 text-xs backdrop-blur-md">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80 inline-block" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80 inline-block" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80 inline-block" />
+                    <span className="h-3 w-3 rounded-full bg-rose-500/80 inline-block" />
+                    <span className="h-3 w-3 rounded-full bg-amber-500/80 inline-block" />
+                    <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block" />
                   </div>
-                  <span className="font-mono text-slate-500">|</span>
+                  <span className="font-mono text-slate-400">|</span>
                   <div className="flex items-center gap-2">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                     </span>
-                    <span className="font-semibold text-emerald-300">Live Mock Call</span>
+                    <span className="font-semibold text-emerald-300">Live Call</span>
                     <span className="font-mono text-[11px] text-slate-400">· {formatTimer(timerSeconds)}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-300">
-                    Live DSA &amp; Resume Round
+                    Live DSA & Concurrency Round
                   </span>
                   <span className="font-mono text-[11px] text-slate-400">Python 3.12</span>
                 </div>
               </div>
 
-              {/* Video Tiles: Sarah Chen & Candidate */}
+              {/* Dual Video Tiles: AI Interviewer & Candidate */}
               <div className="grid gap-3 p-3.5 sm:grid-cols-2 bg-slate-950/70">
                 
-                {/* AI Interviewer Video Tile */}
+                {/* AI Interviewer Viewport */}
                 <div className="relative overflow-hidden rounded-xl border border-cyan-400/60 bg-slate-900 shadow-lg ring-2 ring-cyan-400/30">
                   <div className="relative h-44 w-full overflow-hidden bg-slate-900">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -414,14 +301,14 @@ export default function Home() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80" />
                     
-                    {/* Interviewer Name Tag + Equalizer Waveform */}
+                    {/* Active Voice Equalizer Overlay (11 Equalizer Bars) */}
                     <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between">
                       <div className="flex items-center gap-2 rounded-lg bg-slate-950/85 px-2.5 py-1 backdrop-blur-md border border-slate-700/60">
                         <span className="text-[11px] font-bold text-white">Sarah Chen</span>
-                        <span className="text-[9px] font-mono text-cyan-400 font-semibold uppercase">AI Lead</span>
+                        <span className="text-[9px] font-mono text-cyan-400 font-semibold uppercase">Lead AI</span>
                       </div>
 
-                      {/* Animated Voice Bars */}
+                      {/* Equalizer Waveform Bars */}
                       <div className="flex items-end gap-1 h-5 px-2 py-1 rounded-md bg-slate-950/85 border border-cyan-500/30 backdrop-blur-md">
                         {[0.2, 0.5, 0.8, 0.4, 0.9, 0.3, 0.7, 1.0, 0.6, 0.4, 0.8].map((delay, i) => (
                           <div
@@ -435,7 +322,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Candidate Video Tile */}
+                {/* Candidate Video Preview */}
                 <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-md">
                   <div className="relative flex h-44 w-full flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-indigo-950/60">
                     <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 shadow-inner">
@@ -444,20 +331,21 @@ export default function Home() {
 
                     <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between">
                       <div className="flex items-center gap-2 rounded-lg bg-slate-950/85 px-2.5 py-1 backdrop-blur-md border border-slate-800">
-                        <span className="text-[11px] font-bold text-white">You</span>
+                        <span className="text-[11px] font-bold text-white">Arpita S.</span>
                         <span className="text-[9px] font-mono text-slate-400">(Candidate)</span>
                       </div>
 
                       <div className="flex items-center gap-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-300 font-medium">
-                        <Mic2 className="h-3 w-3" /> Speaking out loud
+                        <Mic2 className="h-3 w-3" /> Audio Active
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Shared Live Code Editor */}
+              {/* Real-Time Live Code Editor Workspace */}
               <div className="border-t border-slate-800 bg-slate-950 p-3.5 font-mono text-xs">
+                {/* Code Tabs */}
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/80">
                   <div className="flex items-center gap-2">
                     <Terminal className="h-3.5 w-3.5 text-cyan-400" />
@@ -485,6 +373,7 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Code Lines with Syntax Highlighting and Active Line Caret */}
                 <div className="space-y-1 text-slate-300 leading-relaxed">
                   <div className="flex gap-3">
                     <span className="w-4 select-none text-slate-600">1</span>
@@ -512,7 +401,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Real-time Compiler Output */}
+                {/* Real-time Compiler & Execution Badge */}
                 <div className="mt-3 flex items-center justify-between rounded-lg border border-emerald-500/25 bg-emerald-950/30 px-3 py-2 text-[11px] text-emerald-300">
                   <span className="inline-flex items-center gap-1.5 font-semibold">
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -527,211 +416,77 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          TARGET COMPANIES PREP CHIPS
+          AI INTERVIEWER PANEL CAROUSEL (SAKSHAAT-STYLE lp-pn-strip)
+          Continuous marquee scrolling of AI interviewers
           ===================================================================== */}
-      <section className="border-b border-line bg-surface py-6 px-5 sm:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 shrink-0">
-            Practice Company-Specific Patterns:
-          </span>
-          <div className="flex flex-wrap items-center justify-center gap-2.5">
-            {targetCompanies.map((company) => (
-              <Link
-                key={company}
-                href="/candidate/practice"
-                className="px-3.5 py-1.5 rounded-full border border-line bg-surface-2 hover:bg-cyan-50 hover:border-cyan-400/40 text-xs font-bold text-slate-800 transition-all duration-200"
+      <section className="relative border-b border-line bg-surface-deep py-16 overflow-hidden">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-accent-cyan">
+              <Sparkles className="h-3.5 w-3.5" /> Autonomous Interview Engine
+            </div>
+            <h2 className="mt-2 text-2xl sm:text-3xl font-black text-ink">
+              Your AI-Powered Panel is Ready. Are You?
+            </h2>
+          </div>
+          <p className="text-xs sm:text-sm text-ink-muted max-w-md">
+            Each interviewer specializes in different competencies — from distributed consensus to architectural trade-offs.
+          </p>
+        </div>
+
+        {/* Horizontal Infinite Marquee Carousel */}
+        <div className="relative w-full overflow-hidden mask-linear-gradient">
+          <div className="marquee-track-h flex gap-5 py-2">
+            {[...panelInterviewers, ...panelInterviewers].map((panel, idx) => (
+              <div
+                key={idx}
+                className="card-lift-hover group flex w-[360px] shrink-0 items-center gap-4 rounded-2xl border border-line bg-inset p-4.5 shadow-sm transition-all duration-300"
               >
-                {company}
-              </Link>
+                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-cyan-400/50 shadow-md shadow-cyan-500/10 transition-transform duration-300 group-hover:scale-105">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={panel.avatar} alt={panel.name} className="h-full w-full object-cover" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-ink truncate">{panel.name}</span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${panel.levelColor}`}>
+                      {panel.level}
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-medium text-accent-cyan truncate">{panel.role}</p>
+                  <p className="mt-1 text-xs text-ink-muted line-clamp-2 leading-relaxed">{panel.desc}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* =====================================================================
-          4 CORE PRACTICE ROUNDS
+          CAPABILITIES GRID
           ===================================================================== */}
-      <section id="rounds" className="border-b border-line bg-canvas py-16 px-5 sm:px-8 lg:px-10">
+      <section id="features" className="border-b border-line bg-canvas py-16 px-5 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-7xl">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-cyan">What You Can Practice</span>
-            <h2 className="mt-2 text-3xl font-black text-ink">Master All 4 Rounds of Tech Interviews</h2>
-            <p className="mt-2 text-sm text-ink-muted">From coding to system architecture and behavioral questions — practice in one place.</p>
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-cyan">Platform Capabilities</span>
+            <h2 className="mt-2 text-3xl font-black text-ink">Built for Enterprise Rigor</h2>
+            <p className="mt-2 text-sm text-ink-muted">Everything needed to screen candidates with authentic technical depth.</p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {practiceRounds.map(({ icon: Icon, badge, badgeColor, title, desc }, idx) => (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+            {featureCards.map(({ icon: Icon, title, text }, idx) => (
               <motion.div
                 key={title}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: idx * 0.1 }}
-                className="card-lift-hover flex flex-col justify-between rounded-2xl border border-line bg-surface p-6 shadow-sm"
+                className="card-lift-hover rounded-2xl border border-line bg-surface p-5 shadow-sm"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 text-accent-cyan shadow-sm">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${badgeColor}`}>
-                      {badge}
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold text-ink">{title}</h3>
-                  <p className="mt-2 text-xs leading-5 text-ink-muted">{desc}</p>
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 text-accent-cyan shadow-sm shadow-cyan-500/10">
+                  <Icon className="h-5 w-5" />
                 </div>
-
-                <Link
-                  href="/candidate/practice"
-                  className="mt-6 inline-flex items-center gap-1.5 text-xs font-bold text-accent-cyan hover:underline"
-                >
-                  <span>Practice this round</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* =====================================================================
-          WHY PRACTICE OUT LOUD (OVERCOMING INTERVIEW ANXIETY)
-          ===================================================================== */}
-      <section className="border-b border-line bg-surface-deep py-16 px-5 sm:px-8 lg:px-10">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-cyan">Conquer Interview Fear</span>
-              <h2 className="mt-2 text-3xl font-black text-ink sm:text-4xl">
-                Solving LeetCode on paper won&apos;t prepare you for speaking under pressure.
-              </h2>
-              <p className="mt-4 text-sm leading-relaxed text-ink-muted">
-                Most students know the code, but freeze when a Senior Engineer stares at them and asks, <em>&quot;Can you explain your thought process out loud?&quot;</em>
-              </p>
-
-              <div className="mt-6 space-y-4">
-                <div className="flex items-start gap-3 rounded-xl border border-line bg-surface p-4">
-                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 shrink-0">
-                    <HeartHandshake className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-ink">Zero-Judgment Safe Space</h4>
-                    <p className="mt-1 text-xs text-ink-muted leading-relaxed">
-                      Fumble, pause, restart, and make mistakes here in private. Don&apos;t let your first interview mistake happen in front of the actual recruiter.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 rounded-xl border border-line bg-surface p-4">
-                  <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-600 shrink-0">
-                    <Lightbulb className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-ink">Learn to Think Aloud</h4>
-                    <p className="mt-1 text-xs text-ink-muted leading-relaxed">
-                      Senior interviewers care more about <em>how</em> you break down edge cases than memorized syntaxes. Build muscle memory for talking while coding.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 rounded-xl border border-line bg-surface p-4">
-                  <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 shrink-0">
-                    <Clock className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-ink">Pacing &amp; Time Management</h4>
-                    <p className="mt-1 text-xs text-ink-muted leading-relaxed">
-                      Practice finishing problem analysis, coding, and testing within realistic 25-minute interview rounds.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* AI Interviewer Panel Carousel */}
-            <div className="rounded-2xl border border-line bg-surface p-6 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-accent-cyan font-mono">
-                  Pick Your AI Interviewer
-                </span>
-                <span className="text-[11px] text-slate-500">4 Specializations</span>
-              </div>
-
-              <div className="space-y-3">
-                {panelInterviewers.map((panel) => (
-                  <div
-                    key={panel.name}
-                    className="flex items-center gap-4 rounded-xl border border-line bg-inset p-3.5 transition hover:border-cyan-400/40"
-                  >
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-cyan-400/40 shadow-sm">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={panel.avatar} alt={panel.name} className="h-full w-full object-cover" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-ink">{panel.name}</span>
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${panel.levelColor}`}>
-                          {panel.level}
-                        </span>
-                      </div>
-                      <p className="text-[11px] font-medium text-accent-cyan">{panel.role} · {panel.company}</p>
-                      <p className="mt-1 text-xs text-ink-muted line-clamp-1">{panel.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Link
-                href="/candidate/practice"
-                className="mt-5 w-full block text-center rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 py-3 text-xs font-bold text-white shadow-sm hover:brightness-110 transition"
-              >
-                Choose Interviewer &amp; Start →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =====================================================================
-          HOW IT WORKS (CANDIDATE 3 STEPS)
-          ===================================================================== */}
-      <section id="how-it-works" className="relative border-b border-line px-5 py-20 sm:px-8 lg:px-10 bg-canvas">
-        <div className="relative mx-auto max-w-7xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-cyan">Simple 3-Step Process</span>
-            <h2 className="mt-3 text-3xl font-black text-ink sm:text-4xl">One round, three parts, all out loud.</h2>
-            <p className="mt-4 text-sm leading-6 text-ink-muted">From uploading your resume to receiving your detailed scorecard in under 30 minutes.</p>
-          </div>
-
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {[
-              [
-                '01',
-                'Upload Resume & Pick Role',
-                'Upload your PDF resume or paste a target Job Description. The AI tailors the questions specifically to your listed projects, skills, and target seniority.',
-              ],
-              [
-                '02',
-                'Live Spoken Call & Coding',
-                'Connect via mic and video. Talk through your architecture, write code on the shared compiler, and receive organic hints whenever you get stuck.',
-              ],
-              [
-                '03',
-                'Instant Report Card',
-                'Spoken the moment you finish: get an objective breakdown of your algorithmic accuracy, communication clarity, and the exact things to improve first.',
-              ],
-            ].map(([number, title, text], idx) => (
-              <motion.div
-                key={number}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                className="card-lift-hover relative rounded-2xl border border-line bg-surface p-6 shadow-sm"
-              >
-                <span className="text-2xl font-black font-mono text-accent-cyan">{number}</span>
-                <h3 className="mt-3 text-lg font-bold text-ink">{title}</h3>
+                <h3 className="text-sm font-bold text-ink">{title}</h3>
                 <p className="mt-2 text-xs leading-5 text-ink-muted">{text}</p>
               </motion.div>
             ))}
@@ -740,46 +495,156 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          CANDIDATE REPORT CARD PREVIEW (REPLACING "AUDIT DOSSIER")
+          HOW IT WORKS (STEP BY STEP)
+          ===================================================================== */}
+      <section id="how-it-works" className="relative border-b border-line px-5 py-20 sm:px-8 lg:px-10 bg-surface-deep">
+        <div className="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none" />
+        <div className="relative mx-auto max-w-7xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-cyan">How It Works</span>
+            <h2 className="mt-3 text-3xl font-black text-ink sm:text-4xl">From context to adaptive AI interview</h2>
+            <p className="mt-4 text-sm leading-6 text-ink-muted">The interview is personalized before it starts and adapts while the candidate is speaking.</p>
+          </div>
+
+          <div className="mt-12 grid gap-4 lg:grid-cols-5">
+            {[
+              ['01', 'Resume', 'Candidate experience, skills and background parsed atomically.'],
+              ['02', 'JD + Role', 'Hiring requirements and competency expectations.'],
+              ['03', 'LLM Engine', 'Builds and adapts the real-time dialogue rubric.'],
+              ['04', 'Candidate ↔ AI', 'Spoken voice, live code and multi-modal proctoring.'],
+              ['05', 'Scorecard', 'Evidence-based audit dossier and technical grading.'],
+            ].map(([number, title, text], idx) => (
+              <motion.div
+                key={number}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className="card-lift-hover relative rounded-2xl border border-line bg-surface p-5 shadow-sm"
+              >
+                <span className="text-xs font-mono font-bold text-accent-cyan">{number}</span>
+                <h3 className="mt-3 text-base font-bold text-ink">{title}</h3>
+                <p className="mt-2 text-xs leading-5 text-ink-muted">{text}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-8 grid gap-4 rounded-2xl border border-cyan-400/25 bg-cyan-400/5 p-6 md:grid-cols-2">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-accent-cyan">Adaptive Dialogue Example</p>
+              <p className="mt-2 text-sm text-ink leading-relaxed">
+                Candidate explains API scaling → AI evaluates foundational clarity → AI organically probes distributed cache eviction and failure scenarios.
+              </p>
+            </div>
+            <div className="rounded-xl border border-line-strong bg-surface p-4 font-mono text-xs text-ink shadow-inner">
+              <span className="text-accent-cyan font-bold">AI:</span> &quot;How would you handle cache stampede if 10k workers query the same key?&quot;
+              <br /><br />
+              <span className="text-purple-500 font-bold">AI analysis:</span> Foundation verified → testing mutex locking &amp; probabilistic early expiration.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================================
+          BENEFITS
+          ===================================================================== */}
+      <section id="benefits" className="border-b border-line px-5 py-20 sm:px-8 lg:px-10 bg-canvas">
+        <div className="mx-auto max-w-7xl">
+          <div className="text-center max-w-2xl mx-auto">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-emerald">Why Progeni Atlas</span>
+            <h2 className="mt-3 text-3xl font-black text-ink sm:text-4xl">Designed for candidates, recruiters and enterprise teams</h2>
+            <p className="mt-4 text-sm leading-6 text-ink-muted">One unified platform providing authentic role-specific mock practice and production enterprise screening.</p>
+          </div>
+          
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {benefits.map(([title, text, Icon], idx) => {
+              const BenefitIcon = Icon as React.ElementType;
+              return (
+                <motion.div
+                  key={title as string}
+                  initial={{ opacity: 0, y: 15 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: idx * 0.08 }}
+                  className="card-lift-hover rounded-2xl border border-line bg-surface p-5 shadow-sm"
+                >
+                  <BenefitIcon className="h-5 w-5 text-accent-cyan" />
+                  <h3 className="mt-4 text-sm font-bold text-ink">{title as string}</h3>
+                  <p className="mt-2 text-xs leading-5 text-ink-muted">{text as string}</p>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          <div className="mt-8 grid gap-5 lg:grid-cols-2">
+            <Link
+              href="/candidate/dashboard"
+              className="card-lift-hover group rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-cyan-500/10 via-surface to-surface p-7 shadow-sm transition hover:border-cyan-400"
+            >
+              <span className="text-[11px] font-bold uppercase tracking-wider text-accent-cyan">For Candidates</span>
+              <h3 className="mt-2 text-xl font-black text-ink">Practice. Prepare. Perform.</h3>
+              <p className="mt-2 text-sm text-ink-muted">Practice interviews, full-length mock exams, live coding, and actionable turn-by-turn dossiers.</p>
+              <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-accent-cyan">
+                Candidate Portal <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+              </span>
+            </Link>
+
+            <Link
+              href="/recruiter/dashboard"
+              className="card-lift-hover group rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-indigo-500/10 via-surface to-surface p-7 shadow-sm transition hover:border-indigo-400"
+            >
+              <span className="text-[11px] font-bold uppercase tracking-wider text-accent-indigo">For Recruiters &amp; Teams</span>
+              <h3 className="mt-2 text-xl font-black text-ink">Interview at Scale.</h3>
+              <p className="mt-2 text-sm text-ink-muted">Create job campaigns, bulk invite candidates, inspect proctoring trust scores and verified dossiers.</p>
+              <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-accent-indigo">
+                Recruiter Portal <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+              </span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================================
+          SCORECARD PREVIEW
           ===================================================================== */}
       <section id="scorecard" className="border-b border-line bg-surface-deep px-5 py-20 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-3xl text-center">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-cyan">Post-Interview Feedback</span>
-            <h2 className="mt-3 text-3xl font-black text-ink sm:text-4xl">Your Post-Interview Report Card</h2>
-            <p className="mt-4 text-sm leading-6 text-ink-muted">Honest, actionable feedback generated the second your call finishes.</p>
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-violet">Audit-Ready Candidate Dossier</span>
+            <h2 className="mt-3 text-3xl font-black text-ink sm:text-4xl">Evidence behind every assessment</h2>
+            <p className="mt-4 text-sm leading-6 text-ink-muted">Review competency scores, verified transcripts and objective grading.</p>
           </div>
 
           <div className="mt-10 rounded-2xl border border-line bg-surface p-6 sm:p-8 shadow-xl">
             <div className="flex flex-col justify-between gap-4 border-b border-line pb-6 sm:flex-row sm:items-center">
               <div>
-                <p className="font-mono text-xs text-accent-cyan font-bold">MOCK INTERVIEW RESULT</p>
-                <h3 className="mt-1 text-xl font-black text-ink">Senior SDE Mock Assessment</h3>
-                <p className="text-xs text-ink-muted">Evaluated across Problem Solving, DSA Code Quality, and Communication.</p>
+                <p className="font-mono text-xs text-accent-cyan font-bold">VERIFIED DOSSIER PREVIEW</p>
+                <h3 className="mt-1 text-xl font-black text-ink">Evidence-Linked Competency Breakdown</h3>
+                <p className="text-xs text-ink-muted">Evaluated across algorithmic correctness, systems architecture, and proctoring integrity.</p>
               </div>
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-emerald-700 font-bold text-sm">
-                Overall: 89% · Benchmark: Top 10%
+              <div className="rounded-xl border border-cyan-400/30 bg-cyan-500/5 px-4 py-2.5">
+                <span className="text-sm font-black text-accent-cyan">Instant AI Generation</span>
               </div>
             </div>
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
               <div className="rounded-xl border border-line bg-inset p-5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-accent-cyan">Key Evaluator Feedback</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-accent-cyan">Verified Response Evidence</p>
                 <p className="mt-3 text-sm italic leading-6 text-ink">
-                  &quot;Candidate articulated the sliding window optimization cleanly with O(N) time complexity. Strong grasp of deque edge cases. Area to improve: practice stating your space complexity trade-offs before typing code.&quot;
+                  &quot;Candidate articulated the difference between pessimistic and optimistic locking with distributed Redis leases; clearly accounted for clock skew via Redlock algorithm.&quot;
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-accent-emerald">
                   <span className="rounded-full border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-1">✓ Complete Audio Transcript</span>
-                  <span className="rounded-full border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-1">✓ Test Cases Verified</span>
+                  <span className="rounded-full border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-1">✓ Server-Verified Scoring</span>
                 </div>
               </div>
 
               <div className="space-y-4">
                 {[
-                  ['Problem Solving & DSA', '94%'],
-                  ['Code Efficiency & Edge Cases', '88%'],
-                  ['Resume & Project Knowledge', '92%'],
-                  ['Communication & Thinking Aloud', '85%'],
+                  ['Technical Depth', '94%'],
+                  ['System Design', '88%'],
+                  ['Live Coding Execution', '92%'],
+                  ['Communication & Articulation', '85%'],
                 ].map(([name, score]) => (
                   <div key={name}>
                     <div className="flex justify-between text-xs font-semibold">
@@ -788,7 +653,7 @@ export default function Home() {
                     </div>
                     <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-2 border border-line">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-indigo-600 transition-all duration-1000"
+                        className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-indigo-500 transition-all duration-1000"
                         style={{ width: score }}
                       />
                     </div>
@@ -801,28 +666,28 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          STUDENT-FRIENDLY PRICING (FROM ₹49)
+          PRICING
           ===================================================================== */}
       <section id="pricing" className="border-b border-line px-5 py-20 sm:px-8 lg:px-10 bg-canvas">
         <div className="mx-auto max-w-7xl">
           <div className="text-center">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-emerald">Pocket-Friendly Pricing</span>
-            <h2 className="mt-3 text-3xl font-black text-ink sm:text-4xl">Practice packs starting from ₹49</h2>
-            <p className="mt-4 text-sm text-ink-muted">No expensive subscriptions. Pay only for what you practice.</p>
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-emerald">Transparent Pricing</span>
+            <h2 className="mt-3 text-3xl font-black text-ink sm:text-4xl">Simple, predictable plans</h2>
+            <p className="mt-4 text-sm text-ink-muted">Choose the plan tailored to your interview volume.</p>
           </div>
 
           <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {candidatePricing.map((plan) => (
+            {pricing.map((plan) => (
               <div
                 key={plan.name}
                 className={`card-lift-hover relative rounded-2xl border p-6 flex flex-col justify-between ${
                   plan.popular
-                    ? 'border-cyan-500/70 bg-gradient-to-b from-cyan-500/5 to-surface shadow-xl shadow-cyan-500/10'
+                    ? 'border-cyan-400/70 bg-gradient-to-b from-cyan-500/5 to-surface shadow-xl shadow-cyan-500/10'
                     : 'border-line bg-surface'
                 }`}
               >
                 {plan.popular && (
-                  <span className="absolute -top-3 left-6 rounded-full bg-gradient-to-r from-cyan-500 to-indigo-600 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                  <span className="absolute -top-3 left-6 rounded-full bg-gradient-to-r from-cyan-400 to-indigo-500 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-950 shadow-md">
                     Most Popular
                   </span>
                 )}
@@ -831,6 +696,9 @@ export default function Home() {
                   <p className="mt-1 text-xs text-ink-muted">{plan.note}</p>
                   <p className="mt-5 text-3xl font-black text-ink">
                     {plan.price}
+                    {plan.price.startsWith('₹') && plan.price !== '₹0' && (
+                      <span className="text-xs font-medium text-ink-muted"> /mo</span>
+                    )}
                   </p>
                   <ul className="mt-6 space-y-3">
                     {plan.items.map((item) => (
@@ -843,14 +711,20 @@ export default function Home() {
                 </div>
 
                 <Link
-                  href="/candidate/practice"
+                  href={plan.name === 'Enterprise Scale' ? '/contact' : '/register'}
                   className={`mt-8 block rounded-xl px-4 py-3 text-center text-xs font-bold transition-all duration-300 ${
                     plan.popular
-                      ? 'sheen-sweeper bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-md shadow-cyan-600/25 hover:brightness-110'
+                      ? 'sheen-sweeper bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-md shadow-cyan-500/25 hover:brightness-110'
                       : 'border border-line bg-surface-2 text-ink hover:bg-surface-3 hover:border-cyan-500/40 hover:text-accent-cyan'
                   }`}
                 >
-                  {plan.cta}
+                  {plan.name === 'Starter Practice'
+                    ? 'Start Practicing Free'
+                    : plan.name === 'Candidate Pro'
+                    ? 'Upgrade to Pro'
+                    : plan.name === 'Enterprise Scale'
+                    ? 'Contact Enterprise Sales'
+                    : 'Start Team Trial'}
                 </Link>
               </div>
             ))}
@@ -859,7 +733,7 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          CANDIDATE FAQS
+          FAQ
           ===================================================================== */}
       <section id="faq" className="border-b border-line bg-surface-deep px-5 py-20 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-4xl">
@@ -868,7 +742,7 @@ export default function Home() {
             <h2 className="mt-3 text-3xl font-black text-ink">Frequently Asked Questions</h2>
           </div>
           <div className="mt-10 space-y-3.5">
-            {candidateFaqs.map(([question, answer]) => (
+            {faqs.map(([question, answer]) => (
               <details
                 key={question}
                 className="group rounded-xl border border-line bg-surface transition-colors duration-200"
@@ -887,23 +761,23 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          FINAL CANDIDATE CTA
+          FINAL CTA
           ===================================================================== */}
       <section className="relative overflow-hidden border-b border-line bg-gradient-to-r from-indigo-950 via-slate-950 to-indigo-950 px-5 py-20 text-center text-white">
         <div className="sakshaat-grid" />
         <div className="absolute inset-0 bg-radial from-cyan-500/15 via-transparent to-transparent pointer-events-none anim-drift-a" />
         <div className="relative mx-auto max-w-3xl">
-          <span className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">Your First Mock is On Us</span>
-          <h2 className="mt-3 text-3xl font-black sm:text-4xl">Face your interview before it&apos;s real.</h2>
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">Progeni Atlas</span>
+          <h2 className="mt-3 text-3xl font-black sm:text-4xl">Ready to transform your technical interviews?</h2>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-slate-300">
-            Sign up in 30 seconds, connect your microphone, and practice your first live coding and resume round for free.
+            Conduct intelligent two-way AI interviews, evaluate technical problem solving and generate structured candidate dossiers.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3.5 sm:flex-row">
             <Link
-              href="/candidate/practice"
-              className="sheen-sweeper rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-cyan-600/25 transition hover:brightness-110"
+              href="/register"
+              className="sheen-sweeper rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-500 px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-110"
             >
-              Start Free Mock Interview →
+              Get Started Free →
             </Link>
             <a
               href="#hero"
