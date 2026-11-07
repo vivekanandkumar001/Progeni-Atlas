@@ -20,7 +20,8 @@ import {
  HelpCircle,
  X
 } from 'lucide-react';
-import { openRazorpayCheckout } from '@/lib/razorpay';
+import { createMayankUpiOrder, MayankUpiOrderResponse } from '@/lib/mayank_upi';
+import { MayankUpiModal } from '@/components/billing/MayankUpiModal';
 
 interface WalletData {
  accountId: string;
@@ -74,6 +75,8 @@ export default function RecruiterBillingPage() {
  const [customAmount, setCustomAmount] = useState<string>('');
  const [recharging, setRecharging] = useState(false);
  const [message, setMessage] = useState<{ text: string; type: 'success'|'error'} | null>(null);
+ const [upiModalOpen, setUpiModalOpen] = useState(false);
+ const [activeUpiOrder, setActiveUpiOrder] = useState<MayankUpiOrderResponse | null>(null);
 
  const loadWallet = useCallback(async () => {
  try {
@@ -116,23 +119,22 @@ export default function RecruiterBillingPage() {
  setRecharging(true);
  setMessage(null);
 
- await openRazorpayCheckout({
+ try {
+ const orderRes = await createMayankUpiOrder({
  amountCredits: amount,
- onSuccess: async (data) => {
- setMessage({ text: data.message, type: 'success'});
- setRechargeModalOpen(false);
- setCustomAmount('');
- setRecharging(false);
- await loadWallet();
- },
- onError: (errMsg) => {
- setMessage({ text: errMsg, type: 'error'});
- setRecharging(false);
- },
- onDismiss: () => {
- setRecharging(false);
- },
+ amountInr: amount,
  });
+ setActiveUpiOrder(orderRes);
+ setRechargeModalOpen(false);
+ setUpiModalOpen(true);
+ } catch (err) {
+ setMessage({
+ text: err instanceof Error ? err.message : 'Failed to launch UPI Gateway',
+ type: 'error',
+ });
+ } finally {
+ setRecharging(false);
+ }
  };
 
 
@@ -470,7 +472,7 @@ export default function RecruiterBillingPage() {
  </span>
  </div>
  <p className="mt-1 text-[11px] text-blue-600">
- Secured by <strong>Razorpay</strong> (Cards, UPI, Netbanking). Instant credit addition (₹1 = 1 Credit).
+ Secured by <strong>Mayank Singh UPI Gateway</strong> (GPay, PhonePe, Paytm, BHIM, QR). Instant credit addition (₹1 = 1 Credit).
  </p>
  </div>
  </div>
@@ -490,12 +492,24 @@ export default function RecruiterBillingPage() {
  onClick={() => void handleRecharge()}
  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#185adb] hover:bg-blue-700 shadow-md transition disabled:opacity-50"
  >
- {recharging ? 'Launching Razorpay...':`Pay ₹${customAmount ? parseFloat(customAmount) || 0 : selectedPack} with Razorpay`}
+ {recharging ? 'Creating UPI Order...':`Pay ₹${customAmount ? parseFloat(customAmount) || 0 : selectedPack} via UPI Gateway`}
  </button>
  </div>
  </div>
  </div>
  )}
- </div>
+ 
+ {/* Mayank Singh Multi-Merchant UPI Gateway Modal */}
+ <MayankUpiModal
+ isOpen={upiModalOpen}
+ onClose={() => setUpiModalOpen(false)}
+ orderData={activeUpiOrder}
+ onSuccess={async (data) => {
+ setMessage({ text: data.message, type: 'success' });
+ setCustomAmount('');
+ await loadWallet();
+ }}
+ />
+</div>
  );
 }

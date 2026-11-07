@@ -29,7 +29,8 @@ import {
   ChevronRight,
   Info
 } from 'lucide-react';
-import { openRazorpayCheckout } from '@/lib/razorpay';
+import { createMayankUpiOrder, MayankUpiOrderResponse } from '@/lib/mayank_upi';
+import { MayankUpiModal } from '@/components/billing/MayankUpiModal';
 
 interface WalletData {
   accountId: string;
@@ -102,6 +103,10 @@ export default function CandidateWalletPage() {
   const [recharging, setRecharging] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // Mayank Singh UPI Gateway Modal State
+  const [upiModalOpen, setUpiModalOpen] = useState(false);
+  const [activeUpiOrder, setActiveUpiOrder] = useState<MayankUpiOrderResponse | null>(null);
+
   // Paytm-style filter and search state
   const [activeTab, setActiveTab] = useState<'ALL' | 'OUT' | 'IN' | 'DEMO'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,24 +162,22 @@ export default function CandidateWalletPage() {
     setRecharging(true);
     setMessage(null);
 
-    await openRazorpayCheckout({
-      amountCredits,
-      amountInr,
-      onSuccess: async (data) => {
-        setMessage({ text: data.message, type: 'success' });
-        setRechargeModalOpen(false);
-        setCustomAmount('');
-        setRecharging(false);
-        await loadWallet();
-      },
-      onError: (errMsg) => {
-        setMessage({ text: errMsg, type: 'error' });
-        setRecharging(false);
-      },
-      onDismiss: () => {
-        setRecharging(false);
-      },
-    });
+    try {
+      const orderRes = await createMayankUpiOrder({
+        amountCredits,
+        amountInr,
+      });
+      setActiveUpiOrder(orderRes);
+      setRechargeModalOpen(false);
+      setUpiModalOpen(true);
+    } catch (err) {
+      setMessage({
+        text: err instanceof Error ? err.message : 'Failed to initialize UPI Gateway order.',
+        type: 'error',
+      });
+    } finally {
+      setRecharging(false);
+    }
   };
 
   // Filter and search transactions
@@ -329,7 +332,7 @@ export default function CandidateWalletPage() {
               <span className="text-xs font-semibold text-ink-muted">credited</span>
             </div>
             <p className="mt-3 text-xs text-ink-muted">
-              Includes welcome bonus + Razorpay online recharges.
+              Includes welcome bonus + online UPI recharges.
             </p>
           </div>
 
@@ -874,7 +877,7 @@ export default function CandidateWalletPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-ink-muted">
-                  Secured by <strong>Razorpay</strong> (Cards, UPI, Netbanking). Instant credit addition (₹1 = 1 Credit).
+                  Secured by <strong>Mayank Singh UPI Gateway</strong> (GPay, PhonePe, Paytm, BHIM, QR). Instant credit addition.
                 </p>
               </div>
             </div>
@@ -892,14 +895,26 @@ export default function CandidateWalletPage() {
                 type="button"
                 disabled={recharging}
                 onClick={() => void handleRecharge()}
-                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition disabled:opacity-50 cursor-pointer"
+                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#185adb] hover:bg-[#154bb7] shadow-md transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
               >
-                {recharging ? 'Launching Razorpay...' : `Pay ₹${customAmount ? parseFloat(customAmount) || 0 : selectedPack} with Razorpay`}
+                {recharging ? 'Creating UPI Order...' : `Pay ₹${customAmount ? parseFloat(customAmount) || 0 : selectedPack} via UPI Gateway`}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Mayank Singh Multi-Merchant UPI Gateway Modal */}
+      <MayankUpiModal
+        isOpen={upiModalOpen}
+        onClose={() => setUpiModalOpen(false)}
+        orderData={activeUpiOrder}
+        onSuccess={async (data) => {
+          setMessage({ text: data.message, type: 'success' });
+          setCustomAmount('');
+          await loadWallet();
+        }}
+      />
     </div>
   );
 }
