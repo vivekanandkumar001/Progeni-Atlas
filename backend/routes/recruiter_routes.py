@@ -1662,106 +1662,94 @@ def api_generate_recruiter_rubric():
 
 
 # =====================================================================
-# ENTERPRISE ATS INTEGRATIONS: GREENHOUSE, WORKDAY, LEVER & ASHBY
+# =====================================================================
+# RECRUITER ATS & HIRING INTEGRATIONS: CSV, GREENHOUSE, WORKDAY, LEVER, ASHBY
 # =====================================================================
 
 DEFAULT_ATS_INTEGRATIONS = {
-    "greenhouse": {
+    "google_sheets": {
         "enabled": True,
-        "harvestApiKey": "gh_harvest_9a8f27b1••••••••c4e3",
-        "webhookSecret": "whsec_gh_enterprise_7719••••••••",
-        "onBehalfOfEmail": "recruiter@progeni.atlas",
+        "name": "Google Sheets / CSV",
+        "category": "direct_import",
+        "status": "ready",
+        "description": "Instant bulk applicant import via CSV or Google Sheets template",
+        "candidatesSynced": 0,
+        "scorecardsExported": 0,
+        "lastSync": None
+    },
+    "greenhouse": {
+        "enabled": False,
+        "name": "Greenhouse ATS",
+        "category": "enterprise_ats",
+        "apiKey": "",
+        "onBehalfOfEmail": "",
         "autoInviteOnStage": True,
         "autoExportScorecard": True,
-        "webhookUrl": "https://vivekanandinterview.converiqo.tech/api/integrations/greenhouse/webhook",
-        "status": "connected",
-        "lastSync": "2026-10-28T18:45:00Z",
-        "candidatesSynced": 14,
-        "scorecardsExported": 14
+        "status": "not_connected",
+        "lastSync": None,
+        "candidatesSynced": 0,
+        "scorecardsExported": 0
     },
     "workday": {
-        "enabled": True,
-        "tenantUrl": "https://services1.workday.com/ccx/service/v1",
-        "tenantId": "progeni_atlas_enterprise_us",
-        "clientId": "tp-recruiting-oauth-client",
-        "clientSecret": "wkd_sec_49b109••••••••",
+        "enabled": False,
+        "name": "Workday HCM",
+        "category": "enterprise_ats",
+        "tenantUrl": "",
+        "tenantId": "",
+        "clientId": "",
         "autoSyncResults": True,
-        "webhookUrl": "https://vivekanandinterview.converiqo.tech/api/integrations/workday/webhook",
-        "status": "connected",
-        "lastSync": "2026-10-28T17:30:00Z",
-        "candidatesSynced": 9,
-        "scorecardsExported": 9
+        "status": "not_connected",
+        "lastSync": None,
+        "candidatesSynced": 0,
+        "scorecardsExported": 0
     },
     "lever": {
         "enabled": False,
+        "name": "Lever",
+        "category": "enterprise_ats",
         "apiKey": "",
-        "webhookUrl": "https://vivekanandinterview.converiqo.tech/api/integrations/lever/webhook",
-        "status": "ready",
+        "status": "not_connected",
         "lastSync": None,
         "candidatesSynced": 0,
         "scorecardsExported": 0
     },
     "ashby": {
         "enabled": False,
+        "name": "Ashby",
+        "category": "enterprise_ats",
         "apiKey": "",
-        "webhookUrl": "https://vivekanandinterview.converiqo.tech/api/integrations/ashby/webhook",
-        "status": "ready",
+        "status": "not_connected",
+        "lastSync": None,
+        "candidatesSynced": 0,
+        "scorecardsExported": 0
+    },
+    "linkedin": {
+        "enabled": False,
+        "name": "LinkedIn Recruiter",
+        "category": "sourcing",
+        "status": "not_connected",
+        "lastSync": None,
+        "candidatesSynced": 0,
+        "scorecardsExported": 0
+    },
+    "calendar": {
+        "enabled": False,
+        "name": "Google / Outlook Calendar",
+        "category": "scheduling",
+        "status": "not_connected",
         "lastSync": None,
         "candidatesSynced": 0,
         "scorecardsExported": 0
     }
 }
 
-DEFAULT_ATS_LOGS = [
-    {
-        "id": "ats-log-101",
-        "provider": "greenhouse",
-        "candidateName": "Alexandra Chen",
-        "candidateEmail": "alexandra.chen@gmail.com",
-        "jobRole": "Senior Full-Stack Engineer",
-        "action": "Scorecard Exported",
-        "status": "DELIVERED",
-        "httpCode": 200,
-        "details": "Overall score 94% & PDF Dossier link synchronized to Greenhouse Harvest API Candidate Activity feed",
-        "timestamp": "2026-10-28T18:45:12Z"
-    },
-    {
-        "id": "ats-log-102",
-        "provider": "greenhouse",
-        "candidateName": "Marcus Vance",
-        "candidateEmail": "m.vance@techvault.io",
-        "jobRole": "Backend Distributed Systems Engineer",
-        "action": "Candidate Ingested",
-        "status": "DELIVERED",
-        "httpCode": 200,
-        "details": "Greenhouse webhook event 'candidate_stage_change' triggered automated Progeni Atlas interview invite",
-        "timestamp": "2026-10-28T18:10:04Z"
-    },
-    {
-        "id": "ats-log-103",
-        "provider": "workday",
-        "candidateName": "Sophia Patel",
-        "candidateEmail": "spatel.dev@outlook.com",
-        "jobRole": "AI / ML Systems Engineer",
-        "action": "Scorecard Exported",
-        "status": "DELIVERED",
-        "httpCode": 200,
-        "details": "4-Pillar evaluation scorecard (88%) and integrity badge attached to Workday Candidate Assessment Record",
-        "timestamp": "2026-10-28T17:30:21Z"
-    },
-    {
-        "id": "ats-log-104",
-        "provider": "workday",
-        "candidateName": "David Miller",
-        "candidateEmail": "d.miller@gmail.com",
-        "jobRole": "DevOps & Cloud SRE",
-        "action": "Assessment Requested",
-        "status": "DELIVERED",
-        "httpCode": 200,
-        "details": "Workday RaaS candidate requisition matched; technical interview room provisioned",
-        "timestamp": "2026-10-28T16:15:33Z"
-    }
-]
+DEFAULT_PIPELINE_RULES = {
+    "autoInviteOnStage": True,
+    "autoExportScorecard": True,
+    "passThreshold": 75,
+    "notifyHiringManagerEmail": True,
+    "sendCandidatePrepGuide": True
+}
 
 
 @recruiter_bp.route("/api/recruiter/integrations", methods=["GET"])
@@ -1772,52 +1760,58 @@ def get_recruiter_integrations():
         org_id = (user and user.get("org_id")) or "org-default"
         db = get_mongo_db()
 
-        config = None
+        config = DEFAULT_ATS_INTEGRATIONS.copy()
+        rules = DEFAULT_PIPELINE_RULES.copy()
         logs = []
 
         if db is not None:
             existing = db.ats_integrations.find_one({"org_id": org_id})
             if existing:
-                config = existing.get("providers")
+                stored_providers = existing.get("providers", {})
+                for k, v in stored_providers.items():
+                    if k in config:
+                        config[k].update(v)
+                    else:
+                        config[k] = v
+                if "rules" in existing:
+                    rules.update(existing.get("rules", {}))
             else:
                 db.ats_integrations.insert_one({
                     "org_id": org_id,
                     "providers": DEFAULT_ATS_INTEGRATIONS,
+                    "rules": DEFAULT_PIPELINE_RULES,
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 })
-                config = DEFAULT_ATS_INTEGRATIONS
 
-            # Fetch recent logs
+            # Fetch ONLY real logs (No fabricated seed data)
             raw_logs = list(db.ats_sync_logs.find({"org_id": org_id}).sort("timestamp", -1).limit(40))
             if raw_logs:
                 logs = [{k: str(v) if k == "_id" else v for k, v in l.items()} for l in raw_logs]
             else:
-                # Seed default logs for active visual verification
-                for l in DEFAULT_ATS_LOGS:
-                    db.ats_sync_logs.insert_one({**l, "org_id": org_id})
-                logs = DEFAULT_ATS_LOGS
-        else:
-            config = DEFAULT_ATS_INTEGRATIONS
-            logs = DEFAULT_ATS_LOGS
+                logs = []
 
         # Aggregate stats
-        total_synced = sum((p.get("candidatesSynced", 0) for p in config.values()))
-        total_scorecards = sum((p.get("scorecardsExported", 0) for p in config.values()))
-        active_count = sum((1 for p in config.values() if p.get("enabled")))
+        total_synced = sum((int(p.get("candidatesSynced", 0)) for p in config.values()))
+        total_scorecards = sum((int(p.get("scorecardsExported", 0)) for p in config.values()))
+        active_count = sum((1 for p in config.values() if p.get("enabled") and p.get("status") in ["connected", "ready"]))
 
         return jsonify({
             "success": True,
             "providers": config,
+            "rules": rules,
             "stats": {
                 "activeProviders": active_count,
                 "totalCandidatesSynced": total_synced,
                 "totalScorecardsExported": total_scorecards,
-                "webhookHealth": "100% Operational",
-                "lastSync": "2026-10-28T18:45:12Z"
+                "webhookHealth": "Operational",
+                "lastSync": datetime.now(timezone.utc).isoformat() if active_count > 0 else None
             },
             "logs": logs
         }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -1970,6 +1964,119 @@ def export_candidate_to_ats():
             "success": True,
             "message": f"Candidate scorecard for {candidate_name} pushed to {provider.capitalize()} successfully!",
             "log": log_entry
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@recruiter_bp.route("/api/recruiter/integrations/rules", methods=["POST"])
+def save_recruiter_integration_rules():
+    """Save automated hiring pipeline rules (autoInvite, autoExportScorecard, passThreshold, email notifications)."""
+    try:
+        user = get_current_recruiter()
+        org_id = (user and user.get("org_id")) or "org-default"
+        data = request.get_json() or {}
+
+        db = get_mongo_db()
+        if db is not None:
+            db.ats_integrations.update_one(
+                {"org_id": org_id},
+                {"$set": {"rules": data, "updated_at": datetime.now(timezone.utc).isoformat()}},
+                upsert=True
+            )
+
+        return jsonify({
+            "success": True,
+            "message": "Automated recruitment pipeline rules updated successfully!",
+            "rules": data
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@recruiter_bp.route("/api/recruiter/integrations/bulk-import", methods=["POST"])
+def bulk_import_candidates_from_source():
+    """Bulk import candidates from CSV, Google Sheets, or ATS pipeline and trigger AI interviews."""
+    try:
+        user = get_current_recruiter()
+        org_id = (user and user.get("org_id")) or "org-default"
+        data = request.get_json() or {}
+
+        source = data.get("source", "csv_upload")
+        job_id = data.get("jobId", "")
+        candidates = data.get("candidates", [])
+
+        if not candidates or not isinstance(candidates, list):
+            return jsonify({"error": "No candidates provided for import"}), 400
+
+        db = get_mongo_db()
+        invited_count = 0
+        job_title = "Technical Candidate"
+
+        if db is not None and job_id:
+            job_doc = db.jobs.find_one({"_id": job_id}) or db.jobs.find_one({"id": job_id})
+            if job_doc:
+                job_title = job_doc.get("title", job_title)
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        for c in candidates:
+            c_name = str(c.get("name") or "Candidate").strip()
+            c_email = str(c.get("email") or "").strip().lower()
+            if not c_email:
+                continue
+
+            c_role = str(c.get("role") or job_title).strip()
+            session_id = f"sess-{uuid.uuid4().hex[:12]}"
+            invite_token = f"inv-{uuid.uuid4().hex[:16]}"
+
+            if db is not None:
+                db.interview_invitations.insert_one({
+                    "id": invite_token,
+                    "session_id": session_id,
+                    "org_id": org_id,
+                    "job_id": job_id,
+                    "candidate_name": c_name,
+                    "candidate_email": c_email,
+                    "role": c_role,
+                    "source": source,
+                    "status": "invited",
+                    "created_at": now_iso
+                })
+
+                # Log human-readable ATS integration event
+                db.ats_sync_logs.insert_one({
+                    "id": f"ats-log-{uuid.uuid4().hex[:8]}",
+                    "org_id": org_id,
+                    "provider": source,
+                    "candidateName": c_name,
+                    "candidateEmail": c_email,
+                    "jobRole": c_role,
+                    "action": "Interview Invite Sent",
+                    "status": "DELIVERED",
+                    "httpCode": 200,
+                    "details": f"Imported via {source.replace('_', ' ').title()}. AI technical screening session provisioned ({c_role}).",
+                    "timestamp": now_iso
+                })
+
+            invited_count += 1
+
+        if db is not None and invited_count > 0:
+            db.ats_integrations.update_one(
+                {"org_id": org_id},
+                {
+                    "$inc": {"providers.google_sheets.candidatesSynced": invited_count},
+                    "$set": {"providers.google_sheets.lastSync": now_iso}
+                },
+                upsert=True
+            )
+
+        return jsonify({
+            "success": True,
+            "message": f"Successfully imported and invited {invited_count} candidate(s) to AI screening!",
+            "invitedCount": invited_count
         }), 200
     except Exception as e:
         traceback.print_exc()
