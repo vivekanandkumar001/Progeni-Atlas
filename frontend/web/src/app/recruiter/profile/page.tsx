@@ -94,19 +94,60 @@ export default function RecruiterProfilePage() {
   const [inviteRole, setInviteRole] = useState<'admin' | 'recruiter' | 'interviewer'>('recruiter');
   const [inviting, setInviting] = useState(false);
 
-  // Fetch Profile on Mount
+  // Fetch Profile on Mount & Hydrate from LocalStorage
   useEffect(() => {
+    // 1. Immediate client-side hydration so fields are never blank
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem('tp_user') : null;
+      if (raw) {
+        const u = JSON.parse(raw);
+        setProfile((prev) => ({
+          ...prev,
+          fullName: u.fullName || u.name || prev.fullName,
+          email: u.email || prev.email,
+          phone: u.phone || prev.phone,
+          designation: u.designation || prev.designation,
+          department: u.department || prev.department,
+          linkedinUrl: u.linkedinUrl || prev.linkedinUrl,
+          organization: {
+            ...prev.organization,
+            name: u.companyName || u.organizationName || prev.organization.name || ((u.fullName || u.name) ? `${(u.fullName || u.name).split(' ')[0]} Workspace` : ''),
+          }
+        }));
+      }
+    } catch {}
+
+    // 2. Fetch authoritative profile from backend API
     async function fetchProfile() {
       try {
         setLoading(true);
-        const res = await apiFetch('/api/recruiter/profile');
+        let query = '';
+        try {
+          const raw = typeof window !== 'undefined' ? window.localStorage.getItem('tp_user') : null;
+          if (raw) {
+            const u = JSON.parse(raw);
+            if (u.email) query = `?email=${encodeURIComponent(u.email)}`;
+          }
+        } catch {}
+
+        const res = await apiFetch(`/api/recruiter/profile${query}`);
         if (res.ok) {
           const data = await res.json();
           setProfile((prev) => ({
             ...prev,
             ...data,
-            organization: { ...prev.organization, ...(data.organization || {}) },
-            teamMembers: data.teamMembers || prev.teamMembers,
+            fullName: data.fullName || prev.fullName,
+            email: data.email || prev.email,
+            phone: data.phone || prev.phone,
+            designation: data.designation || prev.designation,
+            department: data.department || prev.department,
+            linkedinUrl: data.linkedinUrl || prev.linkedinUrl,
+            organization: {
+              ...prev.organization,
+              ...(data.organization || {}),
+              name: data.organization?.name || prev.organization.name,
+            },
+            teamMembers: data.teamMembers?.length ? data.teamMembers : prev.teamMembers,
             auditLogs: data.auditLogs || prev.auditLogs
           }));
         } else if (res.status === 401) {
