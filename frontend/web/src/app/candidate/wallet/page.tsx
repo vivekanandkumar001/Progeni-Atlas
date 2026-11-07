@@ -85,9 +85,9 @@ interface TransactionSummary {
 }
 
 const CANDIDATE_PACKS = [
-  { credits: 100, inr: 100, minutes: 50, badge: 'Quick Practice' },
-  { credits: 300, inr: 300, minutes: 150, badge: 'Standard Drill', popular: true },
-  { credits: 600, inr: 600, minutes: 300, badge: 'Comprehensive Prep' },
+  { packName: 'pack_49', credits: 30, inr: 49, minutes: 15, badge: 'Warm-up Pack' },
+  { packName: 'pack_99', credits: 70, inr: 99, minutes: 35, badge: 'Placement Ready', popular: true },
+  { packName: 'pack_199', credits: 150, inr: 199, minutes: 75, badge: 'Pro Mastery' },
 ];
 
 export default function CandidateWalletPage() {
@@ -96,7 +96,7 @@ export default function CandidateWalletPage() {
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [rechargeModalOpen, setRechargeModalOpen] = useState(false);
-  const [selectedPack, setSelectedPack] = useState<number>(300);
+  const [selectedPack, setSelectedPack] = useState<number>(70);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
   const [recharging, setRecharging] = useState(false);
@@ -146,8 +146,10 @@ export default function CandidateWalletPage() {
   }, [loadWallet]);
 
   const handleRecharge = async () => {
-    const amount = customAmount ? parseFloat(customAmount) : selectedPack;
-    if (!amount || amount <= 0) {
+    const selectedObj = CANDIDATE_PACKS.find((p) => p.credits === selectedPack);
+    const amountCredits = customAmount ? parseFloat(customAmount) : (selectedObj?.credits || 70);
+    const amountInr = customAmount ? parseFloat(customAmount) : (selectedObj?.inr || 99);
+    if (!amountCredits || amountCredits <= 0) {
       setMessage({ text: 'Please enter a valid credit amount.', type: 'error' });
       return;
     }
@@ -156,7 +158,8 @@ export default function CandidateWalletPage() {
     setMessage(null);
 
     await openRazorpayCheckout({
-      amountCredits: amount,
+      amountCredits,
+      amountInr,
       onSuccess: async (data) => {
         setMessage({ text: data.message, type: 'success' });
         setRechargeModalOpen(false);
@@ -787,7 +790,7 @@ export default function CandidateWalletPage() {
 
             <div className="space-y-4">
               <label className="text-xs font-semibold text-ink-muted block">
-                Select Credit Package (₹1 = 1 Credit)
+                Select Practice Credit Pack
               </label>
 
               <div className="grid gap-3 sm:grid-cols-3">
