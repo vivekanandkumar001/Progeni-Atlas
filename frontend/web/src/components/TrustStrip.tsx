@@ -15,23 +15,23 @@ export const TrustStrip: React.FC = () => {
         className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 text-center"
       >
         <span className="text-xs font-sans font-bold tracking-wider text-ink-2 uppercase">
-          ENTERPRISE TRUST & SECURITY:
+          PLATFORM ARCHITECTURE &amp; DATA PRIVACY:
         </span>
 
         <div className="flex flex-wrap items-center justify-center gap-6 text-xs font-sans text-ink-muted">
           <span className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-surface border border-line-strong">
             <Shield className="w-3.5 h-3.5 text-accent-cyan" />
-            <span className="text-ink font-medium">GDPR Compliant</span>
+            <span className="text-ink font-medium">SSL / TLS 1.3 Transport</span>
           </span>
 
           <span className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-surface border border-line-strong">
             <Lock className="w-3.5 h-3.5 text-accent-emerald" />
-            <span className="text-ink font-medium">Bank-Grade Encryption</span>
+            <span className="text-ink font-medium">Encrypted Live Audio</span>
           </span>
 
           <span className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-surface border border-line-strong">
             <CheckCircle className="w-3.5 h-3.5 text-accent-indigo" />
-            <span className="text-ink font-medium">Fair AI Certified</span>
+            <span className="text-ink font-medium">Objective Rubric Evaluation</span>
           </span>
         </div>
       </motion.div>

@@ -188,17 +188,17 @@ export const Navbar: React.FC = () => {
                         </div>
                       </Link>
                       <Link
-                        href="/about#team"
+                        href="/about#principles"
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
                         <Users className="w-4 h-4 text-[#185adb] mt-0.5" />
                         <div>
                           <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Leadership &amp; Team
+                            Engineering Pillars
                           </p>
                           <p className="text-[11px] text-slate-500 ">
-                            Pioneering AI researchers &amp; system builders
+                            Core architecture and evaluation design
                           </p>
                         </div>
                       </Link>
@@ -334,17 +334,17 @@ export const Navbar: React.FC = () => {
                         </div>
                       </Link>
                       <Link
-                        href="/portfolio#case-studies"
+                        href="/portfolio#tracks"
                         onClick={() => setActiveDropdown(null)}
                         className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
                       >
                         <Building2 className="w-4 h-4 text-[#185adb] mt-0.5" />
                         <div>
                           <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Client Case Studies
+                            Engineering Tracks
                           </p>
                           <p className="text-[11px] text-slate-500 ">
-                            Enterprise metrics and proven results
+                            Practice syllabus and playbooks
                           </p>
                         </div>
                       </Link>

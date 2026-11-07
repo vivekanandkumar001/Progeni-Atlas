@@ -220,7 +220,7 @@ export default function ServicesPage() {
                       </div>
                       <div className="p-3 rounded-lg bg-surface-2 border border-line flex items-center justify-between">
                         <span>Anti-Cheat Coverage</span>
-                        <span className="text-accent-cyan font-bold">Multi-Signal 99.4%</span>
+                        <span className="text-accent-cyan font-bold">Multi-Signal MediaPipe</span>
                       </div>
                       <div className="p-3 rounded-lg bg-surface-2 border border-line flex items-center justify-between">
                         <span>Evaluation Rubric</span>
