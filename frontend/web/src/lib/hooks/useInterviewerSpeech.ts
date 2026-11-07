@@ -31,7 +31,7 @@ export interface UseInterviewerSpeechOptions {
 
 export interface UseInterviewerSpeechReturn {
   playbackState: PlaybackState;
-  speakQuestion: (text: string, dialogueKey?: string) => Promise<void>;
+  speakQuestion: (text: string, dialogueKey?: string, voice?: 'en' | 'hinglish' | 'default' | string) => Promise<void>;
   stopCurrentPlayback: (reason?: string) => void;
   handleReplayAudio: (textToReplay: string) => void;
   restoreMicrophoneTrack: () => void;
