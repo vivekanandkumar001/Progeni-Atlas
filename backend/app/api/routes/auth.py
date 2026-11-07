@@ -122,6 +122,7 @@ def register(
         headline=payload.headline,
         is_email_verified=False,
         status=UserStatus.ACTIVE,
+        credits=0,  # Will be set to 10 after OTP verification
     )
     db.add(user)
     try:
@@ -131,15 +132,35 @@ def register(
         raise HTTPException(status_code=409, detail="Email is already registered") from None
 
     # Generate and send 6-digit email OTP (2-minute TTL, HMAC-SHA256 peppered)
-    otp_record, raw_code, email_sent, email_err = otp_service.create_and_send_otp(
+    otp_record_email, raw_code_email, email_sent, email_err = otp_service.create_and_send_otp(
         db, email=email, user_id=user.id, purpose="REGISTRATION_VERIFY"
     )
 
+    # Generate and send 6-digit phone OTP (2-minute TTL, HMAC-SHA256 peppered)
+    # Only send if phone number is provided
+    otp_record_phone = None
+    raw_code_phone = None
+    if payload.phone:
+        otp_record_phone, raw_code_phone, sms_sent, sms_err = otp_service.create_and_send_otp(
+            db, phone=payload.phone, user_id=user.id, purpose="REGISTRATION_VERIFY"
+        )
+    else:
+        sms_sent = True  # No phone = not required
+        sms_err = None
+
+    # Check if both OTPs were sent successfully
     if not email_sent:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to send verification email: {email_err}",
+        )
+
+    if payload.phone and not sms_sent:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to send verification SMS: {sms_err}",
         )
 
     audit.record(
@@ -150,7 +171,12 @@ def register(
         entity_type="user",
         entity_id=user.id,
         request=request,
-        detail={"role": user.role.value, "email_sent": email_sent},
+        detail={
+            "role": user.role.value,
+            "email_sent": email_sent,
+            "sms_sent": sms_sent,
+            "phone_provided": bool(payload.phone),
+        },
         commit=True,
     )
 
@@ -161,7 +187,7 @@ def register(
         is_email_verified=False,
         otp_required=True,
         expires_in_sec=settings.OTP_TTL_SEC,
-        redirect_url=f"/verify-otp?email={user.email}&purpose=REGISTRATION_VERIFY",
+        redirect_url=f"/verify-otp?email={user.email}&purpose=REGISTRATION_VERIFY&phone={payload.phone or ''}",
     )
 
 
@@ -172,16 +198,27 @@ def verify_otp(
     db: Session = Depends(get_db),
 ) -> TokenPair:
     """Validate OTP with atomic attempt increment and issue real JWT token pair on success."""
-    email = payload.email.lower().strip()
+    contact_type = payload.contact_type
+    code = payload.code
+    purpose = payload.purpose
+
+    # Determine email and phone based on contact_type
+    if contact_type == "email":
+        email = payload.email.lower().strip()
+        phone = None
+    else:  # phone
+        email = None
+        phone = payload.phone.strip() if payload.phone else None
+
     success, detail, user = otp_service.verify_otp(
-        db, email=email, code=payload.code, purpose=payload.purpose
+        db, email=email, phone=phone, code=code, purpose=purpose
     )
     if not success:
         audit.record(
             db,
             action="auth.otp_verify_failed",
             request=request,
-            detail={"email": email, "purpose": payload.purpose},
+            detail={"contact_type": contact_type, "purpose": purpose},
             commit=True,
         )
         if "Too many" in detail:
@@ -598,4 +635,200 @@ def reset_password(
         message="Password reset successfully. Please log in with your new password.",
         redirectUrl="/login",
     )
+
+
+@router.post("/purchase-credits", response_model=dict)
+def purchase_credits(
+    payload: dict,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Purchase a credit pack.
+
+    Available packs:
+    - Candidate: pack_49 (₹49 = 30 credits), pack_99 (₹99 = 70 credits), pack_199 (₹199 = 150 credits)
+    - Recruiter: pack_999 (₹999 = 800 credits), pack_1999 (₹1999 = 1800 credits), pack_4999 (₹4999 = 4500 credits)
+
+    Returns new credit balance and transaction details.
+    """
+    from app.services.credit_service import purchase_credits
+
+    pack_name = payload.get("pack_name")
+    if not pack_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="pack_name is required",
+        )
+
+    result = purchase_credits(db, current_user, pack_name)
+    if not result["success"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["error"],
+        )
+
+    audit.record(
+        db,
+        action="auth.credit_purchased",
+        actor_id=current_user.id,
+        org_id=current_user.org_id,
+        entity_type="user",
+        entity_id=current_user.id,
+        request=request,
+        detail={
+            "pack_name": result["pack_name"],
+            "price": result["price"],
+            "credits_added": result["credits_added"],
+            "new_balance": result["new_balance"],
+        },
+        commit=True,
+    )
+
+    return {
+        "success": True,
+        "pack_name": result["pack_name"],
+        "price": result["price"],
+        "credits_added": result["credits_added"],
+        "new_balance": result["new_balance"],
+        "transaction_id": result["transaction_id"],
+    }
+
+
+@router.post("/admin/give-credits", response_model=dict)
+def admin_give_credits(
+    payload: dict,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin: Give free credits to a user.
+
+    Only SUPER_ADMIN or recruiters can award credits.
+    Used for free trials and permissions.
+
+    Required payload:
+    - user_id: uuid of the user to receive credits
+    - credits: number of credits to add
+    - reason: optional reason description
+    """
+    from app.services.credit_service import admin_give_credits
+
+    # Check permission: SUPER_ADMIN or recruiter
+    if current_user.role not in [UserRole.SUPER_ADMIN, UserRole.RECRUITER]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin/recruiter can award credits",
+        )
+
+    user_id = payload.get("user_id")
+    credits = payload.get("credits")
+    reason = payload.get("reason", "admin_award")
+
+    if not user_id or not credits:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="user_id and credits are required",
+        )
+
+    # Find the target user
+    target_user = db.scalar(select(User).where(User.id == user_id))
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    result = admin_give_credits(db, target_user, credits, reason)
+
+    audit.record(
+        db,
+        action="auth.admin_award_credits",
+        actor_id=current_user.id,
+        org_id=current_user.org_id,
+        entity_type="user",
+        entity_id=target_user.id,
+        request=request,
+        detail={
+            "target_user_id": str(user_id),
+            "target_user_email": target_user.email,
+            "credits_added": credits,
+            "new_balance": target_user.credits,
+            "reason": reason,
+            "admin_id": str(current_user.id),
+        },
+        commit=True,
+    )
+
+    return {
+        "success": result["success"],
+        "credits_added": result["credits_added"],
+        "new_balance": result["new_balance"],
+        "reason": result["reason"],
+        "target_user_email": target_user.email,
+    }
+
+
+@router.post("/admin/set-pack-pricing", response_model=dict)
+def admin_set_pack_pricing(
+    payload: dict,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin: Set credit pack pricing for a role.
+
+    Only SUPER_ADMIN can modify pack pricing.
+
+    Required payload:
+    - role: "candidate" or "recruiter"
+    - packs: dict of pack_name: (price_in_rupees, credits_added)
+    """
+    from app.services.credit_service import admin_set_pack_pricing
+
+    # Check permission: Only SUPER_ADMIN
+    if current_user.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only SUPER_ADMIN can modify pack pricing",
+        )
+
+    role = payload.get("role")
+    packs = payload.get("packs")
+
+    if not role or not packs:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="role and packs are required",
+        )
+
+    if role not in ["candidate", "recruiter"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="role must be 'candidate' or 'recruiter'",
+        )
+
+    result = admin_set_pack_pricing(role, packs)
+
+    audit.record(
+        db,
+        action="auth.admin_set_pack_pricing",
+        actor_id=current_user.id,
+        org_id=current_user.org_id,
+        entity_type="config",
+        entity_id="0",
+        request=request,
+        detail={
+            "role": role,
+            "new_pricing": str(packs),
+            "admin_id": str(current_user.id),
+        },
+        commit=True,
+    )
+
+    return {
+        "success": result["success"],
+        "role": result["role"],
+        "new_pricing": result["new_pricing"],
+    }
 
