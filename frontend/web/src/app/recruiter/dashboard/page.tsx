@@ -92,7 +92,7 @@ export default function RecruiterDashboardPage() {
       <ToastFloater toastMessage={toastMessage} />
 
       {/* MAIN CONTAINER */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-grow max-w-7xl xl:max-w-screen-2xl w-full mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-8">
 
         {error && (
           <DashboardErrorBanner error={error} fetchDashboard={fetchDashboard} />

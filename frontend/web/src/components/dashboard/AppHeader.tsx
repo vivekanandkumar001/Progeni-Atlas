@@ -140,7 +140,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-surface/90 border-b border-line shadow-xs transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10">
         <div className="flex items-center justify-between h-16 gap-3 sm:gap-6">
 
           {/* ================= LEFT SECTION: LOGO + PILL NAV ================= */}
