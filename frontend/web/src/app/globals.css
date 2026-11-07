@@ -76,6 +76,7 @@
   --color-ink-muted: var(--ink-muted);
   --color-ink-faint: var(--ink-faint);
 
+  --color-accent-blue: var(--accent-blue);
   --color-accent-cyan: var(--accent-cyan);
   --color-accent-indigo: var(--accent-indigo);
   --color-accent-emerald: var(--accent-emerald);
@@ -89,6 +90,18 @@
   --color-brand-from: var(--brand-from);
   --color-brand-to: var(--brand-to);
   --color-on-brand: var(--on-brand);
+
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
 }
 
 @layer base {
