@@ -472,7 +472,7 @@ export default function RecruiterBillingPage() {
  </span>
  </div>
  <p className="mt-1 text-[11px] text-blue-600">
- Secured by <strong>Mayank Singh UPI Gateway</strong> (GPay, PhonePe, Paytm, BHIM, QR). Instant credit addition (₹1 = 1 Credit).
+ Secured by <strong>Progeni Atlas UPI</strong> (Google Pay, PhonePe, Paytm, BHIM, QR). Instant credit addition (₹1 = 1 Credit).
  </p>
  </div>
  </div>

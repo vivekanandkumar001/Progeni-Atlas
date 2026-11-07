@@ -51,8 +51,14 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
     orderData?.amount_credits ||
     0;
 
-  const upiId = orderData?.upi_id || 'progeniatlas@okaxis';
-  const payeeName = orderData?.payee_name || 'Progeni Atlas';
+  const upiId =
+    orderData?.upi_id ||
+    process.env.NEXT_PUBLIC_MERCHANT_UPI_ID ||
+    '8651240027@ptsbi';
+  const payeeName =
+    orderData?.payee_name ||
+    process.env.NEXT_PUBLIC_MERCHANT_PAYEE_NAME ||
+    'Progeni Atlas';
   const orderRef = orderData?.order_id || 'ORDER';
 
   const upiIntentUri =
@@ -251,7 +257,7 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
           {/* UPI ID Copy Field */}
           <div className="p-3 rounded-xl bg-surface-2 border border-line flex items-center justify-between text-xs">
             <div>
-              <span className="text-[10px] text-ink-muted uppercase block font-semibold">Payee UPI ID</span>
+              <span className="text-[10px] text-ink-muted uppercase block font-semibold">Payee: {payeeName}</span>
               <span className="font-mono font-bold text-ink">{upiId}</span>
             </div>
             <button
