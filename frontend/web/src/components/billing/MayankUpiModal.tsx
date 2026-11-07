@@ -45,6 +45,22 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
   const [showUtrField, setShowUtrField] = useState(false);
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Fallback defaults to ensure nothing is ever blank on screen
+  const displayAmount =
+    orderData?.amount_inr ||
+    orderData?.amount_credits ||
+    0;
+
+  const upiId = orderData?.upi_id || 'progeniatlas@okaxis';
+  const payeeName = orderData?.payee_name || 'Progeni Atlas';
+  const orderRef = orderData?.order_id || 'ORDER';
+
+  const upiIntentUri =
+    orderData?.upi_intent ||
+    `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${displayAmount.toFixed(2)}&cu=INR&tr=${encodeURIComponent(orderRef)}&tn=${encodeURIComponent('Progeni Atlas Credits')}`;
+
+  const qrValue = orderData?.qr_data || upiIntentUri;
+
   // Auto-polling for real-time payment confirmation
   useEffect(() => {
     if (!isOpen || !orderData?.order_id || pollingStatus === 'verified') {
@@ -59,14 +75,14 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           setTimeout(() => {
             onSuccess({
-              message: `Payment of ₹${orderData.amount_inr} confirmed! ${orderData.amount_credits} credits added.`,
+              message: `Payment of ₹${displayAmount} confirmed! ${orderData.amount_credits} credits added.`,
               creditsAdded: orderData.amount_credits,
               paymentId: orderData.order_id,
             });
             onClose();
           }, 1200);
         }
-      } catch (err) {
+      } catch {
         // Continue polling silently
       }
     };
@@ -76,29 +92,29 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
-  }, [isOpen, orderData, pollingStatus, onSuccess, onClose]);
+  }, [isOpen, orderData, pollingStatus, displayAmount, onSuccess, onClose]);
 
   if (!isOpen || !orderData) return null;
 
   const handleCopyUpi = () => {
-    if (orderData.upi_id) {
-      navigator.clipboard.writeText(orderData.upi_id);
+    if (upiId) {
+      navigator.clipboard.writeText(upiId);
       setCopiedUpi(true);
       setTimeout(() => setCopiedUpi(false), 2000);
     }
   };
 
   const handleCopyOrder = () => {
-    if (orderData.order_id) {
-      navigator.clipboard.writeText(orderData.order_id);
+    if (orderRef) {
+      navigator.clipboard.writeText(orderRef);
       setCopiedOrder(true);
       setTimeout(() => setCopiedOrder(false), 2000);
     }
   };
 
   const handleDirectUpiIntent = () => {
-    if (orderData.upi_intent) {
-      window.location.href = orderData.upi_intent;
+    if (upiIntentUri) {
+      window.location.href = upiIntentUri;
     }
   };
 
@@ -116,7 +132,7 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
         orderId: orderData.order_id,
         utr: utrInput.trim(),
         amountCredits: orderData.amount_credits,
-        amountInr: orderData.amount_inr,
+        amountInr: displayAmount,
       });
 
       if (res.success) {
@@ -178,14 +194,14 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
           <div className="flex items-center justify-between p-3.5 rounded-2xl bg-blue-500/5 border border-blue-500/15">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-[#185adb]">Total Payable</p>
-              <p className="text-2xl font-black text-[#072448]">₹{orderData.amount_inr}</p>
+              <p className="text-2xl font-black text-[#072448]">₹{displayAmount}</p>
             </div>
             <div className="text-right">
               <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-accent-emerald border border-emerald-500/20">
                 <Sparkles className="w-3.5 h-3.5" />
                 +{orderData.amount_credits} Credits
               </span>
-              <p className="text-[10px] text-ink-muted font-mono mt-1">Ref: {orderData.order_id.slice(-8)}</p>
+              <p className="text-[10px] text-ink-muted font-mono mt-1">Ref: {orderRef.slice(-8)}</p>
             </div>
           </div>
 
@@ -193,7 +209,7 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
           <div className="flex flex-col items-center justify-center space-y-3">
             <div className="relative p-3.5 rounded-2xl bg-white border-2 border-[#185adb]/30 shadow-lg shadow-blue-500/5">
               <QRCodeSVG
-                value={orderData.qr_data || orderData.upi_intent}
+                value={qrValue}
                 size={180}
                 level="M"
                 includeMargin={false}
@@ -235,8 +251,8 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
           {/* UPI ID Copy Field */}
           <div className="p-3 rounded-xl bg-surface-2 border border-line flex items-center justify-between text-xs">
             <div>
-              <span className="text-[10px] text-ink-muted uppercase block font-semibold">Merchant UPI ID</span>
-              <span className="font-mono font-bold text-ink">{orderData.upi_id}</span>
+              <span className="text-[10px] text-ink-muted uppercase block font-semibold">Payee UPI ID</span>
+              <span className="font-mono font-bold text-ink">{upiId}</span>
             </div>
             <button
               type="button"
@@ -295,29 +311,15 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
               </form>
             )}
           </div>
-
-          {/* Hosted Payment Page Link */}
-          {orderData.payment_url && (
-            <div className="text-center pt-1">
-              <a
-                href={orderData.payment_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-ink-muted hover:text-[#185adb] inline-flex items-center gap-1"
-              >
-                Open in Mayank Singh Payment Gateway <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          )}
         </div>
 
         {/* Footer Security Strip */}
         <div className="px-6 py-3 bg-surface-2 border-t border-line flex items-center justify-between text-[11px] text-ink-muted">
-          <span className="flex items-center gap-1 font-medium">
-            <ShieldCheck className="w-3.5 h-3.5 text-accent-emerald" />
-            Mayank Singh Multi-Merchant Gateway
+          <span className="flex items-center gap-1.5 font-medium text-emerald-600">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            Verified UPI Gateway
           </span>
-          <span className="font-mono text-[10px]">Instant 24/7 Credit</span>
+          <span className="font-mono text-[10px] text-ink-muted">Instant 24/7 Automated Credit</span>
         </div>
       </div>
     </div>
