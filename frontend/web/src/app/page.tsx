@@ -139,11 +139,30 @@ const pricing = [
 ];
 
 const faqs = [
-  ['How does the AI interviewer create questions?', 'It uses the interview context — resume, job description, role, skills and previous answers — to determine the next question in real time.'],
-  ['Is the interview two-way?', 'Yes. The candidate communicates with the AI interviewer through real-time neural voice and video. The AI adapts and asks organic follow-up questions.'],
-  ['Can HR schedule real interviews?', 'Yes. Recruiters can create positions, invite candidates and use the scheduled interview workflow. Practice interviews remain separate.'],
-  ['Does Progeni Atlas support coding interviews?', 'Yes. The candidate experience includes a live code workspace, terminal execution, and system-design stages.'],
-  ['What does the final scorecard contain?', 'It includes technical depth, coding speed, architecture trade-offs, problem solving, and evidence-linked transcripts.'],
+  [
+    'What is Progeni Atlas?',
+    'Progeni Atlas is an enterprise-grade autonomous AI technical interview and skills assessment platform. It conducts live two-way voice interviews, multi-language coding assessments in a secure browser sandbox, enforces anti-cheat proctoring, and automatically generates calibrated recruiter scoring dossiers.'
+  ],
+  [
+    'How does autonomous AI technical interviewing work?',
+    'Candidates join through a web link with zero software installation. An autonomous AI interviewer engages the candidate in live adaptive dialogue, poses real-world coding problems, executes code in a secure cloud sandbox, and generates an evidence-linked evaluation report across technical depth, problem-solving, and architecture.'
+  ],
+  [
+    'How does Progeni Atlas prevent AI cheating and unauthorized assistance?',
+    'Progeni Atlas utilizes a multi-layered anti-cheat framework including companion smartphone camera pairing for 360-degree room proctoring, gaze alignment verification, single-voice biometric tracking, and copy-paste telemetry without requiring intrusive surveillance software.'
+  ],
+  [
+    'What is the pricing model for Progeni Atlas technical interviews?',
+    'Progeni Atlas uses a transparent duration-based billing convention where ₹1.00 equals 1 Credit. Screening is billed strictly at 1 Credit per 3 minutes of interview time (₹0.33 per minute). Every newly registered organization receives 2 complimentary demo screenings of up to 10 minutes each.'
+  ],
+  [
+    'Which engineering roles and technical tracks are supported?',
+    'Progeni Atlas supports Full-Stack Development, Backend Systems Engineering, Frontend Architecture, DevOps & Site Reliability Engineering (SRE), Machine Learning Engineering, System Design, and Data Structures & Algorithms.'
+  ],
+  [
+    'Can recruiters integrate Progeni Atlas with enterprise ATS platforms?',
+    'Yes. Progeni Atlas provides native webhook and API integrations with enterprise Applicant Tracking Systems (ATS) including Greenhouse, Workday, and Lever, automatically synchronizing candidate invites and hiring dossiers.'
+  ]
 ];
 
 export default function Home() {
