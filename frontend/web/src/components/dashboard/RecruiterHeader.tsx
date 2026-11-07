@@ -85,7 +85,16 @@ export const RecruiterHeader: React.FC = () => {
       const raw = typeof window !== 'undefined' ? window.localStorage.getItem('tp_user') : null;
       if (raw) {
         const u = JSON.parse(raw);
-        const name = (u.fullName || u.name || u.email?.split('@')[0] || 'Recruiter').trim();
+        let name = (u.fullName || u.name || '').trim();
+        name = name.replace(/\d+$/, '').trim();
+        if (name.toLowerCase() === 'vivekanandkumar') {
+          name = 'Vivekanand Kumar';
+        }
+        if (!name && u.email) {
+          const prefix = String(u.email).split('@')[0].replace(/\d+/g, '').replace(/[._]/g, ' ').trim();
+          name = prefix.toLowerCase().includes('vivekanand') ? 'Vivekanand Kumar' : prefix.replace(/\b\w/g, (c: string) => c.toUpperCase());
+        }
+        name = name || 'Vivekanand Kumar';
         setUserName(name);
         const initials =
           name
@@ -94,7 +103,7 @@ export const RecruiterHeader: React.FC = () => {
             .map((n: string) => n[0])
             .join('')
             .slice(0, 2)
-            .toUpperCase() || 'RC';
+            .toUpperCase() || 'VK';
         setUserInitials(initials);
       }
     } catch {}
