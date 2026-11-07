@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="atlas-bg" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="atlas-sheen" x1="0" y1="0" x2="48" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="atlas-core" x1="16" y1="14" x2="32" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Container Squircle with Soft Metallic Bevel -->
+  <rect x="2" y="2" width="44" height="44" rx="14" fill="url(#atlas-bg)"/>
+  <rect x="2" y="2" width="44" height="44" rx="14" stroke="url(#atlas-sheen)" stroke-width="1.5"/>
+
+  <!-- Iconic Atlas Apex Glyph ("A" + Neural Code Nexus) -->
+  <!-- Left ascending facet / bracket -->
+  <path d="M13 35L24 11L28 19" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Right descending facet -->
+  <path d="M35 35L28.5 21" stroke="#a5f3fc" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Central cross-beam / data nexus -->
+  <path d="M17.5 27H30.5" stroke="url(#atlas-core)" stroke-width="3.2" stroke-linecap="round"/>
+  
+  <!-- Glowing AI Intelligence Core Orb -->
+  <circle cx="24" cy="19.5" r="2.75" fill="#ffffff"/>
+  <circle cx="24" cy="19.5" r="4.75" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.8"/>
+</svg>
