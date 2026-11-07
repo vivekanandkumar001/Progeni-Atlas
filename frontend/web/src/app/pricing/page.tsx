@@ -210,18 +210,18 @@ export default function PricingPage() {
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/5 text-accent-emerald text-xs font-bold uppercase tracking-wider">
             <CreditCard className="w-3.5 h-3.5" />
-            Simple &amp; Transparent Practice Packs
+            Pay Us Now // Transparent Pricing
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-ink tracking-tight leading-[1.1]">
-            Affordable Practice for Candidates &amp;{' '}
+            Predictable Plans for Candidates &amp;{' '}
             <span className="bg-gradient-to-r from-[#185adb] via-cyan-500 to-indigo-600 bg-clip-text text-transparent">
-              Engineers
+              Hiring Teams
             </span>
           </h1>
 
           <p className="max-w-2xl mx-auto text-base sm:text-lg text-ink-muted">
-            Practice mock interviews starting at just ₹49. No expensive locked subscriptions — pay as you practice and ace your campus &amp; tech interviews.
+            Whether you&apos;re an applicant preparing for technical rounds or an engineering leader screening hundreds of candidates, we have a plan built for you.
           </p>
 
           {/* Monthly / Annual Billing Switcher */}
