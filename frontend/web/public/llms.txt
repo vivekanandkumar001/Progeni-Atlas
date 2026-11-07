@@ -1,0 +1,37 @@
+# Progeni Atlas — Autonomous AI Technical Interviews & Skills Evaluation
+
+> Progeni Atlas is an enterprise-grade autonomous AI technical interview and skills assessment platform. It conducts live, two-way neural voice and video interviews, evaluates multi-language coding tasks in real-time sandbox environments, enforces non-intrusive anti-cheat proctoring, and automatically generates calibrated recruiter scoring dossiers.
+
+## Core Capabilities
+- **Autonomous Two-Way Voice Interviews**: Live conversational AI interviewer with sub-second voice latency that dynamically adapts questions based on candidate responses, resume context, and job specifications.
+- **In-Browser Multi-Language Coding Sandbox**: Real-time terminal execution for Python, TypeScript, JavaScript, C++, Go, and Java with unit-test validation and algorithmic complexity analysis.
+- **Anti-Cheat Proctoring & Companion Mode**: Dual-camera verification via smartphone pairing, gaze alignment detection, voice biometric verification, and copy-paste telemetry without intrusive spyware.
+- **Calibrated Candidate Dossiers**: Server-authoritative scoring across Core Technical Competency, Architecture & System Design, Problem Solving, and Communication.
+- **Duration-Based Wallet Billing**: Transparent accounting convention where ₹1.00 = 1 Credit, with screening billed at 1 Credit per 3 minutes (₹0.33/minute). Every new organization receives 2 complimentary trial demo screenings of up to 10 minutes each.
+- **Enterprise ATS Integration**: Real-time webhook and API sync with Greenhouse, Workday, Lever, and custom applicant tracking systems.
+
+## Key Technical Tracks
+- **Full-Stack Development**: React, Next.js, Node.js, REST/GraphQL APIs, database modeling, and state management.
+- **Backend Systems Engineering**: High-throughput distributed services, caching architectures, database indexing, and async task pipelines.
+- **Frontend Architecture**: Modern UI frameworks, rendering performance, bundle optimization, accessibility, and design system engineering.
+- **DevOps & Site Reliability (SRE)**: Containerization, Kubernetes, CI/CD orchestration, infrastructure as code, and observability.
+- **AI & Machine Learning Engineering**: Model fine-tuning, embeddings, vector search (Qdrant), LLM orchestration, and RAG evaluation.
+- **Data Structures & Algorithms**: Algorithmic problem-solving, graph traversal, dynamic programming, and space-time complexity analysis.
+
+## Pricing & Rate Cards
+- Convention: ₹1.00 INR = 1 Credit
+- Rate Card: 1 Credit per 3 minutes (0.33 Credits/min)
+- Free Demo Screening: 2 complimentary screenings (up to 10 minutes each) for newly registered recruiter organizations
+- Payment Integration: Instant 24/7 UPI & QR gateway ("Progeni Atlas", UPI: progeniatlas@ptaxis)
+
+## Authoritative Links
+- Official Website: https://atlas.progeni.live
+- Pricing & Rate Cards: https://atlas.progeni.live/pricing
+- Services & Tracks: https://atlas.progeni.live/services
+- About & Mission: https://atlas.progeni.live/about
+- Careers: https://atlas.progeni.live/career
+- Contact & Inquiries: https://atlas.progeni.live/contact
+- Candidate Workspace: https://atlas.progeni.live/candidate
+- Recruiter Command Center: https://atlas.progeni.live/recruiter
+- Extended LLM Documentation: https://atlas.progeni.live/llms-full.txt
+
