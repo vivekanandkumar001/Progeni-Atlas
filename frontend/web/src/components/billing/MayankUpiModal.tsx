@@ -168,7 +168,7 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-md rounded-3xl bg-surface border border-line shadow-2xl overflow-hidden transition-all text-ink">
-        
+
         {/* Top Header */}
         <div className="relative px-6 pt-6 pb-4 border-b border-line bg-gradient-to-r from-blue-50/50 via-surface to-indigo-50/40">
           <button
@@ -199,7 +199,7 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-6 space-y-5 max-h-[82vh] overflow-y-auto">
-          
+
           {/* Order Details Banner */}
           <div className="flex items-center justify-between p-3.5 rounded-2xl bg-blue-500/5 border border-blue-500/15">
             <div>
@@ -261,7 +261,7 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
           {/* UPI ID Copy Field */}
           <div className="p-3 rounded-xl bg-surface-2 border border-line flex items-center justify-between text-xs">
             <div>
-              <span className="text-[10px] text-ink-muted uppercase block font-semibold">Payee UPI ID</span>
+              <span className="text-[10px] text-ink-muted uppercase block font-semibold">Payee: {payeeName}</span>
               <span className="font-mono font-bold text-ink">{upiId}</span>
             </div>
             <button
