@@ -169,7 +169,7 @@ AttributeError: module 'app' has no attribute 'app'
 ```
 
 To resolve this unambiguously:
-- **`wsgi.py`** loads `backend/app.py` explicitly by file path under the unique module name `talentpulse_backend_app`, ensuring the package name never conflicts.
+- **`wsgi.py`** loads `backend/app.py` explicitly by file path under the unique module name `progeni_atlas_backend_app`, ensuring the package name never conflicts.
 - **Always run Gunicorn with `wsgi:app`**:
   ```bash
   gunicorn wsgi:app
@@ -454,7 +454,7 @@ stateDiagram-v2
 
 | Method | Endpoint | Auth | Purpose & Details |
 | :--- | :--- | :---: | :--- |
-| `GET` | `/health` | Public | Lightweight liveness probe returning `{ "status": "ok", "app": "talentpulse-api" }`. |
+| `GET` | `/health` | Public | Lightweight liveness probe returning `{ "status": "ok", "app": "progeni-atlas-api" }`. |
 | `GET` | `/api/health` | Public | Subsystem readiness probe returning connectivity status for MongoDB, Qdrant, and missing secret configurations. |
 | `GET` | `/api/files/local/<path:filepath>` | Authenticated | Streams local file uploads when local disk storage is enabled as fallback. |
 | `POST` | `/api/evaluator/dynamic-parameters` | Recruiter / Admin | Adjusts dynamic evaluation parameters (weights, thresholds) for the active tenant. |

@@ -84,7 +84,7 @@ def get_current_candidate(req=None):
                 )
             if not user:
                 user = db.users.find_one(
-                    {"email": {"$ne": "talentpulseadmin@gmail.com"}},
+                    {"email": {"$ne": "admin@progeni.live"}},
                     sort=[("created_at", -1)]
                 )
         except Exception:

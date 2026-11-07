@@ -33,7 +33,7 @@ export function useDossierExport({
       const a = document.createElement('a');
       a.href = downloadUrl;
       const ext = format === 'csv' ? 'csv' : 'xlsx';
-      a.download = `talentpulse_candidate_dossiers_${new Date().toISOString().slice(0, 10)}.${ext}`;
+      a.download = `progeni_atlas_candidate_dossiers_${new Date().toISOString().slice(0, 10)}.${ext}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(downloadUrl);

@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.models import InterviewSession, InterviewSessionTransition, SessionStatus
 
-logger = logging.getLogger("talentpulse.lifecycle")
+logger = logging.getLogger("progeni_atlas.lifecycle")
 
 # -----------------------------------------------------------------------------
 # Lifecycle State Constants

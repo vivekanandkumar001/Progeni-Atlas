@@ -61,7 +61,7 @@ def get_candidate_dashboard_data():
             upcoming = {
                 "id": str(session_row.get("id") or session_row.get("_id")),
                 "title": session_row.get("job_title") or f"{skills[0] if skills else 'Technical'} Systems Screening",
-                "company": session_row.get("company_name") or "TalentPulse Assessment Drive",
+                "company": session_row.get("company_name") or "Progeni Atlas Assessment Drive",
                 "status": session_row.get("status", "scheduled"),
                 "stage": session_row.get("current_stage", "round_1"),
                 "scheduledTime": session_row.get("scheduled_time", "Scheduled"),
@@ -792,7 +792,7 @@ def get_candidate_interviews():
                 item = {
                     "sessionId": sess_id,
                     "roleTitle": s.get("job_title") or f"{skills[0] if skills else 'Full-Stack'} Systems Engineer",
-                    "companyName": s.get("company_name") or "TalentPulse Assessment Drive",
+                    "companyName": s.get("company_name") or "Progeni Atlas Assessment Drive",
                     "sessionType": s.get("session_type", "live"),
                     "durationMinutes": s.get("duration_minutes", 45),
                     "status": status,
@@ -1154,7 +1154,7 @@ def create_candidate_practice_interview():
             "candidate_email": candidate_email,
             "job_title": target_role,
             "role_title": target_role,
-            "company_name": "TalentPulse Assessment Drive",
+            "company_name": "Progeni Atlas Assessment Drive",
             "session_type": "mock",
             "status": "scheduled",
             "current_stage": "intro",

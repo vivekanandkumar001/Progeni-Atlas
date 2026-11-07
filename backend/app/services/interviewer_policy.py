@@ -46,7 +46,7 @@ from typing import Any
 
 from app.services import llm_service
 
-logger = logging.getLogger("talentpulse.interviewer_policy")
+logger = logging.getLogger("progeni_atlas.interviewer_policy")
 
 # --------------------------------------------------------------------------- #
 # Budgets

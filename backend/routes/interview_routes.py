@@ -80,7 +80,7 @@ def get_interview_session(session_id):
                 "candidate_name": user.get("full_name") if user else "Candidate",
                 "candidate_email": user.get("email") if user else "",
                 "job_title": f"{skills[0] if skills else 'Full-Stack'} Engineer Assessment",
-                "company_name": "TalentPulse Assessment Drive",
+                "company_name": "Progeni Atlas Assessment Drive",
                 "session_type": "mock",
                 "status": "scheduled",
                 "current_stage": "intro",
@@ -2517,7 +2517,7 @@ def export_report_pdf(session_id):
   </div>
   <div class="header">
     <div>
-      <div class="logo">TALENTPULSE AI</div>
+      <div class="logo">PROGENI ATLAS</div>
       <div class="sub">Verified Candidate Evaluation Dossier & Scorecard</div>
     </div>
     <div style="text-align: right; font-family: monospace; font-size: 11px; color: #64748b;">

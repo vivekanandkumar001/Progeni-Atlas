@@ -19,7 +19,7 @@ from app.config import missing_required_secrets, settings
 from app.ws import interview as ws_interview
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("talentpulse")
+logger = logging.getLogger("progeni_atlas")
 
 limiter = Limiter(key_func=get_remote_address)
 

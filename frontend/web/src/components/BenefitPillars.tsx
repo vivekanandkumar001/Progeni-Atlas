@@ -10,7 +10,7 @@ export const BenefitPillars: React.FC = () => {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12">
           <span className="text-xs font-sans font-bold text-accent-emerald uppercase tracking-wider block mb-2">
-            WHY TALENTPULSE AI
+            WHY PROGENI ATLAS
           </span>
           <h2 className="text-2xl sm:text-3xl font-bold text-ink tracking-tight">
             Designed for Hiring Teams & Candidates

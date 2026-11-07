@@ -428,7 +428,7 @@ export function useBillingActions({
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = `talentpulse_financial_ledger_${accountId || 'all'}_${Date.now()}.csv`;
+      a.download = `progeni_atlas_financial_ledger_${accountId || 'all'}_${Date.now()}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();

@@ -26,7 +26,7 @@ def seed_mongo():
                 "stage": "intro",
                 "speaker": "ai_interviewer",
                 "text": "Hello Vivekanand! Welcome to your technical screening for Senior Full-Stack & Systems Architecture Engineer at CloudScale Systems. Could you start with a brief overview of your background?",
-                "audioClipUrl": "https://storage.talentpulse.ai/audio/e1111111-1111-1111-1111-111111111111/turn_0.webm",
+                "audioClipUrl": "https://storage.progeni.live/audio/e1111111-1111-1111-1111-111111111111/turn_0.webm",
                 "latencyMs": 320,
             },
             {
@@ -34,7 +34,7 @@ def seed_mongo():
                 "stage": "intro",
                 "speaker": "candidate",
                 "text": "Thank you! I have over 4 years of experience specializing in Next.js frontend applications, Node.js microservices, PostgreSQL relational modeling, and real-time streaming architectures.",
-                "audioClipUrl": "https://storage.talentpulse.ai/audio/e1111111-1111-1111-1111-111111111111/turn_1.webm",
+                "audioClipUrl": "https://storage.progeni.live/audio/e1111111-1111-1111-1111-111111111111/turn_1.webm",
                 "latencyMs": 410,
             }
         ]

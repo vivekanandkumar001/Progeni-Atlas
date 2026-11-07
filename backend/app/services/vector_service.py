@@ -16,7 +16,7 @@ import httpx
 
 from app.config import settings
 
-logger = logging.getLogger("talentpulse.vector")
+logger = logging.getLogger("progeni_atlas.vector")
 
 try:
     from qdrant_client import QdrantClient

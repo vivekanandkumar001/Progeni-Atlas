@@ -818,7 +818,7 @@ def confirm_bulk_schedules():
         custom_message = data.get("message", "")
 
         db = get_mongo_db()
-        company_name = user.get("company_name") or user.get("organization") or "TalentPulse Hiring Partner"
+        company_name = user.get("company_name") or user.get("organization") or "Progeni Atlas Hiring Partner"
         if org_id and db is not None:
             try:
                 org_doc = db.organizations.find_one({"$or": [{"id": org_id}, {"_id": org_id}]})
@@ -984,7 +984,7 @@ def invite_candidate_screening():
                     jd = job_doc.get("job_description", "")
 
         # Determine organization / company name
-        company_name = user.get("company_name") or user.get("organization") or "TalentPulse Hiring Partner"
+        company_name = user.get("company_name") or user.get("organization") or "Progeni Atlas Hiring Partner"
         if org_id and db is not None:
             try:
                 org_doc = db.organizations.find_one({"$or": [{"id": org_id}, {"_id": org_id}]})
@@ -1734,7 +1734,7 @@ DEFAULT_ATS_LOGS = [
         "action": "Candidate Ingested",
         "status": "DELIVERED",
         "httpCode": 200,
-        "details": "Greenhouse webhook event 'candidate_stage_change' triggered automated TalentPulse interview invite",
+        "details": "Greenhouse webhook event 'candidate_stage_change' triggered automated Progeni Atlas interview invite",
         "timestamp": "2026-10-28T18:10:04Z"
     },
     {
@@ -2071,7 +2071,7 @@ def workday_inbound_webhook():
 # =====================================================================
 
 DEFAULT_DOSSIER_WEBHOOK = {
-    "webhookUrl": "https://hooks.slack.com/services/T08ENT/B09REC/x918TalentPulseDossiers",
+    "webhookUrl": "https://hooks.slack.com/services/T08ENT/B09REC/x918ProgeniAtlasDossiers",
     "secret": "tp_whsec_79a2f1b8c049e3••••••••",
     "autoSyncOnComplete": True,
     "autoSyncOnDecision": True,
@@ -2086,7 +2086,7 @@ DEFAULT_WEBHOOK_DISPATCHES = [
         "candidateName": "Alexandra Chen",
         "jobRole": "Senior Full-Stack Engineer",
         "event": "dossier.exported",
-        "targetUrl": "https://hooks.slack.com/services/T08ENT/B09REC/x918TalentPulseDossiers",
+        "targetUrl": "https://hooks.slack.com/services/T08ENT/B09REC/x918ProgeniAtlasDossiers",
         "httpCode": 200,
         "status": "DELIVERED",
         "latencyMs": 145,
@@ -2098,7 +2098,7 @@ DEFAULT_WEBHOOK_DISPATCHES = [
         "candidateName": "Marcus Vance",
         "jobRole": "Backend Distributed Systems Engineer",
         "event": "candidate.shortlisted",
-        "targetUrl": "https://hooks.slack.com/services/T08ENT/B09REC/x918TalentPulseDossiers",
+        "targetUrl": "https://hooks.slack.com/services/T08ENT/B09REC/x918ProgeniAtlasDossiers",
         "httpCode": 200,
         "status": "DELIVERED",
         "latencyMs": 132,
@@ -2110,7 +2110,7 @@ DEFAULT_WEBHOOK_DISPATCHES = [
         "candidateName": "Sophia Patel",
         "jobRole": "AI / ML Systems Engineer",
         "event": "dossier.exported",
-        "targetUrl": "https://api.enterprise-ats.internal/webhooks/talentpulse",
+        "targetUrl": "https://api.enterprise-ats.internal/webhooks/progeni-atlas",
         "httpCode": 200,
         "status": "DELIVERED",
         "latencyMs": 98,
@@ -2215,12 +2215,12 @@ def test_dossier_webhook():
                 import requests
                 headers = {
                     "Content-Type": "application/json",
-                    "User-Agent": "TalentPulse-Dossier-Webhook/2.0"
+                    "User-Agent": "Progeni-Atlas-Dossier-Webhook/2.0"
                 }
                 if secret:
                     import hmac, hashlib
                     sig = hmac.new(secret.encode("utf-8"), json.dumps(payload).encode("utf-8"), hashlib.sha256).hexdigest()
-                    headers["X-TalentPulse-Signature"] = sig
+                    headers["X-Progeni-Atlas-Signature"] = sig
 
                 r = requests.post(webhook_url, json=payload, headers=headers, timeout=4)
                 http_code = r.status_code
@@ -2263,7 +2263,7 @@ def dispatch_candidate_dossier_webhook():
         }
 
         db = get_mongo_db()
-        webhook_url = "https://hooks.slack.com/services/T08ENT/B09REC/x918TalentPulseDossiers"
+        webhook_url = "https://hooks.slack.com/services/T08ENT/B09REC/x918ProgeniAtlasDossiers"
 
         if db is not None:
             hook_conf = db.dossier_webhooks.find_one({"org_id": org_id})
@@ -2371,7 +2371,7 @@ def download_candidate_dossier_pdf(candidate_id):
 
         p.setFillColor(colors.HexColor("#38bdf8"))
         p.setFont("Helvetica-Bold", 18)
-        p.drawString(45, h - 45, "TALENTPULSE AI")
+        p.drawString(45, h - 45, "PROGENI ATLAS")
 
         p.setFillColor(colors.white)
         p.setFont("Helvetica", 11)
@@ -2465,7 +2465,7 @@ def download_candidate_dossier_pdf(candidate_id):
         p.save()
         buf.seek(0)
 
-        filename = f"TalentPulse_Dossier_{candidate_name.replace(' ', '_')}.pdf"
+        filename = f"Progeni_Atlas_Dossier_{candidate_name.replace(' ', '_')}.pdf"
         return send_file(
             buf,
             mimetype="application/pdf",

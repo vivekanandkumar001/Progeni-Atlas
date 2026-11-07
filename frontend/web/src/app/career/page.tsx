@@ -222,7 +222,7 @@ export default function CareerPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
             <span className="text-xs font-bold text-accent-cyan uppercase tracking-wider block">
-              LIFE AT TALENTPULSE
+              LIFE AT PROGENI ATLAS
             </span>
             <h2 className="text-3xl font-black text-ink tracking-tight">
               Why You&apos;ll Love Working Here

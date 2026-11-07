@@ -298,7 +298,7 @@ export default function SuperAdminCareersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Company Careers & Openings"
-        description="Manage TalentPulse's internal hiring requirements. Roles published here immediately appear on the public /career landing page."
+        description="Manage Progeni Atlas's internal hiring requirements. Roles published here immediately appear on the public /career landing page."
         actions={
           <div className="flex items-center gap-2">
             <RefreshButton onClick={loadCareers} loading={loading} />
@@ -346,8 +346,8 @@ export default function SuperAdminCareersPage() {
       {/* Main Table Card */}
       <Card>
         <CardHeader
-          title="TalentPulse Internal Openings"
-          subtitle="All open roles configured for TalentPulse company hiring"
+          title="Progeni Atlas Internal Openings"
+          subtitle="All open roles configured for Progeni Atlas company hiring"
           icon={Building2}
           action={
             <span className="text-xs text-ink-muted">

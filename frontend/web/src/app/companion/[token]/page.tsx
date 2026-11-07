@@ -488,7 +488,7 @@ export default function PhoneCompanionPage() {
             </div>
             <div>
               <div className="text-xs font-semibold tracking-tight text-slate-200">
-                TalentPulse<span className="text-cyan-400">.AI</span>
+                Progeni<span className="text-cyan-400"> Atlas</span>
               </div>
               <div className="text-[10px] text-slate-400 font-mono">Companion Feed</div>
             </div>
@@ -591,7 +591,7 @@ export default function PhoneCompanionPage() {
             <div className="space-y-1">
               <h2 className="text-base font-semibold text-slate-200">Pairing with Desktop...</h2>
               <p className="text-xs text-slate-400 max-w-xs">
-                Verifying single-use pairing token with TalentPulse interview session.
+                Verifying single-use pairing token with Progeni Atlas interview session.
               </p>
             </div>
           </div>

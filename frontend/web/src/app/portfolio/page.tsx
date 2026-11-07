@@ -121,7 +121,7 @@ export default function PortfolioPage() {
               INTERACTIVE PREVIEW
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-ink tracking-tight">
-              Experience the TalentPulse Ecosystem
+              Experience the Progeni Atlas Ecosystem
             </h2>
             <p className="text-sm text-ink-muted">
               Select a platform module below to inspect the candidate and recruiter interfaces.
