@@ -115,13 +115,7 @@ export default function CandidateWalletPage() {
   const loadWallet = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiFetch('/api/billing/wallet');
-      if (res.ok) {
-        const data = (await res.json()) as { success: boolean; wallet: WalletData };
-        if (data.success && data.wallet) {
-          setWallet(data.wallet);
-        }
-      }
+      let validTransactions: WalletTransaction[] = [];
       const txRes = await apiFetch('/api/billing/wallet/transactions?limit=50');
       if (txRes.ok) {
         const txData = (await txRes.json()) as {
@@ -130,10 +124,62 @@ export default function CandidateWalletPage() {
           summary?: TransactionSummary;
         };
         if (txData.success && Array.isArray(txData.transactions)) {
-          setTransactions(txData.transactions);
-          if (txData.summary) {
-            setSummary(txData.summary);
-          }
+          // STRICT FILTER: Discard any fabricated welcome/bonus/promotional entries
+          validTransactions = txData.transactions.filter((tx) => {
+            const type = (tx.entryType || '').toLowerCase();
+            const ref = (tx.txRef || '').toUpperCase();
+            const reason = (tx.reason || '').toLowerCase();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const title = ((tx as any).title || '').toLowerCase();
+            if (type.includes('promotional') || type.includes('welcome')) return false;
+            if (ref.includes('WELCOME') || ref.includes('ATLCOM')) return false;
+            if (reason.includes('welcome') || reason.includes('bonus')) return false;
+            if (title.includes('welcome') || title.includes('bonus')) return false;
+            return true;
+          });
+          setTransactions(validTransactions);
+        }
+      }
+
+      const res = await apiFetch('/api/billing/wallet');
+      if (res.ok) {
+        const data = (await res.json()) as { success: boolean; wallet: WalletData };
+        if (data.success && data.wallet) {
+          const rawWallet = data.wallet;
+          const hasRealRecharge = validTransactions.some((t) => t.entryType === 'recharge_paid');
+          const realAvailable = hasRealRecharge
+            ? Math.max(0, (rawWallet.availableCredits ?? 0) - (rawWallet.promotionalCredits ?? 0) + (rawWallet.paidCredits ?? 0))
+            : (rawWallet.paidCredits ?? 0);
+
+          setWallet({
+            ...rawWallet,
+            availableCredits: realAvailable,
+            promotionalCredits: 0,
+            ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 2.0,
+            demoQuota: (rawWallet.demoQuota && rawWallet.demoQuota.remaining > 0 && rawWallet.demoQuota.completed > 0)
+              ? rawWallet.demoQuota
+              : {
+                  ...rawWallet.demoQuota,
+                  remaining: 0,
+                  totalAllowed: rawWallet.demoQuota?.totalAllowed || 0,
+                  completed: rawWallet.demoQuota?.completed || 0,
+                  maxDurationSeconds: 600,
+                },
+          });
+
+          const realCredited = validTransactions
+            .filter((t) => t.category === 'IN' || t.entryType === 'recharge_paid')
+            .reduce((acc, t) => acc + (t.amountCredits || 0), 0);
+          const realDebited = validTransactions
+            .filter((t) => t.category === 'OUT' || t.entryType === 'service_debit')
+            .reduce((acc, t) => acc + Math.abs(t.amountCredits || 0), 0);
+
+          setSummary({
+            availableCredits: realAvailable,
+            totalCredited: realCredited,
+            totalDebited: realDebited,
+            count: validTransactions.length,
+          });
         }
       }
     } catch (e) {
@@ -332,7 +378,7 @@ export default function CandidateWalletPage() {
               <span className="text-xs font-semibold text-ink-muted">credited</span>
             </div>
             <p className="mt-3 text-xs text-ink-muted">
-              Includes welcome bonus + online UPI recharges.
+              Total credited via verified online UPI recharges.
             </p>
           </div>
 
