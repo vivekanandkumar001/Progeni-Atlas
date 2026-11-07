@@ -34,64 +34,94 @@ def get_recruiter_profile():
 
         email = (user and user.get("email")) or request.args.get("email", "").strip().lower()
         if not user and email and db is not None:
-            user = db.users.find_one({"email": email})
+            try:
+                user = db.users.find_one({"email": email})
+            except Exception:
+                user = None
 
         org_data = None
         team_members = []
         if user and user.get("org_id") and db is not None:
-            org_data = db.organizations.find_one({"id": str(user["org_id"])})
-            team_cursor = db.users.find({"org_id": user["org_id"]})
-            for tm in team_cursor:
-                team_members.append({
-                    "id": str(tm.get("id") or tm.get("_id")),
-                    "name": tm.get("full_name") or tm.get("email", "").split("@")[0].title(),
-                    "email": tm["email"],
-                    "role": tm.get("role", "recruiter"),
-                    "status": "active"
-                })
+            try:
+                org_data = db.organizations.find_one({"id": str(user["org_id"])})
+            except Exception:
+                org_data = None
+            try:
+                team_cursor = db.users.find({"org_id": user["org_id"]})
+                for tm in team_cursor:
+                    team_members.append({
+                        "id": str(tm.get("id") or tm.get("_id")),
+                        "name": tm.get("full_name") or tm.get("name") or tm.get("email", "").split("@")[0].title(),
+                        "email": tm.get("email", ""),
+                        "role": tm.get("role", "recruiter"),
+                        "status": "active"
+                    })
+            except Exception:
+                pass
+
+        # Safe fallback dictionary so org_data.get(...) NEVER crashes
+        org_data = org_data or {}
 
         user_name = (user and (user.get("full_name") or user.get("name"))) or (email.split("@")[0].title() if email else "Recruiter")
-        org_name = (org_data and org_data.get("name")) or (user and user.get("company_name")) or f"{user_name.split()[0]} Workspace"
+        org_name = org_data.get("name") or (user and user.get("company_name")) or f"{user_name.split()[0]} Workspace"
 
         org_payload = {
             "id": str(org_data.get("id") or (user and user.get("org_id")) or "org-default"),
             "name": org_name,
-            "slug": (org_data and org_data.get("slug")) or org_name.lower().replace(" ", "-"),
-            "tier": (org_data and org_data.get("tier")) or "enterprise",
-            "websiteUrl": (org_data and org_data.get("website_url")) or "https://progeni.atlas",
-            "industry": (org_data and org_data.get("industry")) or "Technology & AI Systems",
-            "companySize": (org_data and org_data.get("company_size")) or "100-500 Employees",
-            "headquartersCity": (org_data and org_data.get("headquarters_city")) or "San Francisco, CA",
-            "bio": (org_data and org_data.get("bio")) or f"{org_name} technical hiring command center.",
-            "billingEmail": (org_data and org_data.get("billing_email")) or email or "billing@progeni.atlas",
-            "logoUrl": (org_data and org_data.get("logo_url")) or "/org-logos/cloudscale.png"
+            "slug": org_data.get("slug") or org_name.lower().replace(" ", "-"),
+            "tier": org_data.get("tier") or (user and user.get("tier")) or "starter",
+            "websiteUrl": org_data.get("website_url") or (user and user.get("website_url")) or "",
+            "industry": org_data.get("industry") or (user and user.get("industry")) or "",
+            "companySize": org_data.get("company_size") or (user and user.get("company_size")) or "",
+            "headquartersCity": org_data.get("headquarters_city") or (user and user.get("headquarters_city")) or "",
+            "bio": org_data.get("bio") or (user and user.get("bio")) or f"{org_name} hiring workspace.",
+            "billingEmail": org_data.get("billing_email") or email or "",
+            "logoUrl": org_data.get("logo_url") or (user and user.get("avatar_url")) or ""
         }
 
         recruiter_id = str(user.get("id") or user.get("_id")) if user else ""
         cand_count = 0
-        if db is not None and recruiter_id:
-            cand_count = db.interview_sessions.count_documents({
-                "$or": [{"recruiter_id": recruiter_id}, {"recruiter_email": email}]
-            })
+        if db is not None:
+            query_conditions = []
+            if recruiter_id:
+                query_conditions.append({"recruiter_id": recruiter_id})
+            if email:
+                query_conditions.append({"recruiter_email": email})
+            if query_conditions:
+                try:
+                    filter_doc = {"$or": query_conditions} if len(query_conditions) > 1 else query_conditions[0]
+                    cand_count = db.interview_sessions.count_documents(filter_doc)
+                except Exception:
+                    cand_count = 0
+
+        # Authentic team members fallback
+        if not team_members and (user_name or email):
+            team_members = [
+                {
+                    "id": recruiter_id or "usr-current",
+                    "name": user_name,
+                    "email": email or "",
+                    "role": (user and user.get("role")) or "admin",
+                    "status": "active"
+                }
+            ]
 
         return jsonify({
-            "id": recruiter_id or "usr-01",
-            "fullName": user_name,
-            "email": email or (user and user.get("email")) or "recruiter@progeni.atlas",
-            "phone": (user and user.get("phone")) or "+1 (555) 000-0000",
-            "designation": (user and user.get("designation")) or "Talent Acquisition Lead",
-            "department": (user and user.get("department")) or "Engineering Talent",
+            "id": recruiter_id or "usr-current",
+            "fullName": user_name if user_name != "Recruiter" else (user.get("full_name") if user else ""),
+            "email": email or (user and user.get("email")) or "",
+            "phone": (user and user.get("phone")) or "",
+            "designation": (user and user.get("designation")) or "",
+            "department": (user and user.get("department")) or "",
             "linkedinUrl": (user and user.get("linkedin_url")) or "",
             "isOrgAdmin": bool(user.get("is_org_admin", True)) if user else True,
             "monthlyHiringQuota": (user and user.get("monthly_hiring_quota")) or 50,
             "quotaUsed": cand_count,
-            "avatarUrl": user.get("avatar_url") if user else None,
+            "avatarUrl": (user and user.get("avatar_url")) or None,
             "organization": org_payload,
-            "teamMembers": team_members or [
-                {"id": recruiter_id or "usr-01", "name": user_name, "email": email or "recruiter@progeni.atlas", "role": "admin", "status": "active"}
-            ],
+            "teamMembers": team_members,
             "auditLogs": []
-        })
+        }), 200
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -102,7 +132,7 @@ def update_recruiter_profile():
     """Update recruiter personal details and organization branding in MongoDB."""
     try:
         user = get_current_recruiter()
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         email = (user and user.get("email")) or data.get("email", "").strip().lower()
 
         full_name = data.get("fullName", "").strip()
@@ -121,33 +151,54 @@ def update_recruiter_profile():
         billing_email = org.get("billingEmail", "").strip()
 
         db = get_mongo_db()
-        user_updates = {
-            "updated_at": datetime.now(timezone.utc)
-        }
-        if full_name: user_updates["full_name"] = full_name
-        if phone: user_updates["phone"] = phone
-        if designation: user_updates["designation"] = designation
-        if department: user_updates["department"] = department
-        if linkedin_url: user_updates["linkedin_url"] = linkedin_url
+        if db is not None:
+            user_updates = {
+                "updated_at": datetime.now(timezone.utc)
+            }
+            if full_name: user_updates["full_name"] = full_name
+            if phone: user_updates["phone"] = phone
+            if designation: user_updates["designation"] = designation
+            if department: user_updates["department"] = department
+            if linkedin_url: user_updates["linkedin_url"] = linkedin_url
 
-        target_filter = {"_id": user["_id"]} if user and "_id" in user else {"email": email}
-        db.users.update_one(target_filter, {"$set": user_updates})
+            target_filter = None
+            if user and "_id" in user:
+                target_filter = {"_id": user["_id"]}
+            elif email:
+                target_filter = {"email": email}
 
-        org_id = (user and user.get("org_id")) or "org-default"
-        org_updates = {"updated_at": datetime.now(timezone.utc)}
-        if org_name: org_updates["name"] = org_name
-        if website_url: org_updates["website_url"] = website_url
-        if industry: org_updates["industry"] = industry
-        if company_size: org_updates["company_size"] = company_size
-        if headquarters_city: org_updates["headquarters_city"] = headquarters_city
-        if bio: org_updates["bio"] = bio
-        if billing_email: org_updates["billing_email"] = billing_email
+            if target_filter:
+                try:
+                    db.users.update_one(target_filter, {"$set": user_updates}, upsert=False)
+                except Exception as ue:
+                    print(f"Could not update user record: {ue}")
 
-        db.organizations.update_one(
-            {"id": org_id},
-            {"$set": org_updates},
-            upsert=True
-        )
+            org_id = (user and user.get("org_id")) or (f"org-{str(user.get('_id'))}" if user and user.get("_id") else f"org-{uuid.uuid4().hex[:8]}")
+            
+            # If user didn't have org_id, associate it with user
+            if user and not user.get("org_id") and target_filter:
+                try:
+                    db.users.update_one(target_filter, {"$set": {"org_id": org_id}})
+                except Exception:
+                    pass
+
+            org_updates = {"updated_at": datetime.now(timezone.utc)}
+            if org_name: org_updates["name"] = org_name
+            if website_url: org_updates["website_url"] = website_url
+            if industry: org_updates["industry"] = industry
+            if company_size: org_updates["company_size"] = company_size
+            if headquarters_city: org_updates["headquarters_city"] = headquarters_city
+            if bio: org_updates["bio"] = bio
+            if billing_email: org_updates["billing_email"] = billing_email
+
+            try:
+                db.organizations.update_one(
+                    {"id": str(org_id)},
+                    {"$set": org_updates},
+                    upsert=True
+                )
+            except Exception as oe:
+                print(f"Could not update org record: {oe}")
 
         return jsonify({
             "success": True,
