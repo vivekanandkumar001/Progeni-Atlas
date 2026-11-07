@@ -26,6 +26,7 @@ class RegisterRequest(BaseModel):
     role: UserRole = UserRole.CANDIDATE
     org_name: str | None = Field(default=None, max_length=255)
     headline: str | None = Field(default=None, max_length=255)
+    phone: str = Field(default=None, max_length=20, pattern=r"^[\d+\-\s()]+$")
 
     @model_validator(mode="before")
     @classmethod
@@ -103,16 +104,36 @@ class RegisterResponse(BaseModel):
 
 
 class VerifyOtpRequest(BaseModel):
-    email: EmailStr
+    email: EmailStr | None = Field(default=None, description="Email for OTP verification (required if contact_type is email)")
+    phone: str | None = Field(default=None, max_length=20, pattern=r"^[\d+\-\s()]+$", description="Phone for OTP verification (required if contact_type is phone)")
+    contact_type: str = Field(default="email", pattern="^(email|phone)$", description="Type of contact for OTP verification")
     code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
     purpose: str = "REGISTRATION_VERIFY"
 
     @model_validator(mode="before")
     @classmethod
-    def populate_aliases(cls, data: Any) -> Any:
+    def validate_contact(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            if "otp" in data and "code" not in data:
-                data["code"] = data["otp"]
+            contact_type = data.get("contact_type", "email")
+            email = data.get("email")
+            phone = data.get("phone")
+            
+            # Validate that exactly one of email or phone is provided based on contact_type
+            if contact_type == "email":
+                if not email:
+                    raise ValueError("Email is required when contact_type is 'email'")
+                if phone:
+                    raise ValueError("Phone should not be provided when contact_type is 'email'")
+            elif contact_type == "phone":
+                if not phone:
+                    raise ValueError("Phone is required when contact_type is 'phone'")
+                if email:
+                    raise ValueError("Email should not be provided when contact_type is 'phone'")
+            
+            # Normalize phone
+            if phone:
+                data["phone"] = phone.strip()
+        
         return data
 
 

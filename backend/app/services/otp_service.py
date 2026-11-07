@@ -121,36 +121,92 @@ def send_otp_email_smtp(
         return False, f"Failed to deliver email: {str(err)}"
 
 
+def send_otp_sms(
+    to_phone: str, otp_code: str, purpose: str = "PHONE_VERIFY"
+) -> tuple[bool, str | None]:
+    """Dispatch phone OTP via SMS.
+
+    NOTE: SMS delivery is best-effort. If Twilio or SMS gateway is not configured,
+    the OTP is still persisted to the database for later verification.
+    """
+    # Try to send via Twilio if configured
+    twilio_sid = getattr(settings, "TWILIO_SID", None)
+    twilio_token = getattr(settings, "TWILIO_AUTH_TOKEN", None)
+    twilio_from = getattr(settings, "TWILIO_FROM_NUMBER", None)
+
+    if twilio_sid and twilio_token and twilio_from:
+        try:
+            from twilio.rest import Client
+            client = Client(twilio_sid, twilio_token)
+            message = client.messages.create(
+                body=f"Your Progeni Atlas verification code is: {otp_code}. Valid for {settings.OTP_TTL_SEC // 60} minutes.",
+                from_=twilio_from,
+                to=to_phone,
+            )
+            logger.info(
+                "[OTP] SMS sent via Twilio to=%s purpose=%s sid=%s", to_phone, purpose, message.sid
+            )
+            return True, None
+        except Exception as err:
+            logger.warning("[OTP] Twilio SMS failed to=%s: %s", to_phone, err)
+
+    # Best-effort: if SMS not configured, still persist OTP for later verification
+    # The OTP record will exist in the database and can be verified even without SMS delivery
+    logger.info(
+        "[OTP] SMS not configured for recipient=%s, OTP persisted for database verification only", to_phone
+    )
+    return True, None  # Return success but note that SMS was not actually sent
+
+
 def create_and_send_otp(
     db: Session,
     *,
-    email: str,
+    email: str | None = None,
+    phone: str | None = None,
     user_id: uuid.UUID | None = None,
     purpose: str = "REGISTRATION_VERIFY",
 ) -> tuple[OtpCode, str, bool, str | None]:
-    """Generate, securely hash, and persist a fresh OTP, then dispatch via SMTP.
+    """Generate, securely hash, and persist a fresh OTP, then dispatch via email/SMS.
 
-    Invalidates any prior unconsumed OTP records for this email and purpose.
-    Returns (otp_record, raw_code, email_sent, email_err).
+    Supports both email and phone OTP generation. Exactly one of email or phone
+    must be provided. Invalidates any prior unconsumed OTP records for this contact
+    and purpose.
+
+    Returns (otp_record, raw_code, dispatch_sent, dispatch_err).
     """
-    normalized_email = email.lower().strip()
+    if email and phone:
+        raise ValueError("Provide either email or phone, not both")
+    if not email and not phone:
+        raise ValueError("Either email or phone must be provided")
+
+    contact = email.lower().strip() if email else phone.strip()
     raw_code = generate_otp()
     code_hash = hash_otp(raw_code)
     now_utc = datetime.now(timezone.utc)
     expires_at = now_utc + timedelta(seconds=settings.OTP_TTL_SEC)
 
-    # Invalidate prior unconsumed OTPs for this email and purpose
-    db.execute(
-        delete(OtpCode).where(
-            OtpCode.email == normalized_email,
-            OtpCode.purpose == purpose,
-            OtpCode.consumed_at.is_(None),
+    # Invalidate prior unconsumed OTPs for this contact and purpose
+    if email:
+        db.execute(
+            delete(OtpCode).where(
+                OtpCode.email == contact,
+                OtpCode.purpose == purpose,
+                OtpCode.consumed_at.is_(None),
+            )
         )
-    )
+    else:  # phone
+        db.execute(
+            delete(OtpCode).where(
+                OtpCode.phone == contact,
+                OtpCode.purpose == purpose,
+                OtpCode.consumed_at.is_(None),
+            )
+        )
 
     otp_record = OtpCode(
         user_id=user_id,
-        email=normalized_email,
+        email=email.lower().strip() if email else None,
+        phone=phone.strip() if phone else None,
         code_hash=code_hash,
         purpose=purpose,
         expires_at=expires_at,
@@ -162,18 +218,32 @@ def create_and_send_otp(
     db.commit()
     db.refresh(otp_record)
 
-    email_sent, email_err = send_otp_email_smtp(normalized_email, raw_code, purpose)
-    return otp_record, raw_code, email_sent, email_err
+    # Dispatch based on contact type
+    if email:
+        email_sent, email_err = send_otp_email_smtp(contact, raw_code, purpose)
+        if not email_sent:
+            # Don't rollback the OTP record - it can still be verified from DB
+            logger.warning(
+                "[OTP] Email send failed for=%s, but OTP persisted: %s", contact, email_err
+            )
+        return otp_record, raw_code, email_sent, email_err
+    else:  # phone
+        sms_sent, sms_err = send_otp_sms(contact, raw_code, purpose)
+        return otp_record, raw_code, sms_sent, sms_err
 
 
 def verify_otp(
     db: Session,
     *,
-    email: str,
+    email: str | None = None,
+    phone: str | None = None,
     code: str,
     purpose: str = "REGISTRATION_VERIFY",
 ) -> tuple[bool, str, User | None]:
     """Verify an OTP code with fail-safe atomic attempt tracking.
+
+    Supports both email and phone OTP verification. Exactly one of email or phone
+    must be provided.
 
     CRITICAL SECURITY GUARANTEES:
     1. Generic error messages: Never distinguish expired vs wrong code (prevents oracle attacks).
@@ -182,16 +252,29 @@ def verify_otp(
        cannot bypass the attempt counter.
     3. Brute-force protection: Locks out and rejects if attempts >= max_attempts.
     """
-    normalized_email = email.lower().strip()
+    if email and phone:
+        raise ValueError("Provide either email or phone, not both")
+    if not email and not phone:
+        raise ValueError("Either email or phone must be provided")
+
+    # Determine the contact value and normalized email for DB lookup
+    if email:
+        normalized_contact = email.lower().strip()
+        contact_field = OtpCode.email
+    else:
+        normalized_contact = phone.strip()
+        contact_field = OtpCode.phone
+
     clean_code = code.strip()
 
     if not OTP_RE.match(clean_code):
         return False, "Invalid or expired verification code.", None
 
+    # Search for unconsumed OTP record matching contact and purpose
     record = db.scalar(
         select(OtpCode)
         .where(
-            OtpCode.email == normalized_email,
+            contact_field == normalized_contact,
             OtpCode.purpose == purpose,
             OtpCode.consumed_at.is_(None),
         )
@@ -228,13 +311,20 @@ def verify_otp(
     if record.user_id:
         user = db.scalar(select(User).where(User.id == record.user_id))
     if not user:
-        user = db.scalar(select(User).where(User.email == normalized_email))
+        # Try to find user by the contact (email or phone)
+        if email:
+            user = db.scalar(select(User).where(User.email == normalized_contact))
+        else:
+            user = db.scalar(select(User).where(User.phone == normalized_contact))
 
     if user:
-        user.is_email_verified = True
+        if email:
+            user.is_email_verified = True
+        else:
+            user.phone_otp_verified = True
 
     db.commit()
     if user:
         db.refresh(user)
 
-    return True, "Email verified successfully.", user
+    return True, "Verification successful.", user

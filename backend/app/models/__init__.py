@@ -198,6 +198,13 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    credits: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+        # Credit pack pricing configured per role
+    # Candidate packs: ₹49 (30 credits), ₹99 (70 credits), ₹199 (150 credits)
+    # Recruiter packs: ₹999 (800 credits), ₹1999 (1800 credits), ₹4999 (4500 credits)
+    credit_pack_prices: Mapped[dict] = mapped_column(
+        JSON, nullable=False, default=dict
+    )  # Stores pack configurations per role
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role", values_callable=lambda x: [e.value for e in x]),
         default=UserRole.CANDIDATE,
@@ -211,7 +218,11 @@ class User(TimestampMixin, Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     avatar_public_id: Mapped[str | None] = mapped_column(String(255))
     avatar_url: Mapped[str | None] = mapped_column(Text)
-    phone: Mapped[str | None] = mapped_column(String(20))
+    phone: Mapped[str | None] = mapped_column(String(20), unique=True)
+    email_otp: Mapped[str | None] = mapped_column(String(6), nullable=False, default="")
+    email_otp_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    phone_otp: Mapped[str | None] = mapped_column(String(6), nullable=False, default="")
+    phone_otp_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # candidate profile
     bio: Mapped[str | None] = mapped_column(Text)
@@ -244,6 +255,22 @@ class User(TimestampMixin, Base):
 
 
 # ------------------------------------------------------------------ resumes
+class Purchase(TimestampMixin, Base):
+    __tablename__ = "purchases"
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    credits_added: Mapped[int] = mapped_column(Integer, nullable=False)
+    pack_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(50), nullable=False, default="credit_purchase")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="completed")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("now"))
+
+    user: Mapped["User"] = relationship(back_populates="purchases")
+
+User.purchases: Mapped[list["Purchase"]] = relationship(back_populates="user")
+
 class CandidateResume(Base):
     """Cloudinary reference + PostgreSQL metadata. No binary in PG."""
 
@@ -765,6 +792,7 @@ class OtpCode(TimestampMixin, Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=True
     )
     email: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     purpose: Mapped[str] = mapped_column(String(50), default="REGISTRATION_VERIFY", nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

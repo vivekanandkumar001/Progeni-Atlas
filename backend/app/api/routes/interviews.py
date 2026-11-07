@@ -283,6 +283,8 @@ def submit_answer(
     session.agent_state = AgentState.LIVE
     db.commit()
 
+    pause_duration_ms = int(max(800, len((response.recommended_follow_up or '').strip()) / 2) * 150)  # ~15 WPM speaking rate
+
     return {
         "id": str(response.id),
         "turn_index": response.turn_index,
@@ -295,6 +297,7 @@ def submit_answer(
         "action_decision": response.action_decision.value if response.action_decision else None,
         "recommended_follow_up": response.recommended_follow_up,
         "follow_up_context": response.follow_up_context,
+        "pause_duration_ms": pause_duration_ms,
     }
 
 
