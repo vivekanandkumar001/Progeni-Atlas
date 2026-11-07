@@ -7,21 +7,20 @@ import {
   ChevronDown,
   Menu,
   X,
-  Briefcase,
-  Building2,
   Sparkles,
-  Users,
-  FileCheck,
-  ShieldCheck,
-  Award,
-  Video,
+  Code2,
   FileText,
+  Cpu,
+  Users,
   Compass,
-  CreditCard,
+  ArrowRight,
+  ShieldCheck,
+  Building2,
+  GraduationCap,
+  HelpCircle,
+  Tag,
   PhoneCall,
   CheckCircle2,
-  Mail,
-  Send,
 } from 'lucide-react';
 import { BrandLogo } from '@/components/common/BrandLogo';
 import { logout } from '@/lib/api';
@@ -38,15 +37,9 @@ export const Navbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ role?: string; full_name?: string; email?: string } | null>(null);
-  const [contactModalOpen, setContactModalOpen] = useState(false);
-  const [contactSubmitted, setContactSubmitted] = useState(false);
-  const [contactName, setContactName] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactMsg, setContactMsg] = useState('');
-
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Check stored user session reactively, suppressing logged-in state on auth routes
+  // Check stored user session reactively
   useEffect(() => {
     const syncUser = () => {
       if (isAuthPage) {
@@ -93,112 +86,120 @@ export const Navbar: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleContactSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setContactSubmitted(true);
-    setTimeout(() => {
-      setContactSubmitted(false);
-      setContactModalOpen(false);
-      setContactName('');
-      setContactEmail('');
-      setContactMsg('');
-    }, 2200);
-  };
-
   return (
     <>
-      {/* 
-        HEADER DESIGN MATCHING SCREENSHOT:
-        - Dark navy top border strip (border-t-4 border-[#072448])
-        - Clean white background (bg-white )
-        - Typography: Bold dark navy font (text-[#072448] font-bold text-[15px])
-        - Menu Items: Home, About Us ˅, Services ˅, Portfolio ˅, Pay Us Now, Career, Contact Us
-      */}
-      <header className="sticky top-0 z-50 w-full border-t-4 border-[#072448]  border-b border-line bg-white/95  backdrop-blur-md shadow-xs transition-colors">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-50 w-full border-t-4 border-[#072448] border-b border-line bg-white/95 backdrop-blur-md shadow-xs transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-18">
             
             {/* ================= LEFT SECTION: BRAND LOGO ================= */}
-            <div className="flex items-center gap-6 lg:gap-10">
+            <div className="flex items-center gap-6 lg:gap-8">
               <BrandLogo href="/" />
 
-              {/* ================= CENTER SECTION: NAVIGATION MENU FROM SCREENSHOT ================= */}
-              <nav ref={dropdownRef} className="hidden lg:flex items-center gap-7 xl:gap-8">
+              {/* ================= CENTER SECTION: CANDIDATE-FIRST NAVIGATION ================= */}
+              <nav ref={dropdownRef} className="hidden lg:flex items-center gap-6 xl:gap-7">
                 
                 {/* 1. Home */}
                 <Link
                   href="/"
-                  className="text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors py-2 whitespace-nowrap shrink-0"
+                  className="text-[14px] font-semibold text-[#072448] hover:text-[#185adb] transition-colors py-2 whitespace-nowrap shrink-0"
                 >
                   Home
                 </Link>
 
-                {/* 2. About Us ˅ */}
+                {/* 2. Practice Rounds ˅ (Candidate Core Feature) */}
                 <div
                   className="relative py-3 whitespace-nowrap shrink-0 group"
-                  onMouseEnter={() => setActiveDropdown('about')}
+                  onMouseEnter={() => setActiveDropdown('rounds')}
                   onMouseLeave={() => setActiveDropdown(null)}
                 >
-                  <Link
-                    href="/about"
-                    onClick={() => setActiveDropdown(null)}
-                    className="flex items-center gap-1 text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors cursor-pointer whitespace-nowrap"
+                  <button
+                    type="button"
+                    onClick={() => setActiveDropdown(activeDropdown === 'rounds' ? null : 'rounds')}
+                    className="flex items-center gap-1 text-[14px] font-semibold text-[#072448] hover:text-[#185adb] transition-colors cursor-pointer whitespace-nowrap"
                   >
-                    <span className="whitespace-nowrap">About Us</span>
+                    <span>Practice Rounds</span>
                     <ChevronDown
-                      className={`w-3.5 h-3.5 text-[#072448]  transition-transform duration-200 ${
-                        activeDropdown === 'about' ? 'rotate-180 text-[#185adb]' : 'group-hover:rotate-180'
+                      className={`w-3.5 h-3.5 text-[#072448] transition-transform duration-200 ${
+                        activeDropdown === 'rounds' ? 'rotate-180 text-[#185adb]' : 'group-hover:rotate-180'
                       }`}
                     />
-                  </Link>
+                  </button>
 
-                  {activeDropdown === 'about' && (
-                    <div className="absolute left-0 top-full -mt-1 w-72 rounded-2xl bg-white  border border-slate-200  p-3 shadow-2xl backdrop-blur-xl animate-fadeIn z-50">
+                  {activeDropdown === 'rounds' && (
+                    <div className="absolute left-0 top-full -mt-1 w-80 rounded-2xl bg-white border border-slate-200 p-3 shadow-2xl backdrop-blur-xl animate-fadeIn z-50">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
-                        About Progeni Atlas
+                        Select Interview Round
                       </p>
+                      
                       <Link
-                        href="/about#mission"
+                        href="/candidate/practice"
                         onClick={() => setActiveDropdown(null)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
+                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group"
                       >
-                        <Award className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-600 group-hover:bg-cyan-500/20">
+                          <Code2 className="w-4 h-4" />
+                        </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Our Mission &amp; Vision
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-[#185adb] whitespace-nowrap">
+                            Live DSA &amp; Coding Round
                           </p>
-                          <p className="text-[11px] text-slate-500 ">
-                            Merit-driven automated AI interview intelligence
+                          <p className="text-[11px] text-slate-500 leading-snug">
+                            Solve problems in Python, C++, Java or JS with adaptive AI hints.
                           </p>
                         </div>
                       </Link>
+
                       <Link
-                        href="/about#integrity"
+                        href="/candidate/practice"
                         onClick={() => setActiveDropdown(null)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
+                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group"
                       >
-                        <ShieldCheck className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 group-hover:bg-blue-500/20">
+                          <FileText className="w-4 h-4" />
+                        </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Anti-Bias &amp; Integrity
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-[#185adb] whitespace-nowrap">
+                            Resume &amp; Project Defense
                           </p>
-                          <p className="text-[11px] text-slate-500 ">
-                            Transparent rubrics and compliant evaluation
+                          <p className="text-[11px] text-slate-500 leading-snug">
+                            Get grilled on the exact tech stack &amp; projects from your resume.
                           </p>
                         </div>
                       </Link>
+
                       <Link
-                        href="/about#team"
+                        href="/candidate/practice"
                         onClick={() => setActiveDropdown(null)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
+                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group"
                       >
-                        <Users className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 group-hover:bg-purple-500/20">
+                          <Cpu className="w-4 h-4" />
+                        </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Leadership &amp; Team
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-[#185adb] whitespace-nowrap">
+                            System Design Round
                           </p>
-                          <p className="text-[11px] text-slate-500 ">
-                            Pioneering AI researchers &amp; system builders
+                          <p className="text-[11px] text-slate-500 leading-snug">
+                            Architecture, caching, databases &amp; scalability trade-offs.
+                          </p>
+                        </div>
+                      </Link>
+
+                      <Link
+                        href="/candidate/practice"
+                        onClick={() => setActiveDropdown(null)}
+                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group"
+                      >
+                        <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 group-hover:bg-emerald-500/20">
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-[#185adb] whitespace-nowrap">
+                            Behavioral &amp; HR Round
+                          </p>
+                          <p className="text-[11px] text-slate-500 leading-snug">
+                            Master STAR method &amp; situational questions without anxiety.
                           </p>
                         </div>
                       </Link>
@@ -206,161 +207,75 @@ export const Navbar: React.FC = () => {
                   )}
                 </div>
 
-                {/* 3. Services ˅ */}
+                {/* 3. Company Prep ˅ */}
                 <div
                   className="relative py-3 whitespace-nowrap shrink-0 group"
-                  onMouseEnter={() => setActiveDropdown('services')}
+                  onMouseEnter={() => setActiveDropdown('companies')}
                   onMouseLeave={() => setActiveDropdown(null)}
                 >
-                  <Link
-                    href="/services"
-                    onClick={() => setActiveDropdown(null)}
-                    className="flex items-center gap-1 text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors cursor-pointer whitespace-nowrap"
+                  <button
+                    type="button"
+                    onClick={() => setActiveDropdown(activeDropdown === 'companies' ? null : 'companies')}
+                    className="flex items-center gap-1 text-[14px] font-semibold text-[#072448] hover:text-[#185adb] transition-colors cursor-pointer whitespace-nowrap"
                   >
-                    <span className="whitespace-nowrap">Services</span>
+                    <span>Company Prep</span>
                     <ChevronDown
-                      className={`w-3.5 h-3.5 text-[#072448]  transition-transform duration-200 ${
-                        activeDropdown === 'services' ? 'rotate-180 text-[#185adb]' : 'group-hover:rotate-180'
+                      className={`w-3.5 h-3.5 text-[#072448] transition-transform duration-200 ${
+                        activeDropdown === 'companies' ? 'rotate-180 text-[#185adb]' : 'group-hover:rotate-180'
                       }`}
                     />
-                  </Link>
+                  </button>
 
-                  {activeDropdown === 'services' && (
-                    <div className="absolute left-0 top-full -mt-1 w-80 rounded-2xl bg-white  border border-slate-200  p-3 shadow-2xl backdrop-blur-xl animate-fadeIn z-50">
+                  {activeDropdown === 'companies' && (
+                    <div className="absolute left-0 top-full -mt-1 w-72 rounded-2xl bg-white border border-slate-200 p-3 shadow-2xl backdrop-blur-xl animate-fadeIn z-50">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
-                        AI Services &amp; Solutions
+                        Targeted Interview Tracks
                       </p>
+                      
                       <Link
-                        href="/services#interviewer"
+                        href="/candidate/practice"
                         onClick={() => setActiveDropdown(null)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
-                      >
-                        <Sparkles className="w-4 h-4 text-[#185adb] mt-0.5" />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            AI Voice &amp; Video Interviewer
-                          </p>
-                          <p className="text-[11px] text-slate-500 ">
-                            Adaptive real-time proctored evaluation
-                          </p>
-                        </div>
-                      </Link>
-                      <Link
-                        href="/services#coding"
-                        onClick={() => setActiveDropdown(null)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
-                      >
-                        <FileText className="w-4 h-4 text-[#185adb] mt-0.5" />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Live Coding &amp; Sandboxes
-                          </p>
-                          <p className="text-[11px] text-slate-500 ">
-                            Multi-language runtime &amp; whiteboard
-                          </p>
-                        </div>
-                      </Link>
-                      <Link
-                        href="/services#dossiers"
-                        onClick={() => setActiveDropdown(null)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
-                      >
-                        <Briefcase className="w-4 h-4 text-[#185adb] mt-0.5" />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Candidate Dossiers &amp; Reports
-                          </p>
-                          <p className="text-[11px] text-slate-500 ">
-                            Full-turn transcripts, scoring, &amp; metrics
-                          </p>
-                        </div>
-                      </Link>
-                      <Link
-                        href="/services#rubrics"
-                        onClick={() => setActiveDropdown(null)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
-                      >
-                        <FileCheck className="w-4 h-4 text-[#185adb] mt-0.5" />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Custom Evaluation Rubrics
-                          </p>
-                          <p className="text-[11px] text-slate-500 ">
-                            Tailor weights for tech, soft skills, and logic
-                          </p>
-                        </div>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-
-                {/* 4. Portfolio ˅ */}
-                <div
-                  className="relative py-3 whitespace-nowrap shrink-0 group"
-                  onMouseEnter={() => setActiveDropdown('portfolio')}
-                  onMouseLeave={() => setActiveDropdown(null)}
-                >
-                  <Link
-                    href="/portfolio"
-                    onClick={() => setActiveDropdown(null)}
-                    className="flex items-center gap-1 text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors cursor-pointer whitespace-nowrap"
-                  >
-                    <span className="whitespace-nowrap">Portfolio</span>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 text-[#072448]  transition-transform duration-200 ${
-                        activeDropdown === 'portfolio' ? 'rotate-180 text-[#185adb]' : 'group-hover:rotate-180'
-                      }`}
-                    />
-                  </Link>
-
-                  {activeDropdown === 'portfolio' && (
-                    <div className="absolute left-0 top-full -mt-1 w-72 rounded-2xl bg-white  border border-slate-200  p-3 shadow-2xl backdrop-blur-xl animate-fadeIn z-50">
-                      <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
-                        Platform Showcase
-                      </p>
-                      <Link
-                        href="/portfolio#showcase"
-                        onClick={() => setActiveDropdown(null)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
-                      >
-                        <Video className="w-4 h-4 text-[#185adb] mt-0.5" />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Interactive Platform Tour
-                          </p>
-                          <p className="text-[11px] text-slate-500 ">
-                            Experience the full interview suite
-                          </p>
-                        </div>
-                      </Link>
-                      <Link
-                        href="/portfolio#case-studies"
-                        onClick={() => setActiveDropdown(null)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
+                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group"
                       >
                         <Building2 className="w-4 h-4 text-[#185adb] mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Client Case Studies
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-[#185adb] whitespace-nowrap">
+                            FAANG &amp; Product Companies
                           </p>
-                          <p className="text-[11px] text-slate-500 ">
-                            Enterprise metrics and proven results
+                          <p className="text-[11px] text-slate-500">
+                            Google, Amazon, Microsoft, Uber
                           </p>
                         </div>
                       </Link>
+
                       <Link
                         href="/candidate/practice"
-                        prefetch={false}
                         onClick={() => setActiveDropdown(null)}
-                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50  transition-colors group"
+                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group"
                       >
-                        <Compass className="w-4 h-4 text-[#185adb] mt-0.5" />
+                        <GraduationCap className="w-4 h-4 text-emerald-600 mt-0.5" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900  group-hover:text-[#185adb] whitespace-nowrap">
-                            Practice Drill Lab
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-[#185adb] whitespace-nowrap">
+                            Campus Placement Drives
                           </p>
-                          <p className="text-[11px] text-slate-500 ">
-                            Interactive scenario library for applicants
+                          <p className="text-[11px] text-slate-500">
+                            TCS Digital, Infosys, Wipro, Accenture
+                          </p>
+                        </div>
+                      </Link>
+
+                      <Link
+                        href="/candidate/practice"
+                        onClick={() => setActiveDropdown(null)}
+                        className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group"
+                      >
+                        <Sparkles className="w-4 h-4 text-purple-600 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-[#185adb] whitespace-nowrap">
+                            High-Growth Startups
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            Swiggy, Zomato, Razorpay, Zepto
                           </p>
                         </div>
                       </Link>
@@ -368,45 +283,47 @@ export const Navbar: React.FC = () => {
                   )}
                 </div>
 
-                {/* 5. Pay Us Now */}
+                {/* 4. How It Works */}
+                <Link
+                  href="/#how-it-works"
+                  className="text-[14px] font-semibold text-[#072448] hover:text-[#185adb] transition-colors py-2 whitespace-nowrap shrink-0"
+                >
+                  How It Works
+                </Link>
+
+                {/* 5. Pricing (Student Packs from ₹49) */}
                 <Link
                   href="/pricing"
-                  className="flex items-center gap-1 text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors py-2 whitespace-nowrap shrink-0"
+                  className="flex items-center gap-1.5 text-[14px] font-semibold text-[#072448] hover:text-[#185adb] transition-colors py-2 whitespace-nowrap shrink-0"
                 >
-                  <span className="whitespace-nowrap">Pay Us Now</span>
+                  <span>Pricing</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                    ₹49 Packs
+                  </span>
                 </Link>
 
-                {/* 6. Career */}
+                {/* 6. FAQ */}
                 <Link
-                  href="/career"
-                  className="text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors py-2 whitespace-nowrap shrink-0"
+                  href="/#faq"
+                  className="text-[14px] font-semibold text-[#072448] hover:text-[#185adb] transition-colors py-2 whitespace-nowrap shrink-0"
                 >
-                  Career
-                </Link>
-
-                {/* 7. Contact Us */}
-                <Link
-                  href="/contact"
-                  className="text-[15px] font-semibold text-[#072448]  hover:text-[#185adb]  transition-colors py-2 whitespace-nowrap shrink-0"
-                >
-                  Contact Us
+                  FAQ
                 </Link>
 
               </nav>
             </div>
 
-            {/* ================= RIGHT SECTION: ACTION BUTTONS + MENU TOGGLE ================= */}
+            {/* ================= RIGHT SECTION: CANDIDATE ACTIONS ================= */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              {/* Action buttons (tablet & desktop) */}
               <div className="hidden sm:flex items-center gap-3">
                 {!isAuthPage && currentUser ? (
                   <>
                     <Link
                       href={getDashboardLink(currentUser.role)}
                       prefetch={false}
-                      className="inline-flex items-center justify-center rounded-full bg-[#072448] hover:bg-[#0c3666]   text-white px-5 py-1.5 text-xs sm:text-sm font-bold transition-all shadow-sm cursor-pointer whitespace-nowrap"
+                      className="inline-flex items-center justify-center rounded-full bg-[#072448] hover:bg-[#0c3666] text-white px-5 py-2 text-xs sm:text-sm font-bold transition-all shadow-sm cursor-pointer whitespace-nowrap"
                     >
-                      Dashboard
+                      My Dashboard
                     </Link>
                     <button
                       type="button"
@@ -415,7 +332,7 @@ export const Navbar: React.FC = () => {
                         setCurrentUser(null);
                         window.location.href = '/login?logout=1';
                       }}
-                      className="inline-flex items-center justify-center rounded-full border border-slate-300  hover:bg-slate-100  text-slate-700  px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap"
+                      className="inline-flex items-center justify-center rounded-full border border-slate-300 hover:bg-slate-100 text-slate-700 px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap"
                     >
                       Logout
                     </button>
@@ -424,89 +341,91 @@ export const Navbar: React.FC = () => {
                   <>
                     <Link
                       href="/login"
-                      className="inline-flex items-center justify-center rounded-full border-2 border-[#072448]  text-[#072448]  hover:bg-slate-100  px-5 py-1.5 text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap"
+                      className="inline-flex items-center justify-center rounded-full border border-slate-300 hover:border-slate-400 text-[#072448] hover:bg-slate-50 px-5 py-2 text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap"
                     >
                       Login
                     </Link>
 
+                    {/* Candidate Primary CTA: Start Free Interview */}
                     <Link
-                      href="/register"
-                      className="inline-flex items-center justify-center rounded-full bg-[#072448] hover:bg-[#0c3666]   text-white px-5 py-1.5 text-xs sm:text-sm font-bold transition-all shadow-sm cursor-pointer whitespace-nowrap"
+                      href="/candidate/practice"
+                      prefetch={false}
+                      className="sheen-sweeper group inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-cyan-600 via-sky-600 to-indigo-600 hover:brightness-110 text-white px-5 py-2 text-xs sm:text-sm font-bold transition-all shadow-md shadow-cyan-600/20 cursor-pointer whitespace-nowrap"
                     >
-                      Register
+                      <span>Start Free Mock</span>
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
                     </Link>
                   </>
                 )}
               </div>
 
-              {/* ================= MOBILE / TABLET HAMBURGER TOGGLE ================= */}
+              {/* Mobile Hamburger */}
               <div className="flex items-center gap-2 lg:hidden">
                 <button
                   type="button"
                   aria-label="Toggle navigation menu"
                   onClick={() => setMobileOpen(!mobileOpen)}
-                  className="rounded-xl border border-line p-1.5 sm:p-2 text-[#072448]  hover:bg-slate-100  transition-colors cursor-pointer shrink-0"
+                  className="rounded-xl border border-line p-1.5 sm:p-2 text-[#072448] hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
                 >
                   {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                 </button>
               </div>
             </div>
-
           </div>
         </div>
 
-        {/* ================= MOBILE DRAWER MENU ================= */}
+        {/* Mobile Dropdown Drawer */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-line bg-white/98  px-4 py-4 space-y-3 animate-fadeIn z-50">
+          <div className="lg:hidden border-t border-line bg-white/98 px-4 py-4 space-y-3 animate-fadeIn z-50">
             <div className="space-y-1">
               <Link
                 href="/"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-[#072448] hover:bg-slate-100 rounded-lg"
               >
                 Home
               </Link>
               <Link
-                href="/about"
+                href="/candidate/practice"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-[#072448] hover:bg-slate-100 rounded-lg"
               >
-                About Us
+                Live Coding &amp; DSA Practice
               </Link>
               <Link
-                href="/services"
+                href="/candidate/practice"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-[#072448] hover:bg-slate-100 rounded-lg"
               >
-                Services
+                Resume &amp; Project Defense
               </Link>
               <Link
-                href="/portfolio"
+                href="/candidate/practice"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-[#072448] hover:bg-slate-100 rounded-lg"
               >
-                Portfolio
+                Company-Specific Tracks
+              </Link>
+              <Link
+                href="/#how-it-works"
+                onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2 text-sm font-semibold text-[#072448] hover:bg-slate-100 rounded-lg"
+              >
+                How It Works
               </Link>
               <Link
                 href="/pricing"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 rounded-lg font-bold"
               >
-                Pay Us Now
+                Pricing (Student Packs from ₹49)
               </Link>
               <Link
-                href="/career"
+                href="/#faq"
                 onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
+                className="block px-3 py-2 text-sm font-semibold text-[#072448] hover:bg-slate-100 rounded-lg"
               >
-                Career
-              </Link>
-              <Link
-                href="/contact"
-                onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 text-sm font-semibold text-[#072448]  hover:bg-slate-100  rounded-lg"
-              >
-                Contact Us
+                FAQ
               </Link>
             </div>
 
@@ -519,7 +438,7 @@ export const Navbar: React.FC = () => {
                     onClick={() => setMobileOpen(false)}
                     className="text-center rounded-full bg-[#072448] text-white px-4 py-2 text-xs font-bold"
                   >
-                    Dashboard
+                    My Dashboard
                   </Link>
                   <button
                     type="button"
@@ -529,7 +448,7 @@ export const Navbar: React.FC = () => {
                       setCurrentUser(null);
                       window.location.href = '/login?logout=1';
                     }}
-                    className="text-center rounded-full border border-slate-300  text-slate-700  px-4 py-2 text-xs font-bold"
+                    className="text-center rounded-full border border-slate-300 text-slate-700 px-4 py-2 text-xs font-bold"
                   >
                     Logout
                   </button>
@@ -539,16 +458,16 @@ export const Navbar: React.FC = () => {
                   <Link
                     href="/login"
                     onClick={() => setMobileOpen(false)}
-                    className="text-center rounded-full border-2 border-[#072448]  text-[#072448]  px-4 py-2 text-xs font-bold"
+                    className="text-center rounded-full border-2 border-[#072448] text-[#072448] px-4 py-2 text-xs font-bold"
                   >
                     Login
                   </Link>
                   <Link
-                    href="/register"
+                    href="/candidate/practice"
                     onClick={() => setMobileOpen(false)}
-                    className="text-center rounded-full bg-[#072448] text-white px-4 py-2 text-xs font-bold"
+                    className="text-center rounded-full bg-gradient-to-r from-cyan-600 to-indigo-600 text-white px-4 py-2 text-xs font-bold shadow-sm"
                   >
-                    Register
+                    Start Free Mock
                   </Link>
                 </div>
               )}
@@ -556,93 +475,6 @@ export const Navbar: React.FC = () => {
           </div>
         )}
       </header>
-
-      {/* ================= CONTACT US MODAL ================= */}
-      {contactModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-lg rounded-3xl bg-white  border border-slate-200  p-6 sm:p-8 shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setContactModalOpen(false)}
-              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600  hover:bg-slate-100  transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-[#072448] text-white flex items-center justify-center shadow-md">
-                <PhoneCall className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-[#072448] ">Contact Us</h3>
-                <p className="text-xs text-slate-500">Reach our team for inquiries &amp; enterprise support</p>
-              </div>
-            </div>
-
-            {contactSubmitted ? (
-              <div className="py-8 text-center space-y-3">
-                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
-                <h4 className="text-lg font-bold text-slate-900 ">Message Received!</h4>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Thank you for contacting Progeni Atlas. Our support team will reach out within 24 hours.
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleContactSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700  mb-1">
-                    Your Full Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Please enter your name"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300  bg-slate-50  text-sm text-slate-900  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700  mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={contactEmail}
-                    onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="Please enter your email address"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300  bg-slate-50  text-sm text-slate-900  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700  mb-1">
-                    Message / Requirement
-                  </label>
-                  <textarea
-                    rows={3}
-                    required
-                    value={contactMsg}
-                    onChange={(e) => setContactMsg(e.target.value)}
-                    placeholder="Please describe how we can help you..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300  bg-slate-50  text-sm text-slate-900  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-xl bg-[#072448] hover:bg-[#0c3666] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>Send Inquiry</span>
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
     </>
   );
 };
