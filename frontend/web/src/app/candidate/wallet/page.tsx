@@ -877,7 +877,7 @@ export default function CandidateWalletPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-ink-muted">
-                  Secured by <strong>Mayank Singh UPI Gateway</strong> (GPay, PhonePe, Paytm, BHIM, QR). Instant credit addition.
+                  Secured by <strong>Progeni Atlas UPI</strong> (Google Pay, PhonePe, Paytm, BHIM, QR). Instant credit addition.
                 </p>
               </div>
             </div>

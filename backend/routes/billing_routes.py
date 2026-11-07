@@ -346,7 +346,7 @@ def get_billing_wallet_transactions():
 MAYANK_UPI_GATEWAY_URL = os.environ.get("UPI_GATEWAY_URL", "https://pay.progeni.live").rstrip("/")
 MAYANK_UPI_KEY = os.environ.get("UPI_GATEWAY_KEY", "live_key_mayank_upi_progeni")
 MAYANK_UPI_SECRET = os.environ.get("UPI_GATEWAY_SECRET", "sec_mayank_upi_signed_secret_2026")
-MAYANK_UPI_VPA = os.environ.get("UPI_MERCHANT_VPA", "progeniatlas@okaxis")
+MAYANK_UPI_VPA = os.environ.get("UPI_MERCHANT_VPA", "8651240027@ptsbi")
 MAYANK_UPI_PAYEE = os.environ.get("UPI_PAYEE_NAME", "Progeni Atlas")
 
 
@@ -391,7 +391,7 @@ def _complete_paid_order(db, order_rec, payment_ref, reason_title):
             "txRef": f"TXN-{payment_ref[-12:].upper() if len(payment_ref) >= 12 else payment_ref}",
             "entryType": "recharge_paid",
             "category": "IN",
-            "title": "Money Added via Mayank Singh UPI Gateway",
+            "title": "Money Added via Progeni Atlas UPI",
             "amountCredits": amount_credits,
             "amountInr": float(order_rec.get("amount_inr") or amount_credits),
             "paymentId": payment_ref,
@@ -550,7 +550,7 @@ def check_order_status():
                         status = "paid"
                         utr = gw_data.get("utr") or f"UPI-{uuid.uuid4().hex[:8].upper()}"
                         if db is not None and order_rec:
-                            _complete_paid_order(db, order_rec, utr, "Mayank Singh Gateway Auto-Check")
+                            _complete_paid_order(db, order_rec, utr, "Progeni Atlas UPI Auto-Check")
             except Exception:
                 pass
 
@@ -595,7 +595,7 @@ def submit_wallet_utr():
                     "status": "pending"
                 }
 
-            credits_added = _complete_paid_order(db, order_rec, utr, f"Mayank Singh UPI Gateway (UTR: {utr})")
+            credits_added = _complete_paid_order(db, order_rec, utr, f"UPI Payment (UTR: {utr})")
 
             return jsonify({
                 "success": True,
@@ -656,7 +656,7 @@ def verify_wallet_payment():
         if db is not None and order_id:
             order_rec = db.billing_orders.find_one({"$or": [{"order_id": order_id}, {"client_order_id": order_id}]})
             if order_rec:
-                credits_added = _complete_paid_order(db, order_rec, utr, f"UPI Payment via Mayank Singh Gateway (Ref: {utr})")
+                credits_added = _complete_paid_order(db, order_rec, utr, f"UPI Payment (Ref: {utr})")
                 return jsonify({
                     "success": True,
                     "message": f"Payment successful! {int(credits_added)} credits added to your wallet.",

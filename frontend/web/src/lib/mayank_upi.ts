@@ -78,8 +78,8 @@ export async function createMayankUpiOrder({
     targetInr;
 
   const orderId = String(rawData.order_id || rawData.id || rawData.client_order_id || `PA-ORD-${Date.now()}`);
-  const upiId = String(rawData.upi_id || process.env.NEXT_PUBLIC_MERCHANT_UPI_ID || 'progeniatlas@okaxis');
-  const payeeName = String(rawData.payee_name || 'Progeni Atlas');
+  const upiId = String(rawData.upi_id || process.env.NEXT_PUBLIC_MERCHANT_UPI_ID || '8651240027@ptsbi');
+  const payeeName = String(rawData.payee_name || process.env.NEXT_PUBLIC_MERCHANT_PAYEE_NAME || 'Progeni Atlas');
   
   const upiIntent =
     rawData.upi_intent ||
