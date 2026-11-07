@@ -161,6 +161,65 @@ def _call_openrouter(
         raise _LLMFallbackTrigger(f"Unexpected OpenRouter response format: {resp.text[:300]}") from exc
 
 
+def _call_gemini(
+    system: str, user: str, *, max_tokens: int, temperature: float
+) -> tuple[str, str]:
+    key = settings.effective_gemini_key
+    if not key:
+        raise _LLMFallbackTrigger("GEMINI_API_KEY / GEMINI_API is not configured or empty")
+
+    model = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
+    url = f"{settings.GEMINI_BASE_URL.rstrip('/')}/models/{model}:generateContent?key={key}"
+
+    payload: dict[str, Any] = {
+        "contents": [
+            {"role": "user", "parts": [{"text": user}]}
+        ],
+        "generationConfig": {
+            "temperature": temperature,
+            "maxOutputTokens": max_tokens,
+        }
+    }
+    if system and system.strip():
+        payload["system_instruction"] = {
+            "parts": [{"text": system.strip()}]
+        }
+
+    headers = {"Content-Type": "application/json"}
+
+    try:
+        with httpx.Client(timeout=35.0) as client:
+            resp = client.post(url, json=payload, headers=headers)
+    except httpx.TimeoutException as exc:
+        raise _LLMFallbackTrigger(f"Gemini request timed out: {exc}") from exc
+    except (httpx.NetworkError, httpx.ConnectError, httpx.RemoteProtocolError) as exc:
+        raise _LLMFallbackTrigger(f"Gemini network error: {exc}") from exc
+    except httpx.HTTPError as exc:
+        raise _LLMFallbackTrigger(f"Gemini HTTP error: {exc}") from exc
+
+    if resp.status_code == 429:
+        raise _LLMFallbackTrigger(f"Gemini rate limit / quota (HTTP 429): {resp.text[:300]}")
+    if resp.status_code in {401, 403}:
+        raise _LLMFallbackTrigger(f"Gemini auth failure (HTTP {resp.status_code}): {resp.text[:300]}")
+    if resp.status_code >= 500:
+        raise _LLMFallbackTrigger(f"Gemini server error (HTTP {resp.status_code}): {resp.text[:300]}")
+    if resp.status_code >= 400:
+        raise _LLMFallbackTrigger(f"Gemini HTTP {resp.status_code}: {resp.text[:300]}")
+
+    try:
+        data = resp.json()
+        candidates = data.get("candidates") or []
+        if not candidates:
+            raise _LLMFallbackTrigger(f"Gemini returned no candidates: {resp.text[:300]}")
+        parts = candidates[0].get("content", {}).get("parts", [])
+        if not parts:
+            raise _LLMFallbackTrigger("Gemini candidate has no parts")
+        content = parts[0].get("text", "")
+        return content, f"google/{model}"
+    except (ValueError, KeyError, IndexError) as exc:
+        raise _LLMFallbackTrigger(f"Failed to parse Gemini response: {resp.text[:300]}") from exc
+
+
 def _call_ollama(
     system: str, user: str, *, max_tokens: int, temperature: float
 ) -> tuple[str, str]:
@@ -177,49 +236,46 @@ def _call_ollama(
         "max_tokens": max_tokens,
         "format": "json",
     }
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(url, json=payload, headers=headers)
+        if resp.status_code != 200:
+            raise _LLMFallbackTrigger(f"Ollama returned HTTP {resp.status_code}: {resp.text[:300]}")
+        data = resp.json()
+        return data["choices"][0]["message"]["content"], f"ollama/{settings.OLLAMA_MODEL}"
+    except Exception as exc:
+        raise _LLMFallbackTrigger(f"Ollama connection error: {exc}") from exc
 
-    
+
 def _chat(
     system: str, user: str, *, max_tokens: int = 1200, temperature: float = 0.4
 ) -> tuple[str, str]:
-    """Execute LLM chat completion with automatic 3-tier fallback:
-    OpenAI (Primary) -> OpenRouter (Secondary Fallback) -> Ollama (Final containerized fallback).
+    """Execute LLM chat completion with prioritized fallback chain:
+    Google Gemini (Primary) -> OpenRouter -> OpenAI -> Ollama.
     """
-    primary = settings.LLM_PROVIDER.lower()
-
-    if primary == "openrouter":
-        try:
-            return _call_openrouter(system, user, max_tokens=max_tokens, temperature=temperature)
-        except _LLMFallbackTrigger as fb_reason:
-            logger.warning("OpenRouter failed: %s. Falling back to Ollama...", fb_reason)
-            return _call_ollama(system, user, max_tokens=max_tokens, temperature=temperature)
-
     errors: list[str] = []
 
-    # 1. Primary: OpenAI
+    # 1. Primary: Google Gemini (high speed, conversational reasoning)
+    if settings.effective_gemini_key or settings.LLM_PROVIDER.lower() in ("gemini", "google"):
+        try:
+            return _call_gemini(system, user, max_tokens=max_tokens, temperature=temperature)
+        except _LLMFallbackTrigger as gemini_err:
+            logger.warning("Primary LLM provider (Gemini) failed: %s. Falling back...", gemini_err)
+            errors.append(f"Gemini: {gemini_err}")
+
+    # 2. Secondary: OpenAI
     try:
         return _call_openai(system, user, max_tokens=max_tokens, temperature=temperature)
     except _LLMFallbackTrigger as openai_err:
-        logger.warning(
-            "Primary LLM provider (OpenAI) failed: %s. Falling back to OpenRouter (%s)...",
-            openai_err,
-            settings.OPENROUTER_MODEL,
-        )
         errors.append(f"OpenAI: {openai_err}")
 
-    # 2. Secondary: OpenRouter
+    # 3. Tertiary: OpenRouter
     try:
         return _call_openrouter(system, user, max_tokens=max_tokens, temperature=temperature)
     except _LLMFallbackTrigger as openrouter_err:
-        logger.warning(
-            "Secondary LLM provider (OpenRouter) failed: %s. Falling back to Ollama (%s at %s)...",
-            openrouter_err,
-            settings.OLLAMA_MODEL,
-            settings.effective_ollama_url,
-        )
         errors.append(f"OpenRouter: {openrouter_err}")
 
-    # 3. Final: Ollama
+    # 4. Final: Ollama
     try:
         return _call_ollama(system, user, max_tokens=max_tokens, temperature=temperature)
     except _LLMFallbackTrigger as ollama_err:
@@ -227,7 +283,8 @@ def _chat(
 
     raise LLMError(f"All LLM providers failed: {'; '.join(errors)}")
 
-def _json_from(text: str) -> dict[str, Any]:
+
+def _json_from(text: str) -> dict[str, Any] | list[Any]:
     cleaned = text.strip()
     fenced = re.search(r"```(?:json)?\s*(.+?)```", cleaned, re.DOTALL)
     if fenced:
@@ -235,15 +292,21 @@ def _json_from(text: str) -> dict[str, Any]:
     try:
         parsed = json.loads(cleaned)
     except json.JSONDecodeError:
-        start, end = cleaned.find("{"), cleaned.rfind("}")
-        if start == -1 or end == -1:
-            raise LLMError(f"LLM did not return JSON: {cleaned[:300]}")
-        try:
-            parsed = json.loads(cleaned[start : end + 1])
-        except json.JSONDecodeError as exc:
-            raise LLMError(f"LLM returned unparseable JSON: {cleaned[:300]}") from exc
-    if not isinstance(parsed, dict):
-        raise LLMError("LLM returned JSON that is not an object")
+        start_obj, end_obj = cleaned.find("{"), cleaned.rfind("}")
+        start_arr, end_arr = cleaned.find("["), cleaned.rfind("]")
+        parsed = None
+        if start_obj != -1 and end_obj != -1 and (start_arr == -1 or start_obj < start_arr):
+            try:
+                parsed = json.loads(cleaned[start_obj : end_obj + 1])
+            except json.JSONDecodeError:
+                pass
+        if parsed is None and start_arr != -1 and end_arr != -1:
+            try:
+                parsed = json.loads(cleaned[start_arr : end_arr + 1])
+            except json.JSONDecodeError:
+                pass
+        if parsed is None:
+            raise LLMError(f"LLM did not return valid JSON: {cleaned[:300]}")
     return parsed
 
 
@@ -267,6 +330,27 @@ def call_llm(prompt: str, *, system: str = "", temperature: float = 0.2) -> str:
 
 def check_provider_health() -> dict[str, Any]:
     """Check health and reachability of configured LLM providers without leaking credentials."""
+    gemini_key = settings.effective_gemini_key
+    gemini_configured = bool(gemini_key)
+    gemini_available = False
+    gemini_detail = "Not configured"
+    if gemini_configured:
+        try:
+            url = f"{settings.GEMINI_BASE_URL.rstrip('/')}/models?key={gemini_key}"
+            with httpx.Client(timeout=4.0) as client:
+                r = client.get(url)
+                if r.status_code == 200:
+                    gemini_available = True
+                    gemini_detail = f"Available with model {settings.GEMINI_MODEL}"
+                elif r.status_code == 429:
+                    gemini_detail = "Quota exhausted / Rate limited (HTTP 429)"
+                elif r.status_code in {401, 403}:
+                    gemini_detail = f"Authentication failure (HTTP {r.status_code})"
+                else:
+                    gemini_detail = f"HTTP {r.status_code}"
+        except Exception as exc:
+            gemini_detail = f"Unreachable: {str(exc)[:100]}"
+
     openai_configured = bool(settings.OPENAI_API_KEY and settings.OPENAI_API_KEY.strip())
     openai_available = False
     openai_detail = "Not configured"
@@ -327,7 +411,9 @@ def check_provider_health() -> dict[str, Any]:
         ollama_detail = f"Unreachable: {str(exc)[:100]}"
 
     active = "none"
-    if openai_available and settings.LLM_PROVIDER.lower() == "openai":
+    if gemini_available:
+        active = "gemini"
+    elif openai_available and settings.LLM_PROVIDER.lower() == "openai":
         active = "openai"
     elif openrouter_available:
         active = "openrouter"
@@ -336,6 +422,12 @@ def check_provider_health() -> dict[str, Any]:
 
     return {
         "active_provider": active,
+        "gemini": {
+            "configured": gemini_configured,
+            "available": gemini_available,
+            "model": settings.GEMINI_MODEL,
+            "detail": gemini_detail,
+        },
         "openai": {
             "configured": openai_configured,
             "available": openai_available,

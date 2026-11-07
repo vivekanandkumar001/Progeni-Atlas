@@ -195,6 +195,15 @@ def evaluate_and_store_response(
     response.red_flags = evaluation.red_flags
     response.action_decision = evaluation.action_decision
     response.recommended_follow_up = evaluation.recommended_follow_up
+    # Enhance follow-up naturalness: when missing concepts exist, provide context
+    # so the frontend can present the follow-up as a natural probe into uncovered areas,
+    # creating a conversational flow rather than rigid Q&A (per InterviewFlowAI's
+    # "conversational AI interviews that adapt based on responses")
+    if evaluation.missing_concepts and evaluation.recommended_follow_up:
+        mc_str = ", ".join(str(c) for c in evaluation.missing_concepts[:3])
+        response.follow_up_context = f"Based on your answer, I'd like to probe deeper on: {mc_str}"
+    else:
+        response.follow_up_context = None
     response.evaluated_at = datetime.now(timezone.utc)
     response.model_used = evaluation.model_used
     db.flush()
