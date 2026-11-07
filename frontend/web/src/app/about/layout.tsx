@@ -2,9 +2,18 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-  title: 'About — Progeni Atlas',
+  title: 'About',
   description:
-    'The team and mission behind Progeni Atlas, the autonomous technical interviewing and skills assessment platform.',
+    'The team and mission behind Progeni Atlas: pioneering autonomous technical interviews and objective skills evaluation intelligence.',
+  alternates: {
+    canonical: 'https://atlas.progeni.live/about',
+  },
+  openGraph: {
+    title: 'About — Progeni Atlas',
+    description:
+      'The team and mission behind Progeni Atlas: pioneering autonomous technical interviews and objective skills evaluation intelligence.',
+    url: 'https://atlas.progeni.live/about',
+  },
 };
 
 /**
