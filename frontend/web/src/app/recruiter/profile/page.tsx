@@ -158,11 +158,21 @@ export default function RecruiterProfilePage() {
         } else if (res.status === 403) {
           showToast('Access restricted. Recruiter account required.', 'error');
         } else {
-          showToast('Could not load profile from database. Please retry.', 'error');
+          setProfile((prev) => {
+            if (!prev.fullName && !prev.email) {
+              showToast('Could not load profile from database. Please retry.', 'error');
+            }
+            return prev;
+          });
         }
       } catch (err) {
         console.warn('Recruiter profile API unavailable:', err);
-        showToast('Connection to server failed. Please check backend connection.', 'error');
+        setProfile((prev) => {
+          if (!prev.fullName && !prev.email) {
+            showToast('Connection to server failed. Please check backend connection.', 'error');
+          }
+          return prev;
+        });
       } finally {
         setLoading(false);
       }
