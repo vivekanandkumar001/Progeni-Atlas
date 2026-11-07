@@ -146,7 +146,7 @@ class Settings(BaseSettings):
             raise ConfigurationError(MISSING_PEPPER_MESSAGE)
         if self.APP_ENV.lower() not in {"development", "dev", "test"}:
             if self.CORS_ORIGINS == "http://localhost:3000,http://127.0.0.1:3000":
-                logging.getLogger("talentpulse.config").warning(
+                logging.getLogger("progeni_atlas.config").warning(
                     "CORS_ORIGINS is using localhost default in non-development environment '%s'",
                     self.APP_ENV,
                 )

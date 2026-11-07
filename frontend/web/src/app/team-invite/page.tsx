@@ -58,10 +58,10 @@ export default function TeamInvitePage() {
         <AuthCard innerClassName="space-y-5">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-ink">
-              Join your TalentPulse workspace
+              Join your Progeni Atlas workspace
             </h1>
             <p className="mt-2 text-sm text-ink-muted">
-              Create your workspace password. If you already have a TalentPulse candidate account,
+              Create your workspace password. If you already have a Progeni Atlas candidate account,
               enter its current password too.
             </p>
           </div>

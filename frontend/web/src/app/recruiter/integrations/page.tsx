@@ -620,7 +620,7 @@ export default function ATSIntegrationsPage() {
                       />
                       <div className="text-xs">
                         <p className="font-semibold text-ink">Auto-Dispatch Interview when moved to Technical Stage</p>
-                        <p className="text-ink-muted text-[11px]">When candidate enters &quot;Technical Interview&quot; stage in Greenhouse, TalentPulse provisions an interview room and emails candidate instantly.</p>
+                        <p className="text-ink-muted text-[11px]">When candidate enters &quot;Technical Interview&quot; stage in Greenhouse, Progeni Atlas provisions an interview room and emails candidate instantly.</p>
                       </div>
                     </label>
 
@@ -999,7 +999,7 @@ export default function ATSIntegrationsPage() {
                 </div>
 
                 <div className="p-3 rounded-xl bg-surface-2 border border-line text-ink-muted">
-                  Lever webhooks listen to <code className="text-ink">candidate_stage_change</code> events and trigger TalentPulse automated assessments.
+                  Lever webhooks listen to <code className="text-ink">candidate_stage_change</code> events and trigger Progeni Atlas automated assessments.
                 </div>
               </div>
             </div>

@@ -465,7 +465,7 @@ export default function SuperAdminSettingsPage() {
                   <div className="flex items-center justify-between rounded-xl border border-line bg-surface-2 p-3">
                     <div>
                       <p className="font-semibold text-ink">Super Admin Bypass Allowed</p>
-                      <p className="text-[11px] text-ink-muted">talentpulseadmin@gmail.com retains access</p>
+                      <p className="text-[11px] text-ink-muted">admin@progeni.live retains access</p>
                     </div>
                     <input
                       type="checkbox"

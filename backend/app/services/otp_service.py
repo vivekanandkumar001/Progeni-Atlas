@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import OtpCode, User
 
-logger = logging.getLogger("talentpulse.otp")
+logger = logging.getLogger("progeni_atlas.otp")
 
 OTP_RE = re.compile(r"^\d{6}$")
 

@@ -116,7 +116,7 @@ export async function openRazorpayCheckout({
         amount_credits: String(amountCredits),
       },
       theme: {
-        color: '#185adb', // TalentPulse Brand Blue
+        color: '#185adb', // Progeni Atlas Brand Blue
       },
       modal: {
         ondismiss: () => {

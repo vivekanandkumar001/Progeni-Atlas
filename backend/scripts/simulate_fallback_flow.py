@@ -26,7 +26,7 @@ from app.services.llm_service import (
 )
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("talentpulse.simulation")
+logger = logging.getLogger("progeni_atlas.simulation")
 
 
 def run_simulation():

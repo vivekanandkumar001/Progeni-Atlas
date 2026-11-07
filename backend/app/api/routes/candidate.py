@@ -111,7 +111,7 @@ async def upload_avatar(
     try:
         stored = upload_bytes(
             data,
-            folder=f"talentpulse/avatars/{current.id}",
+            folder=f"progeni_atlas/avatars/{current.id}",
             filename=filename,
             mime_type=mime,
             resource_type="image",
@@ -291,7 +291,7 @@ async def upload_resume(
     try:
         stored = upload_bytes(
             data,
-            folder=f"talentpulse/resumes/{current.id}",
+            folder=f"progeni_atlas/resumes/{current.id}",
             filename=filename,
             mime_type=mime,
             resource_type="raw",
@@ -798,7 +798,7 @@ async def create_practice_interview(
         if default_org:
             org_id = default_org.id
         else:
-            default_org = Organization(name="TalentPulse Practice", slug="talentpulse-practice")
+            default_org = Organization(name="Progeni Atlas Practice", slug="progeni-atlas-practice")
             db.add(default_org)
             db.flush()
             org_id = default_org.id

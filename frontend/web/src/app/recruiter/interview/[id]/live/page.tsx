@@ -122,7 +122,7 @@ export default function RecruiterLiveMonitorPage() {
         setSessionData({
           status: stateInfo?.status || roomInfo?.status || 'in_progress',
           jobTitle: roomInfo?.jobTitle || 'Technical Role',
-          companyName: roomInfo?.companyName || 'TalentPulse Org',
+          companyName: roomInfo?.companyName || 'Progeni Atlas Org',
           candidateName: roomInfo?.candidateName || 'Candidate',
           candidateEmail: roomInfo?.candidateEmail,
           currentStage: stateInfo?.current_stage || roomInfo?.currentStage || 'Intro',

@@ -1,8 +1,8 @@
-# TalentPulse AI (Progeni Atlas)
+# Progeni Atlas
 
 > Autonomous, Enterprise-Grade Technical Screening & Live Multi-Modal Interviewing Platform.
 
-TalentPulse AI is a real-time conversational technical interview platform designed to simulate an authentic 1-on-1 interview with a Senior Technical Lead. Featuring low-latency neural speech, multi-modal proctoring, synchronized code execution, and rubric-driven candidate assessments.
+Progeni Atlas is a real-time conversational technical interview platform designed to simulate an authentic 1-on-1 interview with a Senior Technical Lead. Featuring low-latency neural speech, multi-modal proctoring, synchronized code execution, and rubric-driven candidate assessments.
 
 ---
 
@@ -11,7 +11,7 @@ TalentPulse AI is a real-time conversational technical interview platform design
 The repository is cleanly partitioned into two core microservices:
 
 ```
-talentpulse-AI/
+progeni-atlas/
 ├── frontend/             # Next.js 15 App Router Frontend & Interactive Interview Room
 │   └── web/
 │       ├── src/app/      # App Router (Candidate Lobby, Room, Report, Recruiter Dashboard)

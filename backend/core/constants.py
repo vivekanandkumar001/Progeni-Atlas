@@ -21,7 +21,7 @@ def _resolve_writable_dir(preferred_path: str, fallback_name: str) -> str:
             os.remove(test_file)
         return preferred_path
     except (OSError, PermissionError):
-        fallback_path = os.path.join(tempfile.gettempdir(), "talentpulse", fallback_name)
+        fallback_path = os.path.join(tempfile.gettempdir(), "progeni_atlas", fallback_name)
         try:
             os.makedirs(fallback_path, exist_ok=True)
         except Exception:

@@ -38,7 +38,7 @@ from app.services.evaluation_service import (
 )
 from app.services.lifecycle import lifecycle_state
 
-logger = logging.getLogger("talentpulse.scorecard_service")
+logger = logging.getLogger("progeni_atlas.scorecard_service")
 
 __all__ = ["build_scorecard"]
 

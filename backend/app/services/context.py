@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.models import CandidateResume, CandidateSkill, InterviewSession, Job, Skill, User
 from app.services.vector_service import vector_db
 
-logger = logging.getLogger("talentpulse.context")
+logger = logging.getLogger("progeni_atlas.context")
 
 # Per-session cache of the retrieval context. The resume/JD context is static for
 # the duration of one interview, so it is resolved once and reused across turns.

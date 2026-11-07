@@ -12,7 +12,7 @@ import httpx
 from app.config import settings
 from app.models import ActionDecision, InterviewStage
 
-logger = logging.getLogger("talentpulse.llm")
+logger = logging.getLogger("progeni_atlas.llm")
 
 
 class LLMError(RuntimeError):

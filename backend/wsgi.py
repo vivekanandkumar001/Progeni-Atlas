@@ -81,7 +81,7 @@ try:  # pragma: no cover - companion routes are optional at boot
 except Exception as _exc:  # pragma: no cover
     import logging as _logging
 
-    _logging.getLogger("talentpulse.wsgi").warning(
+    _logging.getLogger("progeni_atlas.wsgi").warning(
         "companion routes unavailable: %s", type(_exc).__name__
     )
 

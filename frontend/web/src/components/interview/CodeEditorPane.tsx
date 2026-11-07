@@ -162,7 +162,7 @@ export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
     setUseNativeEditor(false);
 
     // High-contrast cyber theme with crystal-clear white text and bright line numbers
-    monaco.editor.defineTheme('talentpulse-cyber', {
+    monaco.editor.defineTheme('progeni-atlas-cyber', {
       base: 'vs-dark',
       inherit: true,
       rules: [
@@ -182,7 +182,7 @@ export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
         'editor.selectionBackground': '#0891b255',
       },
     });
-    monaco.editor.setTheme('talentpulse-cyber');
+    monaco.editor.setTheme('progeni-atlas-cyber');
 
     // Anti-cheat paste audit listener
     editor.onDidPaste((e: any) => {

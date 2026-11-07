@@ -40,10 +40,10 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
         </svg>
       </div>
 
-      {/* Wordmark: clean bold text "talentpulse" strictly single line */}
+      {/* Wordmark: clean bold text "progeni atlas" strictly single line */}
       <div className={`${hideTextOnMobile ? 'hidden sm:flex' : 'flex'} items-center gap-1 sm:gap-1.5 whitespace-nowrap`}>
-        <span className="text-lg sm:text-2xl font-bold tracking-tight text-[#1b2437]  font-sans whitespace-nowrap">
-          talent<span className="text-[#185adb] ">pulse</span>
+        <span className="text-lg sm:text-2xl font-bold tracking-tight text-[#1b2437] dark:text-white font-sans whitespace-nowrap">
+          progeni<span className="text-[#185adb] dark:text-cyan-400">atlas</span>
         </span>
 
         {badge && (

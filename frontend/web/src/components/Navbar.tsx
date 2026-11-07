@@ -155,7 +155,7 @@ export const Navbar: React.FC = () => {
                   {activeDropdown === 'about' && (
                     <div className="absolute left-0 top-full -mt-1 w-72 rounded-2xl bg-white  border border-slate-200  p-3 shadow-2xl backdrop-blur-xl animate-fadeIn z-50">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
-                        About TalentPulse
+                        About Progeni Atlas
                       </p>
                       <Link
                         href="/about#mission"

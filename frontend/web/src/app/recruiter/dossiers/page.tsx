@@ -215,7 +215,7 @@ export default function CandidateDossiersPage() {
 
  // Webhook Sync Hub State
  const [webhookModalOpen, setWebhookModalOpen] = useState(false);
- const [webhookUrl, setWebhookUrl] = useState('https://hooks.slack.com/services/T08ENT/B09REC/x918TalentPulseDossiers');
+ const [webhookUrl, setWebhookUrl] = useState('https://hooks.slack.com/services/T08ENT/B09REC/x918ProgeniAtlasDossiers');
  const [webhookSecret, setWebhookSecret] = useState('tp_whsec_79a2f1b8c049e3••••••••');
  const [autoSyncComplete, setAutoSyncComplete] = useState(true);
  const [autoSyncDecision, setAutoSyncDecision] = useState(true);
@@ -387,7 +387,7 @@ export default function CandidateDossiersPage() {
  const a = document.createElement('a');
  a.href = downloadUrl;
  const dateStr = new Date().toISOString().split('T')[0];
- a.download =`talentpulse_candidates_${dateStr}.${format}`;
+ a.download =`progeni_atlas_candidates_${dateStr}.${format}`;
  document.body.appendChild(a);
  a.click();
  a.remove();
@@ -1446,7 +1446,7 @@ export default function CandidateDossiersPage() {
               <div className="space-y-1">
                 <label className="font-bold text-ink flex items-center justify-between">
                   <span>Webhook Secret Key (HMAC Verification)</span>
-                  <span className="text-[10px] text-accent-cyan">Header: X-TalentPulse-Signature</span>
+                  <span className="text-[10px] text-accent-cyan">Header: X-Progeni-Atlas-Signature</span>
                 </label>
                 <input
                   type="text"
