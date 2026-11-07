@@ -31,6 +31,11 @@ const PUBLIC_PREFIXES = [
   '/career',
   '/careers',
   '/contact',
+  '/sitemap',
+  '/sitemap.xml',
+  '/robots.txt',
+  '/llms.txt',
+  '/llms-full.txt',
 ] as const;
 
 // Exact-match public paths (the marketing landing page).
