@@ -42,11 +42,30 @@ def get_billing_wallet():
         name = (user and (user.get("full_name") or user.get("name"))) or "User"
         role = (user and user.get("role", "candidate")).upper()
         acc_type = "RECRUITER" if role in ("RECRUITER", "EMPLOYER", "ADMIN") else "CANDIDATE"
-        default_credits = 100.0 if acc_type == "RECRUITER" else 40.0
         
         db = get_mongo_db()
         wallet_doc = None
+        demo_quota = {
+            "totalAllowed": 0,
+            "completed": 0,
+            "remaining": 0,
+            "maxDurationSeconds": 600
+        }
         if db is not None:
+            da = db.demo_allowances.find_one({
+                "$or": [{"user_id": user_id}, {"org_id": user.get("org_id") if user else None}]
+            })
+            if da:
+                total_a = int(da.get("free_demos_total") or 2)
+                used_a = int(da.get("free_demos_used") or 0)
+                rem_a = int(da.get("free_demos_remaining") if da.get("free_demos_remaining") is not None else max(0, total_a - used_a))
+                demo_quota = {
+                    "totalAllowed": total_a,
+                    "completed": used_a,
+                    "remaining": rem_a,
+                    "maxDurationSeconds": int(da.get("demo_duration_limit_seconds") or 600)
+                }
+
             wallet_doc = db.wallets.find_one({"userId": user_id})
             if not wallet_doc:
                 now_str = datetime.now(timezone.utc).isoformat()
@@ -59,41 +78,21 @@ def get_billing_wallet():
                     "currency": "INR",
                     "ratePerMinuteCredits": 2.0,
                     "baseFeeCredits": 0.0,
-                    "availableCredits": default_credits,
+                    "availableCredits": 0.0,
                     "paidCredits": 0.0,
-                    "promotionalCredits": default_credits,
+                    "promotionalCredits": 0.0,
                     "consumedCredits": 0.0,
                     "reservedCredits": 0.0,
                     "lowBalanceThresholdCredits": 10.0,
-                    "isLowBalance": False,
+                    "isLowBalance": True,
                     "chargingEnabled": True,
-                    "demoQuota": {
-                        "totalAllowed": 2,
-                        "completed": 0,
-                        "remaining": 2,
-                        "maxDurationSeconds": 1800
-                    },
+                    "demoQuota": demo_quota,
                     "created_at": now_str,
                     "updated_at": now_str
                 }
                 db.wallets.insert_one(wallet_doc)
-                
-                # Insert initial welcome promotional transaction
-                db.wallet_transactions.insert_one({
-                    "id": f"tx-welcome-{user_id[:8]}",
-                    "userId": user_id,
-                    "txRef": f"TXN-WELCOME-{int(default_credits)}",
-                    "entryType": "recharge_promotional",
-                    "category": "IN",
-                    "title": f"Welcome {acc_type.title()} Bonus",
-                    "amountCredits": default_credits,
-                    "amountInr": default_credits,
-                    "amountNanoUsd": int(default_credits * 10_000_000),
-                    "reason": f"Welcome {acc_type.title()} Bonus ({int(default_credits)} Credits)",
-                    "serviceType": "PROMOTIONAL",
-                    "status": "COMPLETED",
-                    "createdAt": now_str
-                })
+            else:
+                wallet_doc["demoQuota"] = demo_quota
 
         if wallet_doc:
             # GUARANTEE: Balance is NEVER negative (min 0.0)
@@ -108,26 +107,21 @@ def get_billing_wallet():
             "wallet": {
                 "id": "wallet-" + (user_id[:8] if user_id else "cand"),
                 "accountName": f"{name}'s Primary Wallet",
-                "accountType": "CANDIDATE",
+                "accountType": acc_type,
                 "orgId": None,
                 "userId": user_id,
                 "currency": "INR",
                 "ratePerMinuteCredits": 2.0,
                 "baseFeeCredits": 0.0,
-                "availableCredits": 40.0,
+                "availableCredits": 0.0,
                 "paidCredits": 0.0,
-                "promotionalCredits": 40.0,
+                "promotionalCredits": 0.0,
                 "consumedCredits": 0.0,
                 "reservedCredits": 0.0,
                 "lowBalanceThresholdCredits": 10.0,
-                "isLowBalance": False,
+                "isLowBalance": True,
                 "chargingEnabled": True,
-                "demoQuota": {
-                    "totalAllowed": 2,
-                    "completed": 0,
-                    "remaining": 2,
-                    "maxDurationSeconds": 1800
-                }
+                "demoQuota": demo_quota
             }
         }), 200
     except Exception as e:
@@ -145,28 +139,7 @@ def get_billing_wallet_transactions():
 
         db = get_mongo_db()
         if db is not None:
-            # 1. Ensure welcome promotional credit exists
-            welcome_tx = db.wallet_transactions.find_one({
-                "$or": [{"userId": user_id}, {"candidate_id": user_id}],
-                "entryType": {"$in": ["recharge_promotional", "welcome_promotional"]}
-            })
-            if not welcome_tx:
-                welcome_time = (user and user.get("created_at")) or "2026-10-27T07:00:00.000000+00:00"
-                db.wallet_transactions.insert_one({
-                    "id": f"tx-welcome-{user_id[:8]}",
-                    "userId": user_id,
-                    "txRef": "TXN-WELCOME-40",
-                    "entryType": "recharge_promotional",
-                    "category": "IN",
-                    "title": "Welcome Signup Bonus",
-                    "reason": "Welcome Signup Bonus (40 Credits = 20 mins practice)",
-                    "amountCredits": 40.0,
-                    "amountInr": 40.0,
-                    "status": "COMPLETED",
-                    "createdAt": welcome_time
-                })
-
-            # 2. Check for completed interview sessions that require ledger entries
+            # 1. Check for completed interview sessions that require ledger entries
             filter_q = {"status": {"$in": ["completed", "COMPLETED"]}}
             or_conds = []
             if user_id:
@@ -310,29 +283,15 @@ def get_billing_wallet_transactions():
                 }
             }), 200
 
-        # Fallback if DB is unavailable
+        # Fallback if DB is unavailable or empty
         return jsonify({
             "success": True,
-            "transactions": [
-                {
-                    "id": "tx-welcome-credit",
-                    "txRef": "TXN-WELCOME-40",
-                    "entryType": "recharge_promotional",
-                    "category": "IN",
-                    "title": "Welcome Signup Bonus",
-                    "amountCredits": 40.0,
-                    "amountInr": 40.0,
-                    "balanceAfter": 40.0,
-                    "reason": "Welcome Signup Bonus (40 Credits = 20 mins)",
-                    "status": "COMPLETED",
-                    "createdAt": datetime.now(timezone.utc).isoformat()
-                }
-            ],
+            "transactions": [],
             "summary": {
-                "availableCredits": 40.0,
-                "totalCredited": 40.0,
+                "availableCredits": 0.0,
+                "totalCredited": 0.0,
                 "totalDebited": 0.0,
-                "count": 1
+                "count": 0
             }
         }), 200
     except Exception as e:

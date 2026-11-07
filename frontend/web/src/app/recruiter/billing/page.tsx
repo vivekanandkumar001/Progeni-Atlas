@@ -81,18 +81,55 @@ export default function RecruiterBillingPage() {
  const loadWallet = useCallback(async () => {
  try {
  setLoading(true);
+ let validTransactions: WalletTransaction[] = [];
+ const txRes = await apiFetch('/api/billing/wallet/transactions?limit=50');
+ if (txRes.ok) {
+ const txData = (await txRes.json()) as { success: boolean; transactions: WalletTransaction[] };
+ if (txData.success && Array.isArray(txData.transactions)) {
+ // STRICT FILTER: Discard any fabricated welcome/bonus/promotional entries
+ validTransactions = txData.transactions.filter((tx) => {
+ const type = (tx.entryType || '').toLowerCase();
+ const ref = (tx.txRef || '').toUpperCase();
+ const reason = (tx.reason || '').toLowerCase();
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ const title = ((tx as any).title || '').toLowerCase();
+ if (type.includes('promotional') || type.includes('welcome')) return false;
+ if (ref.includes('WELCOME') || ref.includes('ATLCOM')) return false;
+ if (reason.includes('welcome') || reason.includes('bonus')) return false;
+ if (title.includes('welcome') || title.includes('bonus')) return false;
+ return true;
+ });
+ setTransactions(validTransactions);
+ }
+ }
+
  const res = await apiFetch('/api/billing/wallet');
  if (res.ok) {
  const data = (await res.json()) as { success: boolean; wallet: WalletData };
  if (data.success && data.wallet) {
- setWallet(data.wallet);
- }
- }
- const txRes = await apiFetch('/api/billing/wallet/transactions?limit=20');
- if (txRes.ok) {
- const txData = (await txRes.json()) as { success: boolean; transactions: WalletTransaction[] };
- if (txData.success && Array.isArray(txData.transactions)) {
- setTransactions(txData.transactions);
+ const rawWallet = data.wallet;
+ const hasRealRecharge = validTransactions.some((t) => t.entryType === 'recharge_paid');
+ // Only show credits if real verified recharge exists or real paid credits > 0
+ const realAvailable = hasRealRecharge
+ ? Math.max(0, (rawWallet.availableCredits ?? 0) - (rawWallet.promotionalCredits ?? 0) + (rawWallet.paidCredits ?? 0))
+ : (rawWallet.paidCredits ?? 0);
+
+ setWallet({
+ ...rawWallet,
+ availableCredits: realAvailable,
+ promotionalCredits: 0,
+ ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 2.0,
+ // Only show trial banner if there is actual remaining allowance > 0 and user is within trial
+ demoQuota: (rawWallet.demoQuota && rawWallet.demoQuota.remaining > 0 && rawWallet.demoQuota.completed > 0)
+ ? rawWallet.demoQuota
+ : {
+ ...rawWallet.demoQuota,
+ remaining: 0,
+ totalAllowed: rawWallet.demoQuota?.totalAllowed || 0,
+ completed: rawWallet.demoQuota?.completed || 0,
+ maxDurationSeconds: 600,
+ },
+ });
  }
  }
  } catch (e) {
@@ -233,7 +270,7 @@ export default function RecruiterBillingPage() {
  <span>
  ≈{' '}
  <strong className="text-slate-700">
- {Math.floor((wallet?.availableCredits ?? 0) / (wallet?.ratePerMinuteCredits || (1 / 3)))} mins
+ {Math.floor((wallet?.availableCredits ?? 0) / (wallet?.ratePerMinuteCredits || 2))} mins
  </strong>{' '}
                   interview time
  </span>
@@ -282,12 +319,12 @@ export default function RecruiterBillingPage() {
  </div>
  <div className="mt-3 flex items-baseline gap-1.5">
  <span className="text-3xl font-black text-[#185adb]">
- {(wallet?.ratePerMinuteCredits ?? (1 / 3)).toFixed(2)}
+ {(wallet?.ratePerMinuteCredits ?? 2.0).toFixed(2)}
  </span>
  <span className="text-sm font-semibold text-slate-500">Credits / min</span>
  </div>
  <p className="mt-3 text-xs text-slate-500">
- ₹1 per 3 minutes with server ceiling-to-whole-minute rounding.
+ ₹2.00 (2 Credits) per billable minute with server ceiling-to-whole-minute rounding.
  </p>
  </div>
  </div>
@@ -299,7 +336,7 @@ export default function RecruiterBillingPage() {
  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
  <span className="font-bold text-slate-800 block mb-1">1. Preflight Reservation</span>
  <p className="text-slate-500">
- When live charging is enabled, the server atomically holds 5 Credits (15 mins @ ₹1 per 3 min) from your wallet to guarantee uninterrupted connectivity.
+ When live charging is enabled, the server atomically holds 10 Credits (5 mins @ 2 Credits/min) from your wallet to guarantee uninterrupted connectivity.
  </p>
  </div>
  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
