@@ -16,114 +16,124 @@ export const Footer: React.FC = () => {
           <div className="lg:col-span-2 space-y-4">
             <BrandLogo href="/" />
             <p className="text-sm leading-relaxed text-ink-muted max-w-sm">
-              Progeni Atlas is the AI mock interview platform for candidates and students to practice speaking out loud, solve live coding problems, and build confidence before real placement and tech interviews.
+              Progeni Atlas is the enterprise platform for autonomous, two-way technical video interviews. Adaptive AI interviewers evaluate real candidate competency from resume context to live code execution.
             </p>
 
             <div className="pt-2 flex flex-wrap gap-2 text-xs">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-accent-emerald font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live Interview AI Online
+                All Systems Operational
               </span>
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-blue-500/20 bg-blue-500/5 text-accent-cyan font-medium">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                100% Private &amp; Secure
+                SOC-2 &amp; GDPR Compliant
               </span>
             </div>
           </div>
 
-          {/* Navigation Links: Practice Rounds */}
+          {/* Navigation Links: Platform & Services */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#072448] mb-4">
-              Practice Rounds
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#072448]  mb-4">
+              Platform &amp; Services
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link href="/candidate/practice" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  Live DSA &amp; Coding Round
+                <Link href="/services" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  AI Video Interviewer
                 </Link>
               </li>
               <li>
-                <Link href="/candidate/practice" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  Resume &amp; Project Defense
+                <Link href="/services#coding" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  Live Coding Sandbox
                 </Link>
               </li>
               <li>
-                <Link href="/candidate/practice" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  System Design &amp; Scaling
+                <Link href="/services#proctoring" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  AI Proctoring Intelligence
                 </Link>
               </li>
               <li>
-                <Link href="/candidate/practice" className="text-ink-muted hover:text-[#185adb] transition-colors flex items-center gap-1">
-                  Behavioral &amp; HR Round
+                <Link href="/services#dossiers" className="text-ink-muted hover:text-[#185adb]  transition-colors flex items-center gap-1">
+                  Candidate Dossiers
+                  <ArrowUpRight className="w-3 h-3 opacity-60" />
+                </Link>
+              </li>
+              <li>
+                <Link href="/services#rubrics" className="text-ink-muted hover:text-[#185adb]  transition-colors flex items-center gap-1">
+                  Custom Rubrics
                   <ArrowUpRight className="w-3 h-3 opacity-60" />
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Navigation Links: Company Prep & Pricing */}
+          {/* Navigation Links: Showcase & Pricing */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#072448] mb-4">
-              Packs &amp; Company Tracks
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#072448]  mb-4">
+              Explore &amp; Plans
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link href="/pricing" className="text-ink-muted hover:text-[#185adb] transition-colors font-semibold text-emerald-600">
-                  Practice Packs (from ₹49)
+                <Link href="/portfolio" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  Platform Showcase
                 </Link>
               </li>
               <li>
-                <Link href="/candidate/practice" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  FAANG &amp; Product Companies
+                <Link href="/pricing" className="text-ink-muted hover:text-[#185adb]  transition-colors font-medium">
+                  Pay Us Now (Pricing)
                 </Link>
               </li>
               <li>
-                <Link href="/candidate/practice" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  Campus Placement Drives
+                <Link href="/candidate/practice" prefetch={false} className="text-ink-muted hover:text-[#185adb]  transition-colors flex items-center gap-1">
+                  Practice Drill Lab
+                  <ArrowUpRight className="w-3 h-3 opacity-60" />
                 </Link>
               </li>
               <li>
-                <Link href="/#how-it-works" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  How A Round Works
+                <Link href="/portfolio#case-studies" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  Client Case Studies
                 </Link>
               </li>
               <li>
-                <Link href="/#faq" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  Candidate FAQs
+                <Link href="/#faq" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  Frequently Asked Questions
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Navigation Links: Candidate Portal */}
+          {/* Navigation Links: Company */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#072448] mb-4">
-              Candidate Portal
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#072448]  mb-4">
+              Company
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link href="/candidate/dashboard" className="text-ink-muted hover:text-[#185adb] transition-colors font-medium">
-                  My Dashboard
+                <Link href="/about" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  About Us
                 </Link>
               </li>
               <li>
-                <Link href="/candidate/practice" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  Start New Mock Call
+                <Link href="/career" className="text-ink-muted hover:text-[#185adb]  transition-colors flex items-center gap-1.5 font-medium">
+                  Career
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600  font-bold border border-emerald-500/20">
+                    We&apos;re Hiring
+                  </span>
                 </Link>
               </li>
               <li>
-                <Link href="/candidate/skills" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  Skills &amp; Performance
+                <Link href="/contact" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  Contact Us
                 </Link>
               </li>
               <li>
-                <Link href="/candidate/wallet" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  Credits &amp; Wallet
+                <Link href="/login" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  Candidate Login
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-ink-muted hover:text-[#185adb] transition-colors">
-                  Help &amp; Support
+                <Link href="/register" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  Sign Up Free
                 </Link>
               </li>
             </ul>
@@ -132,25 +142,15 @@ export const Footer: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Sub-Footer Bar */}
-      <div className="border-t border-line/60 bg-surface">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-ink-muted">
-          <div className="flex items-center gap-2">
-            <span>© 2026 Progeni Atlas. All rights reserved.</span>
-            <span className="text-slate-300">·</span>
-            <span>Made for candidates &amp; engineers</span>
-          </div>
-
+      {/* Lower Copyright & Legal Strip */}
+      <div className="border-t border-line bg-surface/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-ink-faint">
+          <p>© {new Date().getFullYear()} Progeni Atlas Technologies Inc. All rights reserved.</p>
           <div className="flex items-center gap-6">
-            <Link href="/#how-it-works" className="hover:text-accent-cyan transition-colors">
-              How It Works
-            </Link>
-            <Link href="/pricing" className="hover:text-accent-cyan transition-colors">
-              Pricing
-            </Link>
-            <Link href="/contact" className="hover:text-accent-cyan transition-colors">
-              Contact Support
-            </Link>
+            <Link href="/about#integrity" className="hover:text-ink transition-colors">Anti-Bias Ethics</Link>
+            <Link href="/contact" className="hover:text-ink transition-colors">Privacy Policy</Link>
+            <Link href="/contact" className="hover:text-ink transition-colors">Terms of Service</Link>
+            <Link href="/contact" className="hover:text-ink transition-colors">Security Audit</Link>
           </div>
         </div>
       </div>
