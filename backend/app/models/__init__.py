@@ -180,7 +180,7 @@ class Organization(Base):
     company_size: Mapped[str | None] = mapped_column(String(60))
     headquarters_city: Mapped[str | None] = mapped_column(String(120))
     bio: Mapped[str | None] = mapped_column(Text)
-    billing_email: Mapped[str | None] = mapped_column(String(255))
+    billing_email: Mapped[str | None] = mapped_column(String(255), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     users: Mapped[list["User"]] = relationship(back_populates="organization")
