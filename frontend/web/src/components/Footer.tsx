@@ -26,7 +26,7 @@ export const Footer: React.FC = () => {
               </span>
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-blue-500/20 bg-blue-500/5 text-accent-cyan font-medium">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                SOC-2 &amp; GDPR Compliant
+                SSL Encrypted Sessions
               </span>
             </div>
           </div>
@@ -90,8 +90,8 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/portfolio#case-studies" className="text-ink-muted hover:text-[#185adb]  transition-colors">
-                  Client Case Studies
+                <Link href="/portfolio#tracks" className="text-ink-muted hover:text-[#185adb]  transition-colors">
+                  Engineering Tracks
                 </Link>
               </li>
               <li>

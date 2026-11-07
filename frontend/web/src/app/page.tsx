@@ -293,9 +293,9 @@ export default function Home() {
                     <Check className="h-5 w-5 stroke-[2.5]" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-accent-cyan">Verified Technical Rigor</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-accent-cyan">Autonomous Technical Interviews</p>
                     <p className="text-xs font-semibold text-ink">
-                      <strong className="font-extrabold text-sm text-cyan-500">10,000+</strong> technical screenings completed
+                      <strong className="font-extrabold text-sm text-cyan-500">Real-Time</strong> Voice, Live Code &amp; Proctoring
                     </p>
                   </div>
                 </div>
@@ -387,8 +387,8 @@ export default function Home() {
 
                     <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between">
                       <div className="flex items-center gap-2 rounded-lg bg-slate-950/85 px-2.5 py-1 backdrop-blur-md border border-slate-800">
-                        <span className="text-[11px] font-bold text-white">Arpita S.</span>
-                        <span className="text-[9px] font-mono text-slate-400">(Candidate)</span>
+                        <span className="text-[11px] font-bold text-white">Candidate</span>
+                        <span className="text-[9px] font-mono text-slate-400">(Live Stream)</span>
                       </div>
 
                       <div className="flex items-center gap-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-300 font-medium">
@@ -461,9 +461,9 @@ export default function Home() {
                 <div className="mt-3 flex items-center justify-between rounded-lg border border-emerald-500/25 bg-emerald-950/30 px-3 py-2 text-[11px] text-emerald-300">
                   <span className="inline-flex items-center gap-1.5 font-semibold">
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                    Runtime: 14ms (Beats 98.4%) · Memory: 28.2MB
+                    Execution: 14ms · Memory: 28.2MB
                   </span>
-                  <span className="font-mono font-bold text-emerald-400">12/12 Tests Passed</span>
+                  <span className="font-mono font-bold text-emerald-400">12/12 Automated Tests Passed</span>
                 </div>
               </div>
             </div>
@@ -674,24 +674,24 @@ export default function Home() {
           <div className="mt-10 rounded-2xl border border-line bg-surface p-6 sm:p-8 shadow-xl">
             <div className="flex flex-col justify-between gap-4 border-b border-line pb-6 sm:flex-row sm:items-center">
               <div>
-                <p className="font-mono text-xs text-accent-cyan font-bold">VERIFIED DOSSIER PREVIEW</p>
+                <p className="font-mono text-xs text-accent-cyan font-bold">RUBRIC REPORT TEMPLATE (SAMPLE)</p>
                 <h3 className="mt-1 text-xl font-black text-ink">Evidence-Linked Competency Breakdown</h3>
-                <p className="text-xs text-ink-muted">Evaluated across algorithmic correctness, systems architecture, and proctoring integrity.</p>
+                <p className="text-xs text-ink-muted">Sample evaluation format generated after each completed technical interview session.</p>
               </div>
               <div className="rounded-xl border border-cyan-400/30 bg-cyan-500/5 px-4 py-2.5">
-                <span className="text-sm font-black text-accent-cyan">Instant AI Generation</span>
+                <span className="text-sm font-black text-accent-cyan">Instant Feedback Format</span>
               </div>
             </div>
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
               <div className="rounded-xl border border-line bg-inset p-5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-accent-cyan">Verified Response Evidence</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-accent-cyan">Sample Candidate Feedback Extract</p>
                 <p className="mt-3 text-sm italic leading-6 text-ink">
                   &quot;Candidate articulated the difference between pessimistic and optimistic locking with distributed Redis leases; clearly accounted for clock skew via Redlock algorithm.&quot;
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-accent-emerald">
-                  <span className="rounded-full border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-1">✓ Complete Audio Transcript</span>
-                  <span className="rounded-full border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-1">✓ Server-Verified Scoring</span>
+                  <span className="rounded-full border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-1">✓ Full Audio Turn Transcript</span>
+                  <span className="rounded-full border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-1">✓ Objective Rubric Grading</span>
                 </div>
               </div>
 

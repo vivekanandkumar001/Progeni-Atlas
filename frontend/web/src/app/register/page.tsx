@@ -391,7 +391,7 @@ const TRUST_BADGES = [
     icon: ShieldCheck,
     color: 'text-accent-cyan',
     title: 'Safe & Encrypted Video Sessions',
-    desc: 'Bank-grade encryption ensures your video recordings and data remain private.',
+    desc: 'SSL / TLS encryption ensures your video recordings and data remain private.',
   },
   {
     icon: Zap,
