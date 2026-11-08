@@ -59,7 +59,7 @@ async function proxyRequest(request: NextRequest, { params }: { params: Promise<
         init.body = bodyBuffer;
         try {
           rawBody = new TextDecoder().decode(bodyBuffer);
-        } catch {}
+        } catch { }
       }
     }
 
@@ -74,7 +74,7 @@ async function proxyRequest(request: NextRequest, { params }: { params: Promise<
         if (pwd === 'ProgeniAtlas@1234' || pwd === 'Admin@123456' || pwd === 'Admin@1234' || pwd === 'Kumar@1234') {
           isAllowed = true;
         }
-      } catch {}
+      } catch { }
 
       if (isAllowed) {
         const token = generateProgeniAdminToken();

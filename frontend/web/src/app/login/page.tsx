@@ -121,20 +121,32 @@ export default function LoginPage() {
       window.history.replaceState(null, '', cleanUrl);
     }
 
-    // Check URL params for redirect
+    // Check URL params for redirect and errors
     const nextParam =
       urlParams.get('next') ||
       urlParams.get('redirect') ||
       urlParams.get('returnUrl') ||
       urlParams.get('return_url');
+    const errorParam = urlParams.get('error');
+
+    if (errorParam === 'unauthorized_admin') {
+      setLoginErrorMsg('Access restricted: You do not have super admin permissions to view this section.');
+    } else if (errorParam === 'session_expired') {
+      setLoginErrorMsg('Your session has expired. Please sign in again.');
+    } else if (errorParam) {
+      setLoginErrorMsg(errorParam.replace(/_/g, ' '));
+    }
+
     if (nextParam || urlParams.has('logout')) {
       clearSession();
       if (nextParam) {
         setNextPath(nextParam);
-        if (nextParam.includes('/candidate/interview/')) {
-          setRedirectNotice('Please sign in to access your interview session.');
-        } else {
-          setRedirectNotice('Please sign in to continue.');
+        if (!errorParam) {
+          if (nextParam.includes('/candidate/interview/')) {
+            setRedirectNotice('Please sign in to access your interview session.');
+          } else {
+            setRedirectNotice('Please sign in to continue.');
+          }
         }
       }
     } else {

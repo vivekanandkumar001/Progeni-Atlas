@@ -118,14 +118,14 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
           return;
         }
         setAuthorized(false);
-        let destination = '/login';
+        let destination = '/login?error=unauthorized_admin';
         if (role === 'recruiter') destination = '/recruiter/dashboard';
         else if (role === 'candidate') destination = '/candidate/dashboard';
         router.replace(destination);
       } catch {
         if (!cancelled) {
           setAuthorized(false);
-          router.replace('/login');
+          router.replace('/login?error=session_expired');
         }
       }
     })();

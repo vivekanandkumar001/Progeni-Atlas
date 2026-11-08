@@ -583,6 +583,9 @@ def upi_webhook():
             expected_sig = hmac.new(MAYANK_UPI_SECRET.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
             if not hmac.compare_digest(expected_sig, signature):
                 print(f"[UPI Webhook Warning]: Invalid signature. Received: {signature}")
+                return jsonify({"success": False, "error": "Invalid webhook signature"}), 401
+        elif MAYANK_UPI_SECRET and not signature:
+            return jsonify({"success": False, "error": "Missing signature header"}), 401
 
         payload = request.get_json(silent=True) or {}
         order_data = payload.get("data", {})

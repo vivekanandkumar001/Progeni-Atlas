@@ -297,12 +297,12 @@ def update_candidate_profile():
             elif email:
                 user_filter = {"email": email}
             else:
-                user_filter = {"role": "candidate"}
+                return jsonify({"success": False, "error": "Authentication required to update profile."}), 401
 
             db.users.update_one(
                 user_filter,
                 {"$set": update_fields},
-                upsert=True
+                upsert=False
             )
 
             updated_user = db.users.find_one(user_filter)
@@ -570,7 +570,9 @@ def candidate_resume_endpoint():
         saved_path = None
         if 'file' in request.files:
             file = request.files['file']
-            file_name = file.filename or "resume.pdf"
+            from werkzeug.utils import secure_filename
+            raw_name = file.filename or "resume.pdf"
+            file_name = secure_filename(raw_name) or f"resume_{int(time.time())}.pdf"
             resumes_dir = os.path.join(UPLOAD_DIR, "resumes")
             os.makedirs(resumes_dir, exist_ok=True)
             saved_path = os.path.join(resumes_dir, f"{int(time.time())}_{file_name}")

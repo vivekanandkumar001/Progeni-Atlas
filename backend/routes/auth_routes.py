@@ -57,7 +57,10 @@ def register():
         email = data.get("email", "").strip().lower()
         password = data.get("password", "")
         full_name = data.get("fullName", "").strip()
-        role = data.get("role", "candidate").strip().lower()
+        requested_role = data.get("role", "candidate").strip().lower()
+        # Security Guard: Only candidate and recruiter roles can be publicly registered.
+        # Administrative roles (admin, super_admin) must be granted by platform administrators.
+        role = requested_role if requested_role in ("candidate", "recruiter") else "candidate"
         phone = data.get("phone", "").strip()
 
         if not email or not password or not full_name:

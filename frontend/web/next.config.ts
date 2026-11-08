@@ -55,11 +55,11 @@ const nextConfig: NextConfig = {
           },
           ...(isProd
             ? [
-                {
-                  key: 'Strict-Transport-Security',
-                  value: 'max-age=15552000; includeSubDomains',
-                },
-              ]
+              {
+                key: 'Strict-Transport-Security',
+                value: 'max-age=15552000; includeSubDomains',
+              },
+            ]
             : []),
           {
             key: 'Content-Security-Policy',

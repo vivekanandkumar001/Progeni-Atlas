@@ -113,7 +113,6 @@ def init_mongo_db():
                         "role": "super_admin",
                         "status": "active",
                         "is_email_verified": True,
-                        "password_hash": pwd_hash,
                         "updated_at": now_utc,
                     }}
                 )

@@ -215,10 +215,11 @@ export async function proxy(request: NextRequest) {
     return redirectToLogin(request, isExpired);
   }
 
+  const defaultAdminEmails = ['admin@progeni.live'];
   const allowedAdminEmailsStr = process.env.SUPER_ADMIN_EMAILS || process.env.PRIMARY_SUPER_ADMIN_EMAIL;
   const allowedAdminEmails = allowedAdminEmailsStr
-    ? allowedAdminEmailsStr.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
-    : null;
+    ? Array.from(new Set([...defaultAdminEmails, ...allowedAdminEmailsStr.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)]))
+    : defaultAdminEmails;
   const role = effectiveRole;
   const email = String(payload?.email || '').toLowerCase().trim();
 
@@ -246,7 +247,14 @@ export async function proxy(request: NextRequest) {
           return redirectRes;
         }
       }
-      return redirectToLogin(request, false);
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('next', request.nextUrl.pathname + request.nextUrl.search);
+      loginUrl.searchParams.set('error', 'unauthorized_admin');
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.delete('tp_session');
+      response.cookies.delete('tp_role');
+      response.cookies.delete('tp_refresh');
+      return response;
     }
   }
 

@@ -1138,6 +1138,7 @@ def interview_answer_route(session_id):
         candidate_answer = (data.get("answer") or data.get("partial_answer") or "").strip()
         candidate_code = (data.get("code") or "").strip()
         code_language = (data.get("code_language") or "python").strip()
+        telemetry = data.get("telemetry") or {}
         if not candidate_answer:
             candidate_answer = "No response provided within the allotted question time limit."
 
@@ -1313,6 +1314,7 @@ def interview_answer_route(session_id):
             "action_decision": assessment.decision,
             "intent": assessment.intent,
             "scores": scores,
+            "telemetry": telemetry if telemetry else None,
         }
         if is_follow_up:
             turn_history_item["is_follow_up"] = True
@@ -2335,6 +2337,39 @@ def run_interview_code(session_id):
         start_time = time.perf_counter()
 
         if language in ("python", "py", "python3"):
+            # Static AST Security Guard: Prevent destructive system calls & network sockets in sandbox
+            try:
+                import ast
+                parsed_ast = ast.parse(code)
+                for node in ast.walk(parsed_ast):
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            base_mod = alias.name.split('.')[0]
+                            if base_mod in ("os", "subprocess", "socket", "pty", "shutil", "winreg"):
+                                return jsonify({
+                                    "success": False,
+                                    "stdout": "",
+                                    "stderr": f"Security restriction: Direct access to module '{alias.name}' is restricted in the interview sandbox.",
+                                    "executionTimeMs": 0,
+                                    "passedCount": 0,
+                                    "totalCount": 1,
+                                    "status": "Security Restriction"
+                                }), 200
+                    elif isinstance(node, ast.ImportFrom):
+                        base_mod = (node.module or "").split('.')[0]
+                        if base_mod in ("os", "subprocess", "socket", "pty", "shutil", "winreg"):
+                            return jsonify({
+                                "success": False,
+                                "stdout": "",
+                                "stderr": f"Security restriction: Direct access to module '{node.module}' is restricted in the interview sandbox.",
+                                "executionTimeMs": 0,
+                                "passedCount": 0,
+                                "totalCount": 1,
+                                "status": "Security Restriction"
+                            }), 200
+            except SyntaxError:
+                pass  # Let the python runner emit natural syntax error diagnostics
+
             test_harness = (problem.get("testHarness") or {}).get("python", "")
             exec_code = code
             if test_harness and test_harness not in code:

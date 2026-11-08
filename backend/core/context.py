@@ -5,6 +5,7 @@ Dynamically resolves candidate or recruiter user, active resume, and skill profi
 from request token/cookie/headers/MongoDB.
 """
 
+import os
 from flask import request
 from core.db import get_mongo_db
 from core.security import _authenticate_request, resolve_user
@@ -66,8 +67,9 @@ def get_current_candidate(req=None):
         if not user and cid:
             user = resolve_user(cid)
 
-    # 5. Smart fallback: if single-candidate/development environment
-    if not user and db is not None:
+    # 5. Smart fallback: only in local development/single-candidate testing environments
+    is_prod = os.environ.get("APP_ENV", "development").strip().lower() in ("production", "prod")
+    if not user and db is not None and not is_prod:
         try:
             latest_resume = db.candidate_resumes.find_one({}, sort=[("uploaded_at", -1)])
             if latest_resume:
