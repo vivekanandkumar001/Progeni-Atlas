@@ -31,6 +31,7 @@ import {
   VideoOff,
   Award,
   ShieldAlert,
+  Code2,
 } from 'lucide-react';
 
 export default function RecruiterRecordingViewPage() {
@@ -711,6 +712,24 @@ export default function RecruiterRecordingViewPage() {
                               </span>
                             </div>
                           </div>
+
+                          {/* Candidate Code Submitted in this Turn */}
+                          {turn.candidate_code && turn.candidate_code.trim().length > 0 && (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px] font-mono text-ink-muted uppercase">
+                                <span className="inline-flex items-center gap-1.5 text-accent-cyan">
+                                  <Code2 className="w-3.5 h-3.5" />
+                                  <span>Live Candidate Code ({turn.code_language || 'python'})</span>
+                                </span>
+                                <span className="text-[10px] text-ink-muted lowercase font-sans">
+                                  {turn.candidate_code.split('\n').length} lines
+                                </span>
+                              </div>
+                              <pre className="p-3 rounded-lg bg-slate-950 border border-line/80 font-mono text-xs text-slate-200 overflow-x-auto max-h-56 leading-relaxed selection:bg-cyan-500/30 selection:text-white">
+                                <code>{turn.candidate_code}</code>
+                              </pre>
+                            </div>
+                          )}
 
                           {/* Scores breakdown if present */}
                           {turn.scores && Object.keys(turn.scores).length > 0 && (

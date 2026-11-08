@@ -12,7 +12,8 @@ import {
   Wallet,
   CheckCircle2,
   AlertTriangle,
-  Clock
+  Clock,
+  Brain
 } from 'lucide-react';
 import { AppHeader } from '@/components/dashboard/AppHeader';
 import {

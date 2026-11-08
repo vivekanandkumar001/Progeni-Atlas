@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import Link from 'next/link';
-import { Calendar, CheckCircle2, Download, Radio, Sparkles, Video, X } from 'lucide-react';
+import { Brain, Calendar, CheckCircle2, Download, Radio, Sparkles, Video, X } from 'lucide-react';
 import { formatInterviewDateTime, getStudentStatus, isPastUnconducted } from '@/lib/recruiter-dashboard';
 import type { CandidateDossier, StudentStatus } from '../dashboard-types';
 import { RecommendationBadge } from './RecommendationBadge';
@@ -130,6 +130,50 @@ export function CandidateDossierModal({
  </div>
  )}
  </div>
+ </div>
+
+ {/* COGNITIVE & APTITUDE SCREENING CARD */}
+ <div className="bg-inset p-5 rounded-2xl border border-line space-y-3">
+   <div className="flex items-center justify-between">
+     <div className="flex items-center gap-2">
+       <Brain className="w-4 h-4 text-accent-cyan" />
+       <span className="text-xs font-bold uppercase tracking-wider text-ink">Cognitive & Aptitude Screening</span>
+     </div>
+     {selectedCandidate.aptitudeScore ? (
+       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-accent-cyan border border-cyan-500/30">
+         Completed
+       </span>
+     ) : (
+       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-2 text-ink-muted border border-line">
+         Pending / Not Attempted
+       </span>
+     )}
+   </div>
+
+   {selectedCandidate.aptitudeScore ? (
+     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+       <div className="p-3 rounded-xl bg-surface border border-line text-center">
+         <span className="text-[10px] font-mono text-ink-muted uppercase block">Aptitude Score</span>
+         <span className="text-xl font-extrabold text-accent-cyan font-mono">{selectedCandidate.aptitudeScore.overallScore}%</span>
+       </div>
+       <div className="p-3 rounded-xl bg-surface border border-line text-center">
+         <span className="text-[10px] font-mono text-ink-muted uppercase block">Cognitive Rank</span>
+         <span className="text-xl font-extrabold text-purple-400 font-mono">{selectedCandidate.aptitudeScore.percentile}th</span>
+       </div>
+       <div className="p-3 rounded-xl bg-surface border border-line text-center">
+         <span className="text-[10px] font-mono text-ink-muted uppercase block">Accuracy</span>
+         <span className="text-xl font-extrabold text-emerald-400 font-mono">{selectedCandidate.aptitudeScore.accuracy}%</span>
+       </div>
+       <div className="p-3 rounded-xl bg-surface border border-line text-center">
+         <span className="text-[10px] font-mono text-ink-muted uppercase block">Proctoring Trust</span>
+         <span className="text-xl font-extrabold text-teal-400 font-mono">{selectedCandidate.aptitudeScore.trustScore}%</span>
+       </div>
+     </div>
+   ) : (
+     <p className="text-xs text-ink-muted italic py-1">
+       Candidate has not completed the 5-pillar cognitive screening assessment yet.
+     </p>
+   )}
  </div>
 
  {/* AI EXECUTIVE SUMMARY */}

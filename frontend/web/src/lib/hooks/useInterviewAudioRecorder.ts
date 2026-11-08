@@ -8,7 +8,7 @@ import type { AIState } from '@/components/interview/AIAvatarViewport';
 import type { CaptionEntry } from '@/components/interview/LiveClosedCaptions';
 import type { AnswerFlowState } from '@/app/candidate/interview/[id]/room/page';
 
-const AUTO_SUBMIT_DELAY_SECONDS = 18;
+const AUTO_SUBMIT_DELAY_SECONDS = 3;
 
 export interface UseInterviewAudioRecorderOptions {
   sessionId: string;
@@ -310,8 +310,8 @@ export function useInterviewAudioRecorder({
       rmsSpeechStartThreshold: 0.015,
       rmsSpeechEndThreshold: 0.008,
       minSpeechDurationMs: 120,
-      speechHangoverMs: 3000,
-      silenceDurationMs: 6000,
+      speechHangoverMs: 800,
+      silenceDurationMs: 1500,
     });
     vadRef.current = vad;
 
@@ -421,7 +421,7 @@ export function useInterviewAudioRecorder({
         setFlowState('SILENCE_PENDING');
         startSilenceTimer();
       }
-    }, 6000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [

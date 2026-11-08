@@ -203,7 +203,7 @@ class User(TimestampMixin, Base):
     # Candidate packs: ₹49 (30 credits), ₹99 (70 credits), ₹199 (150 credits)
     # Recruiter packs: ₹999 (800 credits), ₹1999 (1800 credits), ₹4999 (4500 credits)
     credit_pack_prices: Mapped[dict] = mapped_column(
-        JSON, nullable=False, default=dict
+        JSONB, nullable=False, default=dict
     )  # Stores pack configurations per role
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role", values_callable=lambda x: [e.value for e in x]),

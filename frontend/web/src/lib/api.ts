@@ -1074,6 +1074,8 @@ export async function answerInterviewQuestion(
   answer: string,
   questionId?: string | null,
   requestId?: string,
+  code?: string,
+  codeLanguage?: string,
 ): Promise<AnswerTurnResult> {
   const res = await apiFetch(`/api/interview/${sessionId}/answer`, {
     method: 'POST',
@@ -1081,6 +1083,8 @@ export async function answerInterviewQuestion(
       answer,
       ...(questionId ? { question_id: questionId } : {}),
       ...(requestId ? { request_id: requestId } : {}),
+      ...(code ? { code } : {}),
+      ...(codeLanguage ? { code_language: codeLanguage } : {}),
     }),
   });
   if (!res.ok) {
@@ -1321,6 +1325,8 @@ export interface CandidateEvaluationReport {
     keyConceptsCovered: string[];
     missingConcepts: string[];
     evaluatorFeedback: string;
+    candidate_code?: string;
+    code_language?: string;
   }>;
   reportStatus: string;
   transcriptStatus: string;
@@ -1423,5 +1429,233 @@ export async function markRecruiterNotificationsAsRead(notificationIds: string[]
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// APTITUDE & COGNITIVE SCREENING API CONTRACTS & CLIENTS
+// -----------------------------------------------------------------------------
+
+export interface AptitudeTemplateSection {
+  name: string;
+  questionCount: number;
+  timeMinutes: number;
+}
+
+export interface AptitudeTemplate {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  durationMinutes: number;
+  totalQuestions: number;
+  sections: AptitudeTemplateSection[];
+  negativeMarking: boolean;
+  proctoringStrictness: string;
+}
+
+export interface AptitudeQuestionPublic {
+  id: string;
+  index: number;
+  section: string;
+  topic: string;
+  difficulty: string;
+  prompt: string;
+  options: string[];
+  timeRecommendedSeconds: number;
+}
+
+export interface AptitudeAnswerRecord {
+  selectedOptionIndex?: number | null;
+  isMarkedForReview: boolean;
+  timeSpentSeconds: number;
+  answeredAt?: string;
+}
+
+export interface AptitudeSessionData {
+  sessionId: string;
+  template: AptitudeTemplate;
+  templateTitle?: string;
+  questions: AptitudeQuestionPublic[];
+  durationSeconds: number;
+  startedAt: string;
+  expiresAt: string;
+  remainingSeconds?: number;
+  answers?: Record<string, AptitudeAnswerRecord>;
+  status?: string;
+  telemetry?: {
+    tabSwitchCount: number;
+    fullscreenExitCount: number;
+    devtoolsOpenedCount: number;
+    copyPasteAttempts: number;
+    unfocusedSeconds?: number;
+  };
+}
+
+export interface AptitudeReviewItem {
+  id: string;
+  section: string;
+  topic: string;
+  prompt?: string;
+  options?: string[];
+  difficulty: string;
+  selectedOptionIndex?: number | null;
+  correctIndex: number;
+  isCorrect: boolean;
+  isAttempted: boolean;
+  timeSpentSeconds: number;
+  explanation: string;
+  formula?: string;
+}
+
+export interface AptitudeScorecard {
+  overallScore: number;
+  percentile: number;
+  totalQuestions: number;
+  attempted: number;
+  correct: number;
+  incorrect: number;
+  unanswered: number;
+  accuracyPercent: number;
+  trustScore: number;
+  speedIndex: string;
+  sectionBreakdown: Record<string, { total: number; attempted: number; correct: number; timeSpent: number }>;
+  review: AptitudeReviewItem[];
+  generatedAt: string;
+}
+
+export interface AptitudeReportResponse {
+  sessionId: string;
+  candidateName: string;
+  templateTitle: string;
+  startedAt: string;
+  completedAt: string;
+  status: string;
+  telemetry: Record<string, unknown>;
+  scorecard: AptitudeScorecard;
+}
+
+export interface AptitudeAttemptHistory {
+  sessionId: string;
+  templateTitle: string;
+  startedAt: string;
+  status: string;
+  score: number;
+  accuracy: number;
+  percentile: number;
+  trustScore: number;
+  speedIndex: string;
+}
+
+export async function fetchAptitudeTemplates(): Promise<AptitudeTemplate[]> {
+  try {
+    const res = await apiFetch('/api/aptitude/templates');
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.templates) ? data.templates : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function startAptitudeSession(templateId: string): Promise<AptitudeSessionData | null> {
+  try {
+    const res = await apiFetch('/api/aptitude/sessions/start', {
+      method: 'POST',
+      body: JSON.stringify({ templateId }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAptitudeSession(sessionId: string): Promise<AptitudeSessionData | null> {
+  if (!sessionId) return null;
+  try {
+    const res = await apiFetch(`/api/aptitude/sessions/${sessionId}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function submitAptitudeAnswer(
+  sessionId: string,
+  questionId: string,
+  selectedOptionIndex: number | null,
+  isMarkedForReview: boolean,
+  timeSpentSeconds: number
+): Promise<boolean> {
+  if (!sessionId || !questionId) return false;
+  try {
+    const res = await apiFetch(`/api/aptitude/sessions/${sessionId}/answer`, {
+      method: 'POST',
+      body: JSON.stringify({
+        questionId,
+        selectedOptionIndex,
+        isMarkedForReview,
+        timeSpentSeconds,
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function logAptitudeViolation(
+  sessionId: string,
+  type: 'TAB_SWITCH' | 'FULLSCREEN_EXIT' | 'DEVTOOLS_OPENED' | 'COPY_PASTE',
+  details?: string
+): Promise<{ totalTabSwitches?: number; isTerminated?: boolean }> {
+  if (!sessionId) return {};
+  try {
+    const res = await apiFetch(`/api/aptitude/sessions/${sessionId}/violation`, {
+      method: 'POST',
+      body: JSON.stringify({ type, details: details || '' }),
+    });
+    if (!res.ok) return {};
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
+export async function submitAptitudeTest(sessionId: string): Promise<AptitudeScorecard | null> {
+  if (!sessionId) return null;
+  try {
+    const res = await apiFetch(`/api/aptitude/sessions/${sessionId}/submit`, {
+      method: 'POST',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.scorecard || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAptitudeReport(sessionId: string): Promise<AptitudeReportResponse | null> {
+  if (!sessionId) return null;
+  try {
+    const res = await apiFetch(`/api/aptitude/sessions/${sessionId}/report`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchCandidateAptitudeHistory(): Promise<AptitudeAttemptHistory[]> {
+  try {
+    const res = await apiFetch('/api/candidate/aptitude/history');
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.attempts) ? data.attempts : [];
+  } catch {
+    return [];
   }
 }

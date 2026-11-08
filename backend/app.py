@@ -107,6 +107,7 @@ from routes.recruiter_routes import recruiter_bp
 from routes.billing_routes import billing_bp
 from routes.interview_routes import interview_bp
 from routes.super_admin_routes import super_admin_bp
+from routes.aptitude_routes import aptitude_bp
 
 app.register_blueprint(system_bp)
 app.register_blueprint(auth_bp)
@@ -115,6 +116,7 @@ app.register_blueprint(recruiter_bp)
 app.register_blueprint(billing_bp)
 app.register_blueprint(interview_bp)
 app.register_blueprint(super_admin_bp)
+app.register_blueprint(aptitude_bp)
 
 # 6. Register Companion Audio/Video Pairing Blueprint
 try:

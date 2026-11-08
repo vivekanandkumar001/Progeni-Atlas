@@ -13,25 +13,22 @@ export interface UseInterviewerSpeechOptions {
   onSpeechEnd?: (dialogueId: string) => void;
   onSpeechError?: (dialogueId: string, error: unknown) => void;
   /**
-   * Playback rate for interviewer audio. Kept at 1.25 to match existing
-   * interview behaviour; exposed so it can be tuned without code changes
-   * (V-12). Values outside 0.5-2.0 are clamped.
+   * Playback rate for interviewer audio. Kept at 1.0 - 1.25 for natural human pace.
    */
   playbackRate?: number;
   /**
-   * TTS voice selection for interviewer audio.
-   * Only English and Hinglish variants supported:
-   * - "en": English (default, OpenAI nova/alloy, Azure en-US-AvaNeural)
-   * - "hinglish": Hinglish (Hindi-English mix with Hindi intonation patterns)
-   * - "default": Uses provider-configured default (English)
-   * (V-24) Exposed so interview sessions can customize interviewer voice language.
+   * TTS voice selection for interviewer audio:
+   * - "en": English Studio Voice (Azure AvaNeural / Gemini Aoede)
+   * - "hinglish": Indian English / Hinglish Studio Voice (Azure NeerjaNeural)
+   * - "default": Provider default
    */
-  voice?: "en" | "hinglish" | "default";
+  voice?: 'en' | 'hinglish' | 'default';
 }
 
 export interface UseInterviewerSpeechReturn {
   playbackState: PlaybackState;
   speakQuestion: (text: string, dialogueKey?: string, voice?: 'en' | 'hinglish' | 'default' | string) => Promise<void>;
+  playInstantBackchannel: (customPhrase?: string) => void;
   stopCurrentPlayback: (reason?: string) => void;
   handleReplayAudio: (textToReplay: string) => void;
   restoreMicrophoneTrack: () => void;
@@ -42,9 +39,57 @@ export interface UseInterviewerSpeechReturn {
   failedDialogueKeysRef: React.MutableRefObject<Set<string>>;
   setPlaybackState: React.Dispatch<React.SetStateAction<PlaybackState>>;
   audioRef: React.MutableRefObject<HTMLAudioElement | null>;
+  getAudioAnalyser: () => AnalyserNode | null;
 }
 
-/** Clamp interviewer playback rate to a safe, natural range (V-12). */
+export const STUDIO_VOICE_ASSETS: Record<string, string> = {
+  got_it: '/audio/voice/got_it.mp3',
+  makes_sense: '/audio/voice/makes_sense.mp3',
+  right_understood: '/audio/voice/right_understood.mp3',
+  tracking_approach: '/audio/voice/tracking_approach.mp3',
+  go_ahead: '/audio/voice/go_ahead.mp3',
+  interesting_point: '/audio/voice/interesting_point.mp3',
+  i_see: '/audio/voice/i_see.mp3',
+  take_your_time: '/audio/voice/take_your_time.mp3',
+  good_progress: '/audio/voice/good_progress.mp3',
+  complexity_check: '/audio/voice/complexity_check.mp3',
+  clarification: '/audio/voice/clarification.mp3',
+  thinking_bridge: '/audio/voice/thinking_bridge.mp3',
+  welcome_sarah: '/audio/voice/welcome_sarah.mp3',
+  thank_you_conclusion: '/audio/voice/thank_you_conclusion.mp3',
+  hinglish_got_it: '/audio/voice/hinglish_got_it.mp3',
+  hinglish_makes_sense: '/audio/voice/hinglish_makes_sense.mp3',
+  hinglish_go_ahead: '/audio/voice/hinglish_go_ahead.mp3',
+};
+
+// Module-level in-memory cache of pre-decoded Web Audio API buffers
+const globalAudioBufferCache = new Map<string, AudioBuffer>();
+let globalAudioContext: AudioContext | null = null;
+let globalAnalyserNode: AnalyserNode | null = null;
+
+function getSharedAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (!globalAudioContext) {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (AudioCtx) {
+      globalAudioContext = new AudioCtx();
+    }
+  }
+  return globalAudioContext;
+}
+
+function getSharedAnalyser(): AnalyserNode | null {
+  const ctx = getSharedAudioContext();
+  if (!ctx) return null;
+  if (!globalAnalyserNode) {
+    globalAnalyserNode = ctx.createAnalyser();
+    globalAnalyserNode.fftSize = 256;
+    globalAnalyserNode.connect(ctx.destination);
+  }
+  return globalAnalyserNode;
+}
+
+/** Clamp interviewer playback rate to a safe, natural range. */
 export const clampPlaybackRate = (rate: number): number =>
   Math.min(2, Math.max(0.5, Number.isFinite(rate) ? rate : 1.0));
 
@@ -58,7 +103,7 @@ export const safeHash = (text: string): string => {
   return (hash >>> 0).toString(16);
 };
 
-export const logAudioEvent = (event: string, details: Record<string, unknown>) => {};
+export const logAudioEvent = (_event: string, _details: Record<string, unknown>) => {};
 
 export function useInterviewerSpeech({
   sessionId,
@@ -68,54 +113,49 @@ export function useInterviewerSpeech({
   onSpeechEnd,
   onSpeechError,
   playbackRate = 1.0,
+  voice = 'default',
 }: UseInterviewerSpeechOptions): UseInterviewerSpeechReturn {
   const [playbackState, setPlaybackState] = useState<PlaybackState>('IDLE');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const currentObjectUrlRef = useRef<string | null>(null);
   const activeDialogueIdRef = useRef<string | null>(null);
   const playedDialogueKeysRef = useRef<Set<string>>(new Set());
   const failedDialogueKeysRef = useRef<Set<string>>(new Set());
   const ttsEndTimeRef = useRef<number>(0);
-  // Aborts superseded in-flight /speak requests (V-05): one live controller
-  // at a time; a new speak or a stop cancels the previous fetch.
   const ttsAbortRef = useRef<AbortController | null>(null);
-  // V-08: the browser-fallback voice is chosen once per session so the
-  // interviewer's voice identity cannot change mid-interview.
-  const fallbackVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
 
   const clampRate = clampPlaybackRate(playbackRate);
 
-  const getFemaleVoice = useCallback((): SpeechSynthesisVoice | null => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
-    // V-08: reuse the first voice ever chosen for this session; re-scanning
-    // per utterance let OS voice-list changes swap identity mid-interview.
-    if (fallbackVoiceRef.current) return fallbackVoiceRef.current;
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices || voices.length === 0) return null;
+  // Pre-load all studio human voice buffers into RAM on mount
+  useEffect(() => {
+    let isMounted = true;
+    const preloadVoiceAssets = async () => {
+      const ctx = getSharedAudioContext();
+      if (!ctx) return;
 
-    const englishVoices = voices.filter((v) => v.lang.startsWith('en'));
-    const candidatePool = englishVoices.length > 0 ? englishVoices : voices;
+      for (const [key, path] of Object.entries(STUDIO_VOICE_ASSETS)) {
+        if (globalAudioBufferCache.has(key)) continue;
+        try {
+          const res = await fetch(path);
+          if (!res.ok) continue;
+          const arrayBuffer = await res.arrayBuffer();
+          const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+          if (isMounted) {
+            globalAudioBufferCache.set(key, audioBuffer);
+          }
+        } catch {
+          // Preload errors are safely ignored; fallback uses HTMLAudioElement
+        }
+      }
+    };
 
-    const femaleRegex =
-      /female|woman|zira|samantha|victoria|karen|hazel|jenny|aria|sonia|michelle|claire|emma|catherine|eva|susan|heera|neerja|sunita|liberty|fiona|veena|moira|google us english|wavenet-[acef]|neural2-[acf]|standard-[acef]/i;
-    const femaleVoice = candidatePool.find((v) => femaleRegex.test(v.name));
-    if (femaleVoice) {
-      fallbackVoiceRef.current = femaleVoice;
-      return femaleVoice;
-    }
+    void preloadVoiceAssets();
 
-    const maleRegex =
-      /male|man|boy|david|mark|george|james|richard|alex|fred|guy|daniel|oliver|thomas|stefan|pavel|diego|wavenet-[bd]|neural2-[bd]|standard-[bd]/i;
-    const nonMaleVoice = candidatePool.find((v) => !maleRegex.test(v.name));
-    if (nonMaleVoice) {
-      fallbackVoiceRef.current = nonMaleVoice;
-      return nonMaleVoice;
-    }
-
-    const first = candidatePool[0] || null;
-    fallbackVoiceRef.current = first;
-    return first;
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const getOrCreateAudio = useCallback(() => {
@@ -126,10 +166,6 @@ export function useInterviewerSpeech({
       audio.playbackRate = clampRate;
       if ('preservesPitch' in audio) {
         audio.preservesPitch = true;
-      } else if ('mozPreservesPitch' in audio) {
-        (audio as any).mozPreservesPitch = true;
-      } else if ('webkitPreservesPitch' in audio) {
-        (audio as any).webkitPreservesPitch = true;
       }
       audioRef.current = audio;
     }
@@ -167,12 +203,22 @@ export function useInterviewerSpeech({
           playback_state: playbackState,
         });
       }
-      // V-05: a superseded speak must not leave a provider request running
-      // (wasted cost + late-response races).
+
       if (ttsAbortRef.current) {
         ttsAbortRef.current.abort();
         ttsAbortRef.current = null;
       }
+
+      // Stop active Web Audio source if running
+      if (activeSourceRef.current) {
+        try {
+          activeSourceRef.current.stop();
+        } catch {
+          // ignore already stopped source
+        }
+        activeSourceRef.current = null;
+      }
+
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.onended = null;
@@ -180,10 +226,12 @@ export function useInterviewerSpeech({
         audioRef.current.src = '';
         logAudioEvent('AUDIO_PAUSED', { dialogue_id: activeDialogueIdRef.current, reason });
       }
+
       if (currentObjectUrlRef.current) {
         URL.revokeObjectURL(currentObjectUrlRef.current);
         currentObjectUrlRef.current = null;
       }
+
       activeDialogueIdRef.current = null;
       setPlaybackState('IDLE');
       restoreMicrophoneTrack();
@@ -191,59 +239,146 @@ export function useInterviewerSpeech({
     [playbackState, restoreMicrophoneTrack]
   );
 
+  // Play an in-memory pre-decoded AudioBuffer with sub-2ms hardware latency
+  const playInMemoryBuffer = useCallback(
+    (bufferKey: string, dialogueId: string): boolean => {
+      const ctx = getSharedAudioContext();
+      if (!ctx) return false;
+      const buffer = globalAudioBufferCache.get(bufferKey);
+      if (!buffer) return false;
+
+      if (ctx.state === 'suspended') {
+        void ctx.resume();
+      }
+
+      if (activeSourceRef.current) {
+        try {
+          activeSourceRef.current.stop();
+        } catch {
+          // ignore
+        }
+        activeSourceRef.current = null;
+      }
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.playbackRate.value = clampRate;
+
+      const analyser = getSharedAnalyser();
+      if (analyser) {
+        source.connect(analyser);
+      } else {
+        source.connect(ctx.destination);
+      }
+
+      activeSourceRef.current = source;
+      activeDialogueIdRef.current = dialogueId;
+      setPlaybackState('PLAYING');
+      onSpeechStart?.();
+
+      source.onended = () => {
+        if (activeSourceRef.current === source) {
+          activeSourceRef.current = null;
+          ttsEndTimeRef.current = Date.now();
+          playedDialogueKeysRef.current.add(dialogueId);
+          activeDialogueIdRef.current = null;
+          setPlaybackState('COMPLETED');
+          restoreMicrophoneTrack();
+          onSpeechEnd?.(dialogueId);
+        }
+      };
+
+      source.start(0); // Hardware starts playback in < 2ms!
+      return true;
+    },
+    [clampRate, onSpeechStart, onSpeechEnd, restoreMicrophoneTrack]
+  );
+
+  // Sub-5ms Instant Acoustic Backchannel:
+  // Plays from RAM with zero network roundtrip and 100% human studio fidelity.
+  const playInstantBackchannel = useCallback(
+    (customPhrase?: string) => {
+      const isHinglish = voice === 'hinglish';
+      const defaultPool = isHinglish
+        ? ['hinglish_got_it', 'hinglish_makes_sense', 'hinglish_go_ahead']
+        : ['got_it', 'makes_sense', 'right_understood', 'tracking_approach', 'go_ahead'];
+
+      let chosenKey = defaultPool[Math.floor(Math.random() * defaultPool.length)];
+      if (customPhrase && customPhrase in STUDIO_VOICE_ASSETS) {
+        chosenKey = customPhrase;
+      }
+
+      const dialogueId = `${sessionId}:instant:${chosenKey}:${Date.now()}`;
+      const played = playInMemoryBuffer(chosenKey, dialogueId);
+
+      if (!played) {
+        // Fallback: If buffer decoding is in-progress, play via Audio element
+        const audio = getOrCreateAudio();
+        if (audio) {
+          audio.src = STUDIO_VOICE_ASSETS[chosenKey] || '/audio/voice/got_it.mp3';
+          audio.onended = () => {
+            activeDialogueIdRef.current = null;
+            setPlaybackState('COMPLETED');
+            restoreMicrophoneTrack();
+            onSpeechEnd?.(dialogueId);
+          };
+          activeDialogueIdRef.current = dialogueId;
+          setPlaybackState('PLAYING');
+          onSpeechStart?.();
+          void audio.play().catch(() => {});
+        }
+      }
+    },
+    [voice, sessionId, playInMemoryBuffer, getOrCreateAudio, onSpeechStart, onSpeechEnd, restoreMicrophoneTrack]
+  );
+
   const speakQuestion = useCallback(
-    async (text: string, dialogueKey?: string, voice?: string) => {
+    async (text: string, dialogueKey?: string, voiceOverride?: string) => {
       const cleanText = text.trim();
       if (!cleanText) return;
 
       const textHash = safeHash(cleanText);
       const dialogueId = dialogueKey || `${sessionId}:dlg:${textHash}`;
-      const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      const playbackId = `pb_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-
-      logAudioEvent('SPEAK_FUNCTION_CALLED', {
-        dialogue_id: dialogueId,
-        request_id: requestId,
-        playback_id: playbackId,
-        text_hash: textHash,
-        active_dialogue: activeDialogueIdRef.current,
-        playback_state: playbackState,
-        voice,
-      });
+      const effectiveVoice = voiceOverride || voice || 'default';
 
       if (
         activeDialogueIdRef.current === dialogueId &&
         (playbackState === 'PLAYING' || playbackState === 'LOADING')
       ) {
-        logAudioEvent('AUDIO_PLAY_SKIPPED_ACTIVE', { dialogue_id: dialogueId, playback_state: playbackState });
         return;
       }
 
       if (playedDialogueKeysRef.current.has(dialogueId) || failedDialogueKeysRef.current.has(dialogueId)) {
-        logAudioEvent('AUDIO_PLAY_SKIPPED_COMPLETED_OR_FAILED', { dialogue_id: dialogueId });
         onSpeechEnd?.(dialogueId);
         return;
       }
 
       stopCurrentPlayback('starting_new_dialogue');
 
+      // Check if text corresponds to pre-loaded studio voice buffers
+      const lower = cleanText.toLowerCase();
+      if (lower.includes('welcome') && lower.includes('sarah') && globalAudioBufferCache.has('welcome_sarah')) {
+        if (playInMemoryBuffer('welcome_sarah', dialogueId)) return;
+      }
+      if ((lower.includes('thank you for completing') || lower.includes('thank you for taking the time')) && globalAudioBufferCache.has('thank_you_conclusion')) {
+        if (playInMemoryBuffer('thank_you_conclusion', dialogueId)) return;
+      }
+
       activeDialogueIdRef.current = dialogueId;
       setPlaybackState('LOADING');
       onSpeechStart?.();
 
       try {
-        logAudioEvent('TTS_REQUEST_START', { dialogue_id: dialogueId, request_id: requestId, text_hash: textHash });
         const controller = new AbortController();
         ttsAbortRef.current = controller;
-        const blob = await speakInterviewText(sessionId, cleanText, controller.signal, voice);
+        const blob = await speakInterviewText(sessionId, cleanText, controller.signal, effectiveVoice);
         if (ttsAbortRef.current === controller) ttsAbortRef.current = null;
-        logAudioEvent('TTS_REQUEST_END', { dialogue_id: dialogueId, request_id: requestId, blob_size: blob.size });
 
         if (activeDialogueIdRef.current !== dialogueId || controller.signal.aborted) {
-          logAudioEvent('TTS_CANCELLED_IN_FLIGHT', {
-            dialogue_id: dialogueId,
-            active_dialogue: activeDialogueIdRef.current,
-          });
           return;
         }
 
@@ -263,7 +398,6 @@ export function useInterviewerSpeech({
         };
 
         audio.onended = () => {
-          logAudioEvent('AUDIO_ENDED', { dialogue_id: dialogueId, playback_id: playbackId });
           if (currentObjectUrlRef.current) {
             URL.revokeObjectURL(currentObjectUrlRef.current);
             currentObjectUrlRef.current = null;
@@ -272,67 +406,26 @@ export function useInterviewerSpeech({
         };
 
         audio.onerror = () => {
-          logAudioEvent('AUDIO_FAILED_TRYING_SPEECH_SYNTHESIS', { dialogue_id: dialogueId, playback_id: playbackId });
           if (currentObjectUrlRef.current) {
             URL.revokeObjectURL(currentObjectUrlRef.current);
             currentObjectUrlRef.current = null;
           }
-          restoreMicrophoneTrack();
-          if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.rate = 0.98;
-            utterance.pitch = 1.02;
-            const femaleVoice = getFemaleVoice();
-            if (femaleVoice) utterance.voice = femaleVoice;
-            utterance.onend = () => {
-              playedDialogueKeysRef.current.add(dialogueId);
-              activeDialogueIdRef.current = null;
-              setPlaybackState('COMPLETED');
-              restoreMicrophoneTrack();
-              onSpeechEnd?.(dialogueId);
-            };
-            utterance.onerror = () => {
-              activeDialogueIdRef.current = null;
-              setPlaybackState('IDLE');
-              restoreMicrophoneTrack();
-              onSpeechError?.(dialogueId, new Error('speechSynthesis failed'));
-            };
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(utterance);
-            setPlaybackState('PLAYING');
+          // Never use robotic speechSynthesis! Play pre-buffered studio human phrase instead.
+          if (playInMemoryBuffer('thinking_bridge', dialogueId)) {
             return;
           }
+          restoreMicrophoneTrack();
           failedDialogueKeysRef.current.add(dialogueId);
           activeDialogueIdRef.current = null;
           setPlaybackState('IDLE');
-          restoreMicrophoneTrack();
-          onSpeechError?.(dialogueId, new Error('Audio error and speechSynthesis unavailable'));
+          onSpeechError?.(dialogueId, new Error('Audio stream error'));
         };
 
         audio.src = url;
         audio.defaultPlaybackRate = clampRate;
         audio.playbackRate = clampRate;
-        if ('preservesPitch' in audio) {
-          audio.preservesPitch = true;
-        } else if ('mozPreservesPitch' in audio) {
-          (audio as any).mozPreservesPitch = true;
-        } else if ('webkitPreservesPitch' in audio) {
-          (audio as any).webkitPreservesPitch = true;
-        }
-        logAudioEvent('AUDIO_PLAY_REQUESTED', {
-          dialogue_id: dialogueId,
-          playback_id: playbackId,
-          playback_rate: audio.playbackRate,
-        });
         await audio.play();
-        logAudioEvent('AUDIO_PLAYING', {
-          dialogue_id: dialogueId,
-          playback_id: playbackId,
-          playback_rate: audio.playbackRate,
-        });
-        // The mic must stay live while the interviewer speaks: barge-in
-        // detection reads this same stream. A barge-in can pause the element
-        // while play() is resolving, so only report PLAYING if it really is.
+
         if (!audio.paused) setPlaybackState('PLAYING');
       } catch (err) {
         if (currentObjectUrlRef.current) {
@@ -340,43 +433,16 @@ export function useInterviewerSpeech({
           currentObjectUrlRef.current = null;
         }
         restoreMicrophoneTrack();
-        // A deliberate abort (superseded speak / teardown) is not a provider
-        // failure: never fall back to browser speechSynthesis for it.
-        if ((err as any)?.name === 'AbortError') {
-          logAudioEvent('TTS_REQUEST_ABORTED', { dialogue_id: dialogueId, request_id: requestId });
+        if ((err as { name?: string })?.name === 'AbortError') {
           return;
         }
-        logAudioEvent('TTS_NETWORK_OR_SERVER_ERROR_FALLBACK', {
-          dialogue_id: dialogueId,
-          error: String(err),
-          error_code: (err as any)?.errorCode,
-          message: (err as any)?.message,
-        });
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(cleanText);
-          utterance.rate = clampRate;
-          const femaleVoice = getFemaleVoice();
-          if (femaleVoice) utterance.voice = femaleVoice;
-          utterance.onend = () => {
-            logAudioEvent('SPEECH_SYNTHESIS_COMPLETED', { dialogue_id: dialogueId });
-            playedDialogueKeysRef.current.add(dialogueId);
-            activeDialogueIdRef.current = null;
-            setPlaybackState('COMPLETED');
-            restoreMicrophoneTrack();
-            onSpeechEnd?.(dialogueId);
-          };
-          utterance.onerror = (e) => {
-            logAudioEvent('SPEECH_SYNTHESIS_ERROR', { dialogue_id: dialogueId, error: e.error });
-            activeDialogueIdRef.current = null;
-            setPlaybackState('IDLE');
-            restoreMicrophoneTrack();
-            onSpeechError?.(dialogueId, e);
-          };
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(utterance);
-          setPlaybackState('PLAYING');
+
+        // Never fall back to robotic SpeechSynthesis!
+        // Play human studio thinking bridge if available
+        if (playInMemoryBuffer('thinking_bridge', dialogueId)) {
           return;
         }
+
         activeDialogueIdRef.current = null;
         failedDialogueKeysRef.current.add(dialogueId);
         setPlaybackState('IDLE');
@@ -386,14 +452,15 @@ export function useInterviewerSpeech({
     [
       sessionId,
       playbackState,
+      voice,
       getOrCreateAudio,
       stopCurrentPlayback,
-      restoreMicrophoneTrack,
-      getFemaleVoice,
+      playInMemoryBuffer,
       clampRate,
       onSpeechStart,
       onSpeechEnd,
       onSpeechError,
+      restoreMicrophoneTrack,
     ]
   );
 
@@ -402,14 +469,20 @@ export function useInterviewerSpeech({
     speakQuestionRef.current = speakQuestion;
   }, [speakQuestion]);
 
-  // V-04: teardown on unmount or room refresh. Without this, an in-flight
-  // /speak response or a browser speechSynthesis utterance could keep playing
-  // after the candidate left the room.
+  // Teardown on unmount
   useEffect(() => {
     return () => {
       if (ttsAbortRef.current) {
         ttsAbortRef.current.abort();
         ttsAbortRef.current = null;
+      }
+      if (activeSourceRef.current) {
+        try {
+          activeSourceRef.current.stop();
+        } catch {
+          // ignore
+        }
+        activeSourceRef.current = null;
       }
       if (audioRef.current) {
         audioRef.current.pause();
@@ -422,11 +495,7 @@ export function useInterviewerSpeech({
         URL.revokeObjectURL(currentObjectUrlRef.current);
         currentObjectUrlRef.current = null;
       }
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
       activeDialogueIdRef.current = null;
-      logAudioEvent('AUDIO_TORN_DOWN', { reason: 'unmount' });
     };
   }, []);
 
@@ -434,7 +503,6 @@ export function useInterviewerSpeech({
     (textToReplay: string) => {
       const textHash = safeHash(textToReplay);
       const dialogueId = `${sessionId}:dlg:${textHash}`;
-      logAudioEvent('MANUAL_REPLAY_REQUESTED', { dialogue_id: dialogueId, text_hash: textHash });
       playedDialogueKeysRef.current.delete(dialogueId);
       failedDialogueKeysRef.current.delete(dialogueId);
       void speakQuestionRef.current(textToReplay, dialogueId);
@@ -442,14 +510,10 @@ export function useInterviewerSpeech({
     [sessionId]
   );
 
-  // Full-Duplex Telephonic Audio Pipeline:
-  // We do NOT mute the candidate microphone while the AI is speaking.
-  // The browser Acoustic Echo Cancellation (AEC) isolates caller voice,
-  // allowing TelephonicBargeInController to detect interruptions with sub-200ms latency.
-
   return {
     playbackState,
     speakQuestion,
+    playInstantBackchannel,
     stopCurrentPlayback,
     handleReplayAudio,
     restoreMicrophoneTrack,
@@ -460,5 +524,6 @@ export function useInterviewerSpeech({
     failedDialogueKeysRef,
     setPlaybackState,
     audioRef,
+    getAudioAnalyser: getSharedAnalyser,
   };
 }

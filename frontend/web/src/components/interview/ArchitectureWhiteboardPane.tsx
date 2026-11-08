@@ -20,6 +20,7 @@ import {
   RotateCcw,
   Link as LinkIcon
 } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 
 export type NodeType = 'service' | 'database' | 'kafka' | 'redis' | 'balancer' | 'client' | 'gateway';
 
@@ -38,8 +39,10 @@ export interface WhiteboardConnection {
 }
 
 interface ArchitectureWhiteboardPaneProps {
+  sessionId?: string;
   onGraphUpdate?: (nodes: WhiteboardNode[], connections: WhiteboardConnection[]) => void;
   onAttachToAnswer?: (architectureSummary: string) => void;
+  onSpeakCritique?: (text: string) => void;
 }
 
 const SAMPLE_NODES: WhiteboardNode[] = [
@@ -60,12 +63,21 @@ const SAMPLE_CONNECTIONS: WhiteboardConnection[] = [
 ];
 
 export const ArchitectureWhiteboardPane: React.FC<ArchitectureWhiteboardPaneProps> = ({
+  sessionId,
   onGraphUpdate,
-  onAttachToAnswer
+  onAttachToAnswer,
+  onSpeakCritique,
 }) => {
   // Start with clean initial state for examination, with sample template readily accessible
   const [nodes, setNodes] = useState<WhiteboardNode[]>(SAMPLE_NODES);
   const [connections, setConnections] = useState<WhiteboardConnection[]>(SAMPLE_CONNECTIONS);
+  const [isCritiquing, setIsCritiquing] = useState<boolean>(false);
+  const [critiqueResult, setCritiqueResult] = useState<{
+    strengths?: string[];
+    bottlenecks?: string[];
+    socratic_question?: string;
+    interviewer_line?: string;
+  } | null>(null);
 
   // Dragging state
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -348,6 +360,67 @@ export const ArchitectureWhiteboardPane: React.FC<ArchitectureWhiteboardPaneProp
     }
   };
 
+  const generateArchitectureSummary = useCallback((): string => {
+    if (nodes.length === 0) return '';
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+    const lines: string[] = [];
+    lines.push('### 📐 System Architecture Design');
+    lines.push('');
+    lines.push('**Components:**');
+    nodes.forEach((n) => {
+      lines.push(`- **${n.label}** (${n.type.toUpperCase()})`);
+    });
+    if (connections.length > 0) {
+      lines.push('');
+      lines.push('**Data Flow & Topology:**');
+      connections.forEach((c) => {
+        const fromNode = nodeMap.get(c.fromId);
+        const toNode = nodeMap.get(c.toId);
+        if (fromNode && toNode) {
+          lines.push(`- \`${fromNode.label}\` ➔ \`${toNode.label}\``);
+        }
+      });
+    }
+    return lines.join('\n');
+  }, [nodes, connections]);
+
+  const handleCritiqueArchitecture = async () => {
+    if (!sessionId) {
+      showStatus('System design critique active during live interview session.');
+      return;
+    }
+    if (nodes.length === 0) {
+      showStatus('Whiteboard is empty. Add components to critique.');
+      return;
+    }
+    setIsCritiquing(true);
+    setCritiqueResult(null);
+    try {
+      const summary = generateArchitectureSummary();
+      const res = await apiFetch(`/api/interview/${sessionId}/whiteboard/critique`, {
+        method: 'POST',
+        body: JSON.stringify({
+          nodes,
+          connections,
+          summary,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCritiqueResult(data);
+        if (data.interviewer_line && onSpeakCritique) {
+          onSpeakCritique(data.interviewer_line);
+        }
+        showStatus('Sarah Chen analyzed your architecture topology.');
+      }
+    } catch (err) {
+      console.warn('[Critique Error]', err);
+      showStatus('Critique temporarily unavailable.');
+    } finally {
+      setIsCritiquing(false);
+    }
+  };
+
   const getNodeIcon = (type: NodeType) => {
     switch (type) {
       case 'client':
@@ -499,6 +572,18 @@ export const ArchitectureWhiteboardPane: React.FC<ArchitectureWhiteboardPaneProp
           >
             <Share2 className="w-3.5 h-3.5" />
             <span>Attach to Answer</span>
+          </button>
+
+          {/* CRITIQUE ARCHITECTURE WITH SARAH */}
+          <button
+            type="button"
+            onClick={handleCritiqueArchitecture}
+            disabled={isCritiquing}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-400 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 shadow-md shadow-cyan-500/10"
+            title="Ask Sarah Chen to analyze bottlenecks and SPOFs in your system design"
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${isCritiquing ? 'animate-spin' : 'animate-pulse'}`} />
+            <span>{isCritiquing ? 'Analyzing Architecture...' : 'Critique Architecture'}</span>
           </button>
         </div>
       </div>
@@ -869,6 +954,49 @@ export const ArchitectureWhiteboardPane: React.FC<ArchitectureWhiteboardPaneProp
           </div>
         )}
       </div>
+
+      {/* REAL-TIME ARCHITECTURAL CRITIQUE CARD */}
+      {critiqueResult && (
+        <div className="bg-[#091122] border-t border-cyan-500/30 p-3.5 space-y-2.5 animate-fadeIn">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+              <span className="text-xs font-bold text-white tracking-tight">Sarah Chen&apos;s Architectural Critique</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCritiqueResult(null)}
+              className="text-ink-muted hover:text-ink text-xs p-1 rounded hover:bg-slate-800"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+            <div className="p-2.5 rounded-lg bg-emerald-950/30 border border-emerald-500/20 text-emerald-300">
+              <p className="font-semibold text-emerald-400 mb-1 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Architectural Strengths
+              </p>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-emerald-200/90">
+                {critiqueResult.strengths?.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+            <div className="p-2.5 rounded-lg bg-amber-950/30 border border-amber-500/20 text-amber-300">
+              <p className="font-semibold text-amber-400 mb-1 flex items-center gap-1">
+                <Trash2 className="w-3 h-3 text-amber-400" /> Bottlenecks &amp; SPOFs
+              </p>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-200/90">
+                {critiqueResult.bottlenecks?.map((b, i) => <li key={i}>{b}</li>)}
+              </ul>
+            </div>
+          </div>
+          {critiqueResult.socratic_question && (
+            <div className="p-2.5 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-xs text-cyan-200">
+              <span className="font-semibold text-cyan-400">Socratic Challenge: </span>
+              <span>{critiqueResult.socratic_question}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* FOOTER BAR HELPER */}
       <div className="px-4 py-2 bg-surface border-t border-line flex items-center justify-between text-[11px] font-mono text-ink-muted">

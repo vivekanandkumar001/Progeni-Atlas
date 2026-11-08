@@ -32,9 +32,9 @@ export const DEFAULT_VAD_CONFIG: Required<VADConfig> = {
   rmsSpeechStartThreshold: 0.015,
   rmsSpeechEndThreshold: 0.008,
   rmsSpeechThreshold: 0.015,
-  silenceDurationMs: 6000,
+  silenceDurationMs: 1500,
   minSpeechDurationMs: 120,
-  speechHangoverMs: 3000,
+  speechHangoverMs: 800,
   maxAnswerDurationMs: 180000,
 };
 

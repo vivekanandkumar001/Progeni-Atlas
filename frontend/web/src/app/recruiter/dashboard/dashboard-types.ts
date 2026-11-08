@@ -63,6 +63,14 @@ export interface CandidateDossier {
   keyHighlights: string[];
   hiringStatus?: string;
   studentStatus?: StudentStatus | string;
+  aptitudeScore?: {
+    overallScore: number;
+    percentile: number;
+    accuracy: number;
+    trustScore: number;
+    speedIndex: string;
+    completedAt?: string;
+  } | null;
 }
 
 export interface DashboardError {

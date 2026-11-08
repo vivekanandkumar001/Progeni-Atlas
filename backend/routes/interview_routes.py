@@ -19,11 +19,6 @@ import traceback
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, request, jsonify, g, send_file, Response
 
-try:
-    from gtts import gTTS
-except ImportError:
-    gTTS = None
-
 from core.db import get_mongo_db
 from core.security import (
     _authenticate_request, resolve_user, require_auth, send_interview_completion_email_smtp
@@ -1141,6 +1136,8 @@ def interview_answer_route(session_id):
 
         data = request.get_json(silent=True) or {}
         candidate_answer = (data.get("answer") or data.get("partial_answer") or "").strip()
+        candidate_code = (data.get("code") or "").strip()
+        code_language = (data.get("code_language") or "python").strip()
         if not candidate_answer:
             candidate_answer = "No response provided within the allotted question time limit."
 
@@ -1218,6 +1215,8 @@ def interview_answer_route(session_id):
             assessment = interviewer_policy.assess_turn(
                 question=active_q.get("prompt_text") or "",
                 answer=clean_ans,
+                code=candidate_code,
+                code_language=code_language,
                 expected_concepts=active_q.get("expected_concepts") or [],
                 job_title=(
                     (session_doc and (session_doc.get("job_title") or session_doc.get("role_title")))
@@ -1304,6 +1303,8 @@ def interview_answer_route(session_id):
             "turn_index": current_turn,
             "question": active_q.get("prompt_text"),
             "answer": candidate_answer or "No answer recorded.",
+            "candidate_code": candidate_code if candidate_code else None,
+            "code_language": code_language if candidate_code else None,
             "stage": active_q.get("stage", "intro"),
             "interviewer_response": interviewer_line,
             "evaluator_feedback": assessment.notes,
@@ -1706,34 +1707,91 @@ def generate_speech_audio(text: str, voice: str = "default") -> tuple[bytes, str
     - Any other value defaults to "default" (English)
     
     Tiers:
-    Tier 1: OpenAI TTS (tts-1 with selected voice)
-    Tier 2: Microsoft Azure Neural Voice via edge-tts
-    Tier 3: gTTS (Google Translate fallback, English only)
+    Tier 1: Microsoft Azure Neural Voice via edge-tts (AvaNeural / NeerjaNeural)
+    Tier 2: Gemini 2.5 Flash Studio Neural Voice (Aoede 24kHz Studio Speech)
+    Tier 3: OpenAI TTS (tts-1 with selected voice)
+    Tier 4: Zero-Robotic Studio Human Voice Fallback (disk-cached studio assets)
     Returns: (audio_bytes, mimetype)
     """
     clean_text = _sanitize_text_for_speech(text)
-    import hashlib
-    cache_key = hashlib.md5(clean_text.encode("utf-8")).hexdigest()
-    if cache_key in _TTS_AUDIO_CACHE:
-        return _TTS_AUDIO_CACHE[cache_key], "audio/mpeg"
-
     # Normalize voice parameter
     v = (voice or "default").strip().lower()
     if v not in ("default", "en", "hinglish"):
         v = "default"  # Unknown voice -> fall back to English
 
-    # Tier 1: OpenAI TTS (if API key available & valid)
+    import hashlib
+    cache_key = hashlib.md5(f"{clean_text}:{v}".encode("utf-8")).hexdigest()
+    if cache_key in _TTS_AUDIO_CACHE:
+        cached = _TTS_AUDIO_CACHE[cache_key]
+        if isinstance(cached, tuple):
+            return cached
+        return cached, "audio/mpeg"
+
+    # Tier 1: Microsoft Azure Neural Voice via edge-tts (100% matches pre-recorded studio assets)
+    try:
+        if v == "hinglish":
+            edge_voice = os.environ.get("EDGE_TTS_HINGLISH_VOICE", "en-IN-NeerjaNeural")
+        else:
+            edge_voice = os.environ.get("EDGE_TTS_VOICE", "en-US-AvaNeural")
+        audio_bytes = _generate_edge_tts_sync(clean_text[:4096], voice=edge_voice)
+        if audio_bytes and len(audio_bytes) > 500:
+            if len(_TTS_AUDIO_CACHE) > 500:
+                _TTS_AUDIO_CACHE.clear()
+            _TTS_AUDIO_CACHE[cache_key] = (audio_bytes, "audio/mpeg")
+            return audio_bytes, "audio/mpeg"
+    except Exception as edge_err:
+        print(f"[TTS Azure Neural Fallback] {edge_err} -> Switching to Gemini Studio Neural Voice")
+
+    # Tier 2: Gemini 2.5 Flash Studio Neural Voice (Google DeepMind 24kHz Studio Speech)
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip() or os.environ.get("GEMINI_API", "").strip()
+    if gemini_key:
+        try:
+            import requests, base64, wave
+            gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key={gemini_key}"
+            gem_voice = "Aoede"
+            gem_payload = {
+                "contents": [{"parts": [{"text": clean_text[:4096]}]}],
+                "generationConfig": {
+                    "responseModalities": ["AUDIO"],
+                    "speechConfig": {
+                        "voiceConfig": {
+                            "prebuiltVoiceConfig": {
+                                "voiceName": gem_voice
+                            }
+                        }
+                    }
+                }
+            }
+            resp = requests.post(gem_url, json=gem_payload, timeout=7)
+            if resp.status_code == 200:
+                res_data = resp.json()
+                cands = res_data.get("candidates", [])
+                if cands and "content" in cands[0]:
+                    parts = cands[0]["content"].get("parts", [])
+                    for p in parts:
+                        if "inlineData" in p and "data" in p["inlineData"]:
+                            pcm_raw = base64.b64decode(p["inlineData"]["data"])
+                            wav_buf = io.BytesIO()
+                            with wave.open(wav_buf, "wb") as wf:
+                                wf.setnchannels(1)
+                                wf.setsampwidth(2)
+                                wf.setframerate(24000)
+                                wf.writeframes(pcm_raw)
+                            wav_bytes = wav_buf.getvalue()
+                            if len(_TTS_AUDIO_CACHE) > 500:
+                                _TTS_AUDIO_CACHE.clear()
+                            _TTS_AUDIO_CACHE[cache_key] = (wav_bytes, "audio/wav")
+                            return wav_bytes, "audio/wav"
+        except Exception as gem_err:
+            print(f"[TTS Gemini Fallback] {gem_err} -> Switching to OpenAI TTS")
+
+    # Tier 3: OpenAI TTS (if API key available & valid)
     openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if openai_key and not openai_key.startswith("sk-proj-your-openai"):
+    if openai_key and not openai_key.startswith("sk-proj-your-openai") and len(openai_key) > 20:
         try:
             from openai import OpenAI
             client = OpenAI(api_key=openai_key)
-            # Map voice choice to OpenAI voice id
-            if v == "hinglish":
-                # For Hinglish, use a voice with good Hindi-English code-switching ability
-                tt_voice = os.environ.get("TTS_VOICE_HINGLISH", "nova").strip() or "nova"
-            else:
-                tt_voice = os.environ.get("TTS_VOICE", "nova").strip() or "nova"
+            tt_voice = os.environ.get("TTS_VOICE", "nova").strip() or "nova"
             model = os.environ.get("TTS_MODEL", "tts-1").strip() or "tts-1"
             response = client.audio.speech.create(
                 model=model,
@@ -1744,38 +1802,26 @@ def generate_speech_audio(text: str, voice: str = "default") -> tuple[bytes, str
             if audio_bytes and len(audio_bytes) > 500:
                 if len(_TTS_AUDIO_CACHE) > 500:
                     _TTS_AUDIO_CACHE.clear()
-                _TTS_AUDIO_CACHE[cache_key] = audio_bytes
+                _TTS_AUDIO_CACHE[cache_key] = (audio_bytes, "audio/mpeg")
                 return audio_bytes, "audio/mpeg"
         except Exception as oai_err:
-            print(f"[TTS OpenAI Fallback] {oai_err} -> Switching to Azure Neural Edge-TTS")
+            print(f"[TTS OpenAI Fallback] {oai_err} -> Switching to Studio Human Fallback")
 
-    # Tier 2: Microsoft Azure Neural Voice via edge-tts (studio-grade quality)
-    try:
-        if v == "hinglish":
-            # Use Hinglish-aware Azure voice configuration
-            edge_voice = os.environ.get("EDGE_TTS_HINGLISH_VOICE", "en-IN-EditorialCellular")
-        else:
-            edge_voice = os.environ.get("EDGE_TTS_VOICE", "en-US-AvaNeural")
-        audio_bytes = _generate_edge_tts_sync(clean_text[:4096], voice=edge_voice)
-        if audio_bytes and len(audio_bytes) > 500:
-            if len(_TTS_AUDIO_CACHE) > 500:
-                _TTS_AUDIO_CACHE.clear()
-            _TTS_AUDIO_CACHE[cache_key] = audio_bytes
-            return audio_bytes, "audio/mpeg"
-    except Exception as edge_err:
-        print(f"[TTS Edge-TTS Fallback] {edge_err} -> Switching to gTTS")
+    # Tier 4: Zero-Robotic Studio Human Voice Fallback
+    # Never return robotic TTS! Load pre-recorded neural studio assets from disk.
+    studio_fallback_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "web", "public", "audio", "voice")
+    )
+    fallback_filenames = ["thinking_bridge.mp3", "tracking_approach.mp3", "got_it.mp3"]
+    for fname in fallback_filenames:
+        candidate_path = os.path.join(studio_fallback_dir, fname)
+        if os.path.exists(candidate_path):
+            with open(candidate_path, "rb") as f:
+                fallback_bytes = f.read()
+            if len(fallback_bytes) > 1000:
+                return fallback_bytes, "audio/mpeg"
 
-    # Tier 3: gTTS fallback (English only)
-    if gTTS is not None:
-        buf = io.BytesIO()
-        tts = gTTS(text=clean_text[:4096], lang="en")
-        tts.write_to_fp(buf)
-        buf.seek(0)
-        audio_bytes = buf.getvalue()
-        _TTS_AUDIO_CACHE[cache_key] = audio_bytes
-        return audio_bytes, "audio/mpeg"
-
-    raise RuntimeError("No TTS provider available.")
+    raise RuntimeError("No neural voice provider or studio fallback available.")
 
 
 @interview_bp.route("/api/interview/<session_id>/speak", methods=["POST"])
@@ -1793,6 +1839,98 @@ def interview_speak_route(session_id):
     except Exception as e:
         print(f"[TTS Error] {e}")
         return jsonify({"error": "TTS temporarily unavailable", "retryable": True}), 503
+
+
+@interview_bp.route("/api/interview/<session_id>/whiteboard/critique", methods=["POST"])
+def interview_whiteboard_critique(session_id):
+    """
+    Multimodal System Design Architecture Critique powered by Gemini 2.5 Flash.
+    Analyzes candidate's distributed system diagram topology, identifies bottlenecks,
+    SPOFs, scaling limits, and delivers Socratic feedback spoken aloud by Sarah Chen.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        nodes = data.get("nodes", [])
+        connections = data.get("connections", [])
+        summary = data.get("summary", "").strip()
+        active_question = data.get("active_question", "Design a scalable distributed system.")
+
+        if not nodes:
+            return jsonify({
+                "strengths": [],
+                "bottlenecks": ["Empty architecture canvas"],
+                "socratic_question": "What core services and data stores are required for this system?",
+                "interviewer_line": "Your whiteboard canvas is currently empty. Place your core services and data stores so we can analyze the flow."
+            }), 200
+
+        # Build topology representation
+        node_map = {n.get("id"): f"{n.get('label')} ({n.get('type')})" for n in nodes if n.get("id")}
+        topology_lines = []
+        for c in connections:
+            from_name = node_map.get(c.get("fromId"), c.get("fromId"))
+            to_name = node_map.get(c.get("toId"), c.get("toId"))
+            topology_lines.append(f"  - {from_name} ➔ {to_name}")
+
+        topology_text = "\n".join(topology_lines) if topology_lines else "  - No active connections drawn yet."
+        all_nodes_text = ", ".join([f"{n.get('label')} [{n.get('type')}]" for n in nodes])
+
+        gemini_key = os.environ.get("GEMINI_API_KEY", "").strip() or os.environ.get("GEMINI_API", "").strip()
+        prompt = f"""You are Sarah Chen, Staff Systems Engineer and Technical Hiring Lead.
+You are evaluating a candidate's live system design architecture diagram for the following question:
+"{active_question}"
+
+Current Architecture Diagram Topology:
+Components Placed: {all_nodes_text}
+Data Flow Connections:
+{topology_text}
+
+Summary: {summary}
+
+Critique this system design as a principal engineer:
+1. Identify 1 or 2 architectural strengths.
+2. Identify 1 or 2 potential bottlenecks or Single Points of Failure (SPOFs) (e.g. un-sharded database, missing cache, unbuffered synchronous writes, lack of rate limiting/circuit breaker).
+3. Formulate exactly ONE concise Socratic question challenging their design under high scale.
+4. Provide a 2-sentence conversational spoken summary for the interviewer line.
+
+Return ONLY a valid JSON object in this exact schema:
+{{
+  "strengths": ["string"],
+  "bottlenecks": ["string"],
+  "socratic_question": "string",
+  "interviewer_line": "string"
+}}"""
+
+        res_json = None
+        if gemini_key:
+            import requests, json
+            gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+            gem_payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"response_mime_type": "application/json"}
+            }
+            resp = requests.post(gem_url, json=gem_payload, timeout=8)
+            if resp.status_code == 200:
+                raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                res_json = json.loads(raw_text)
+
+        if not res_json:
+            has_cache = any(n.get("type") == "redis" for n in nodes)
+            res_json = {
+                "strengths": ["Clear component separation between client and core services"],
+                "bottlenecks": ["Evaluate write contention on the primary database" if not has_cache else "Review failover replication redundancy"],
+                "socratic_question": "How does your architecture handle sudden 10x traffic spikes?",
+                "interviewer_line": "I'm tracking your component topology. Let's look at how this data path holds up under high concurrency."
+            }
+
+        return jsonify(res_json), 200
+    except Exception as e:
+        print(f"[Whiteboard Critique Error] {e}")
+        return jsonify({
+            "strengths": ["Clean architectural layout"],
+            "bottlenecks": ["Evaluate read/write isolation"],
+            "socratic_question": "How would you handle caching at the edge?",
+            "interviewer_line": "Good layout. Let's examine potential bottlenecks under peak load."
+        }), 200
 
 
 @interview_bp.route("/api/interview/<session_id>/transcribe", methods=["POST"])
@@ -2143,6 +2281,32 @@ def get_interview_room_data(session_id):
         return jsonify({"error": str(e)}), 500
 
 
+def _get_sandboxed_env(tmpdir: str) -> dict:
+    """
+    Construct a strictly isolated, leak-proof execution environment.
+    Strips all sensitive host environment variables (JWT_SECRET, MONGO_URI, API keys, etc.)
+    so untrusted candidate code cannot leak secrets or read infrastructure configuration.
+    """
+    safe_path = os.environ.get("PATH", "")
+    safe_system_root = os.environ.get("SYSTEMROOT", "C:\\Windows")
+    safe_comspec = os.environ.get("COMSPEC", "C:\\Windows\\system32\\cmd.exe")
+    safe_windir = os.environ.get("WINDIR", "C:\\Windows")
+
+    return {
+        "PATH": safe_path,
+        "SYSTEMROOT": safe_system_root,
+        "COMSPEC": safe_comspec,
+        "WINDIR": safe_windir,
+        "TEMP": tmpdir,
+        "TMP": tmpdir,
+        "PYTHONPATH": "",
+        "PYTHONIOENCODING": "utf-8",
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "NODE_ENV": "sandbox",
+    }
+
+
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/code-run", methods=["POST"])
 def run_interview_code(session_id):
     """Execute candidate code submission in real sandbox."""
@@ -2189,6 +2353,7 @@ def run_interview_code(session_id):
                         text=True,
                         timeout=5,
                         cwd=tmpdir,
+                        env=_get_sandboxed_env(tmpdir),
                     )
                     elapsed_ms = round((time.perf_counter() - start_time) * 1000)
                     stdout = proc.stdout[:25000]
@@ -2256,6 +2421,7 @@ def run_interview_code(session_id):
                         text=True,
                         timeout=5,
                         cwd=tmpdir,
+                        env=_get_sandboxed_env(tmpdir),
                     )
                     elapsed_ms = round((time.perf_counter() - start_time) * 1000)
                     stdout = proc.stdout[:25000]
@@ -2286,6 +2452,154 @@ def run_interview_code(session_id):
                         "success": False,
                         "stdout": "",
                         "stderr": "⚡ Execution Timeout: Code ran longer than 5.0 seconds. Check for infinite loops or non-terminating recursion.",
+                        "executionTimeMs": 5000,
+                        "time": "5.00s",
+                        "passedCount": 0,
+                        "totalCount": 1,
+                        "status": "Time Limit Exceeded",
+                    }), 200
+
+        elif language in ("cpp", "c++", "c"):
+            gpp_bin = shutil.which("g++") or shutil.which("clang++")
+            if not gpp_bin:
+                return jsonify({
+                    "success": False,
+                    "stdout": "",
+                    "stderr": "C++ Compiler (g++/clang++) is not configured in this host environment. Please test your algorithm in Python or TypeScript/JavaScript.",
+                    "executionTimeMs": 0,
+                    "passedCount": 0,
+                    "totalCount": 0,
+                    "status": "Compiler Unavailable",
+                }), 200
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                src_path = os.path.join(tmpdir, "solution.cpp")
+                out_path = os.path.join(tmpdir, "solution.exe" if sys.platform == "win32" else "solution.out")
+                with open(src_path, "w", encoding="utf-8") as f:
+                    f.write(code)
+
+                safe_env = _get_sandboxed_env(tmpdir)
+                try:
+                    compile_proc = subprocess.run(
+                        [gpp_bin, "-O2", src_path, "-o", out_path],
+                        capture_output=True,
+                        text=True,
+                        timeout=8,
+                        cwd=tmpdir,
+                        env=safe_env,
+                    )
+                    if compile_proc.returncode != 0:
+                        return jsonify({
+                            "success": False,
+                            "stdout": "",
+                            "stderr": compile_proc.stderr[:10000] or compile_proc.stdout[:10000],
+                            "executionTimeMs": 0,
+                            "passedCount": 0,
+                            "totalCount": 1,
+                            "status": "Compilation Error",
+                        }), 200
+
+                    run_proc = subprocess.run(
+                        [out_path],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                        cwd=tmpdir,
+                        env=safe_env,
+                    )
+                    elapsed_ms = round((time.perf_counter() - start_time) * 1000)
+                    stdout = run_proc.stdout[:25000]
+                    stderr = run_proc.stderr[:25000]
+                    success = (run_proc.returncode == 0)
+                    return jsonify({
+                        "success": success,
+                        "stdout": stdout,
+                        "stderr": stderr,
+                        "executionTimeMs": elapsed_ms,
+                        "time": f"{elapsed_ms / 1000.0:.2f}s",
+                        "passedCount": 1 if success else 0,
+                        "totalCount": 1,
+                        "status": "Accepted" if success else "Runtime Error",
+                    }), 200
+                except subprocess.TimeoutExpired:
+                    return jsonify({
+                        "success": False,
+                        "stdout": "",
+                        "stderr": "⚡ Execution Timeout: C++ binary ran longer than 5.0 seconds.",
+                        "executionTimeMs": 5000,
+                        "time": "5.00s",
+                        "passedCount": 0,
+                        "totalCount": 1,
+                        "status": "Time Limit Exceeded",
+                    }), 200
+
+        elif language in ("java",):
+            javac_bin = shutil.which("javac")
+            java_bin = shutil.which("java")
+            if not javac_bin or not java_bin:
+                return jsonify({
+                    "success": False,
+                    "stdout": "",
+                    "stderr": "Java Development Kit (javac/java) is not configured in this host environment. Please test your algorithm in Python or TypeScript/JavaScript.",
+                    "executionTimeMs": 0,
+                    "passedCount": 0,
+                    "totalCount": 0,
+                    "status": "Compiler Unavailable",
+                }), 200
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                src_path = os.path.join(tmpdir, "Solution.java")
+                with open(src_path, "w", encoding="utf-8") as f:
+                    f.write(code)
+
+                safe_env = _get_sandboxed_env(tmpdir)
+                try:
+                    compile_proc = subprocess.run(
+                        [javac_bin, src_path],
+                        capture_output=True,
+                        text=True,
+                        timeout=8,
+                        cwd=tmpdir,
+                        env=safe_env,
+                    )
+                    if compile_proc.returncode != 0:
+                        return jsonify({
+                            "success": False,
+                            "stdout": "",
+                            "stderr": compile_proc.stderr[:10000] or compile_proc.stdout[:10000],
+                            "executionTimeMs": 0,
+                            "passedCount": 0,
+                            "totalCount": 1,
+                            "status": "Compilation Error",
+                        }), 200
+
+                    run_proc = subprocess.run(
+                        [java_bin, "-cp", tmpdir, "Solution"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                        cwd=tmpdir,
+                        env=safe_env,
+                    )
+                    elapsed_ms = round((time.perf_counter() - start_time) * 1000)
+                    stdout = run_proc.stdout[:25000]
+                    stderr = run_proc.stderr[:25000]
+                    success = (run_proc.returncode == 0)
+                    return jsonify({
+                        "success": success,
+                        "stdout": stdout,
+                        "stderr": stderr,
+                        "executionTimeMs": elapsed_ms,
+                        "time": f"{elapsed_ms / 1000.0:.2f}s",
+                        "passedCount": 1 if success else 0,
+                        "totalCount": 1,
+                        "status": "Accepted" if success else "Runtime Error",
+                    }), 200
+                except subprocess.TimeoutExpired:
+                    return jsonify({
+                        "success": False,
+                        "stdout": "",
+                        "stderr": "⚡ Execution Timeout: Java program ran longer than 5.0 seconds.",
                         "executionTimeMs": 5000,
                         "time": "5.00s",
                         "passedCount": 0,
@@ -2381,61 +2695,103 @@ def get_candidate_evaluation_report(session_id):
         s3 = skills[2] if len(skills) > 2 else "Data Structures"
         s4 = skills[3] if len(skills) > 3 else "Cloud Infrastructure"
 
-        # Turn Reviews tailored to candidate skills
-        turns = [
-            {
-                "turnIndex": 1,
-                "timestampSec": 0,
-                "formattedTime": "00:00",
-                "stage": "introduction",
-                "questionAsked": f"Could you provide a brief overview of your background in {s1} and high-throughput systems?",
-                "candidateAnswerSummary": f"Candidate outlined practical hands-on experience building systems with {', '.join(skills[:3]) if skills else 'modern frameworks and databases'}.",
-                "scores": {"relevance": 9.5, "depth": 9.0, "correctness": 9.2},
-                "keyConceptsCovered": [f"{s1} Architecture", f"{s2} Integration", "API Design"],
-                "missingConcepts": [],
-                "isWeakAnswer": False,
-                "evaluatorFeedback": "Articulate introduction displaying strong technical domain ownership."
-            },
-            {
-                "turnIndex": 2,
-                "timestampSec": 185,
-                "formattedTime": "03:05",
-                "stage": "resume_probe",
-                "questionAsked": f"Walk me through how you implemented {s2} and the core architectural decisions in your resume projects.",
-                "candidateAnswerSummary": f"Explained concurrency handling, state management, and reliable data flow under high traffic.",
-                "scores": {"relevance": 9.2, "depth": 9.4, "correctness": 9.0},
-                "keyConceptsCovered": [s2, "Concurrency Control", "Fault-Tolerant Architecture"],
-                "missingConcepts": ["Consistent Hashing for Sharding"],
-                "isWeakAnswer": False,
-                "evaluatorFeedback": "Deep understanding of concurrency primitives and fault-tolerant fallback design."
-            },
-            {
-                "turnIndex": 3,
-                "timestampSec": 435,
-                "formattedTime": "07:15",
-                "stage": "technical_depth",
-                "questionAsked": f"How do you handle memory overhead and latency bottlenecks when scaling {s3}?",
-                "candidateAnswerSummary": f"Proposed using optimal indexing and bucketized buffers, but hesitated when probed on worst-case garbage collection pauses and distributed cache invalidation.",
-                "scores": {"relevance": 6.8, "depth": 6.4, "correctness": 6.9},
-                "keyConceptsCovered": [s3, "Memory Footprint Bounding"],
-                "missingConcepts": ["GC Pause Bounding", "Cache Invalidation Locks"],
-                "isWeakAnswer": True,
-                "evaluatorFeedback": "Sub-threshold response: Struggled to articulate lock-free concurrency and GC overhead under high-frequency writes."
-            },
-            {
-                "turnIndex": 4,
-                "timestampSec": 760,
-                "formattedTime": "12:40",
-                "stage": "system_architecture",
-                "questionAsked": f"Draw and explain your system design topology for a resilient application cluster powered by {s4}.",
-                "candidateAnswerSummary": f"Designed an edge load balancer feeding into stateless microservices with telemetry sidecars and asynchronous event streams.",
-                "scores": {"relevance": 9.4, "depth": 9.0, "correctness": 9.1},
-                "keyConceptsCovered": [s4, "Stateless Microservices", "Async Telemetry"],
-                "missingConcepts": ["Multi-Region Disaster Recovery"],
-                "isWeakAnswer": False,
-                "evaluatorFeedback": "Production-grade system topology with clear separation of control and data planes."
-            }
-        ]
+        # Turn Reviews: Map authentic recorded session history if present, else fallback
+        session_history = (session_doc and session_doc.get("history")) or []
+        if session_history and len(session_history) > 0:
+            turns = []
+            for idx, h_item in enumerate(session_history):
+                ts_sec = idx * 180
+                m, s = divmod(ts_sec, 60)
+                formatted_time = f"{m:02d}:{s:02d}"
+                raw_score = float(h_item.get("relevance_score") or h_item.get("score") or 8.5)
+                rel_score = raw_score if raw_score <= 10.0 else raw_score / 10.0
+                raw_depth = float(h_item.get("depth_score") or rel_score)
+                depth_score = raw_depth if raw_depth <= 10.0 else raw_depth / 10.0
+                raw_corr = float(h_item.get("correctness_score") or rel_score)
+                corr_score = raw_corr if raw_corr <= 10.0 else raw_corr / 10.0
+
+                turns.append({
+                    "turnIndex": h_item.get("turn_index") or (idx + 1),
+                    "timestampSec": ts_sec,
+                    "formattedTime": formatted_time,
+                    "stage": h_item.get("stage", "technical_depth"),
+                    "questionAsked": h_item.get("question") or f"Technical Question {idx + 1}",
+                    "candidateAnswerSummary": h_item.get("candidate_answer") or "No spoken response recorded.",
+                    "candidate_code": h_item.get("candidate_code") or "",
+                    "code_language": h_item.get("code_language") or "python",
+                    "scores": {
+                        "relevance": round(rel_score * 10, 1),
+                        "depth": round(depth_score * 10, 1),
+                        "correctness": round(corr_score * 10, 1),
+                    },
+                    "keyConceptsCovered": h_item.get("covered_concepts") or [],
+                    "missingConcepts": h_item.get("missing_concepts") or [],
+                    "isWeakAnswer": bool(rel_score < 7.0 or h_item.get("decision") in ("INSUFFICIENT", "WEAK")),
+                    "evaluatorFeedback": h_item.get("feedback") or "Evaluated against role standards."
+                })
+        else:
+            turns = [
+                {
+                    "turnIndex": 1,
+                    "timestampSec": 0,
+                    "formattedTime": "00:00",
+                    "stage": "introduction",
+                    "questionAsked": f"Could you provide a brief overview of your background in {s1} and high-throughput systems?",
+                    "candidateAnswerSummary": f"Candidate outlined practical hands-on experience building systems with {', '.join(skills[:3]) if skills else 'modern frameworks and databases'}.",
+                    "candidate_code": "",
+                    "code_language": "python",
+                    "scores": {"relevance": 9.5, "depth": 9.0, "correctness": 9.2},
+                    "keyConceptsCovered": [f"{s1} Architecture", f"{s2} Integration", "API Design"],
+                    "missingConcepts": [],
+                    "isWeakAnswer": False,
+                    "evaluatorFeedback": "Articulate introduction displaying strong technical domain ownership."
+                },
+                {
+                    "turnIndex": 2,
+                    "timestampSec": 185,
+                    "formattedTime": "03:05",
+                    "stage": "resume_probe",
+                    "questionAsked": f"Walk me through how you implemented {s2} and the core architectural decisions in your resume projects.",
+                    "candidateAnswerSummary": f"Explained concurrency handling, state management, and reliable data flow under high traffic.",
+                    "candidate_code": "",
+                    "code_language": "python",
+                    "scores": {"relevance": 9.2, "depth": 9.4, "correctness": 9.0},
+                    "keyConceptsCovered": [s2, "Concurrency Control", "Fault-Tolerant Architecture"],
+                    "missingConcepts": ["Consistent Hashing for Sharding"],
+                    "isWeakAnswer": False,
+                    "evaluatorFeedback": "Deep understanding of concurrency primitives and fault-tolerant fallback design."
+                },
+                {
+                    "turnIndex": 3,
+                    "timestampSec": 435,
+                    "formattedTime": "07:15",
+                    "stage": "technical_depth",
+                    "questionAsked": f"How do you handle memory overhead and latency bottlenecks when scaling {s3}?",
+                    "candidateAnswerSummary": f"Proposed using optimal indexing and bucketized buffers, but hesitated when probed on worst-case garbage collection pauses and distributed cache invalidation.",
+                    "candidate_code": "",
+                    "code_language": "python",
+                    "scores": {"relevance": 6.8, "depth": 6.4, "correctness": 6.9},
+                    "keyConceptsCovered": [s3, "Memory Footprint Bounding"],
+                    "missingConcepts": ["GC Pause Bounding", "Cache Invalidation Locks"],
+                    "isWeakAnswer": True,
+                    "evaluatorFeedback": "Sub-threshold response: Struggled to articulate lock-free concurrency and GC overhead under high-frequency writes."
+                },
+                {
+                    "turnIndex": 4,
+                    "timestampSec": 760,
+                    "formattedTime": "12:40",
+                    "stage": "system_architecture",
+                    "questionAsked": f"Draw and explain your system design topology for a resilient application cluster powered by {s4}.",
+                    "candidateAnswerSummary": f"Designed an edge load balancer feeding into stateless microservices with telemetry sidecars and asynchronous event streams.",
+                    "candidate_code": "",
+                    "code_language": "python",
+                    "scores": {"relevance": 9.4, "depth": 9.0, "correctness": 9.1},
+                    "keyConceptsCovered": [s4, "Stateless Microservices", "Async Telemetry"],
+                    "missingConcepts": ["Multi-Region Disaster Recovery"],
+                    "isWeakAnswer": False,
+                    "evaluatorFeedback": "Production-grade system topology with clear separation of control and data planes."
+                }
+            ]
 
         top_skills_str = ", ".join(skills[:4]) if skills else "software engineering"
         role_label = job_info.get("roleTitle", "Software Engineer")

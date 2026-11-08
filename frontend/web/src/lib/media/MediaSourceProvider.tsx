@@ -290,7 +290,7 @@ export function MediaSourceProvider({ sessionId, children }: MediaSourceProvider
           const errStr = String((liveKitError as Error)?.message || liveKitError || '');
           if (errStr.includes('invalid API key') || errStr.includes('401') || errStr.includes('Authentication failed')) {
             liveKitAuthFailedRef.current = true;
-            console.info('[MediaSourceProvider] LiveKit credentials not active or pending. Running cleanly in high-res local WebRTC stream mode.');
+            console.warn('[MediaSourceProvider] LiveKit credentials not active or pending. Running cleanly in high-res local WebRTC stream mode.');
           } else {
             console.warn('[MediaSourceProvider] LiveKit transport notice (local stream remains active):', liveKitError);
           }

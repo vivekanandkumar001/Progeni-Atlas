@@ -100,6 +100,11 @@ export function CandidateDossiersSection({
  <ArrowUpDown className="w-3 h-3 opacity-60"/>
  </div>
  </th>
+ <th className="py-4 px-4 whitespace-nowrap">
+ <div className="flex items-center gap-1.5">
+ <span>Aptitude</span>
+ </div>
+ </th>
  <th className="py-4 px-4 whitespace-nowrap">Recommendation</th>
  <th
  className="py-4 px-4 whitespace-nowrap cursor-pointer hover:text-ink transition-colors select-none"
@@ -160,6 +165,28 @@ export function CandidateDossiersSection({
  {candidate.aiMatchScore != null ?`${candidate.aiMatchScore}%`: '—'}
  </div>
  </div>
+ </td>
+
+ {/* APTITUDE SCREENING SCORE */}
+ <td className="py-4 px-4 whitespace-nowrap">
+ {candidate.aptitudeScore ? (
+ <div className="flex items-center gap-2">
+ <div className={`w-10 h-10 rounded-full border-2 bg-inset flex flex-col items-center justify-center font-mono font-bold text-xs ${
+ candidate.aptitudeScore.overallScore >= 75
+ ? 'border-emerald-500/40 text-emerald-600'
+ : candidate.aptitudeScore.overallScore >= 50
+ ? 'border-amber-500/40 text-amber-600'
+ : 'border-rose-500/40 text-rose-600'
+ }`}>
+ <span>{candidate.aptitudeScore.overallScore}%</span>
+ </div>
+ <div className="text-[10px] text-ink-muted">
+ <span className="font-semibold text-ink">{candidate.aptitudeScore.percentile}th</span> %ile
+ </div>
+ </div>
+ ) : (
+ <span className="text-ink-muted text-xs">—</span>
+ )}
  </td>
 
  {/* RECOMMENDATION */}

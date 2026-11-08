@@ -457,6 +457,46 @@ def get_recruiter_dashboard():
                 "studentStatus": s.get("student_status") or s.get("hiring_status") or ("inprocess" if status_str.lower() == "scheduled" else "selected" if rec in ("HIRE", "STRONG_HIRE") else "inprocess")
             })
 
+        # Batch-populate candidate aptitude evaluation scorecards (Zero extra roundtrips)
+        cand_emails = [str(c.get("email", "")).strip().lower() for c in candidates_list if c.get("email")]
+        cand_ids = [str(c.get("id", "")).strip() for c in candidates_list if c.get("id")]
+
+        apt_map = {}
+        if db is not None and (cand_emails or cand_ids):
+            or_filters = []
+            if cand_emails:
+                or_filters.append({"candidateEmail": {"$in": cand_emails}})
+            if cand_ids:
+                or_filters.append({"candidateId": {"$in": cand_ids}})
+
+            if or_filters:
+                apt_cursor = list(db.aptitude_sessions.find({
+                    "$or": or_filters,
+                    "status": "completed"
+                }).sort("completedAt", -1))
+
+                for a in apt_cursor:
+                    e = str(a.get("candidateEmail", "")).strip().lower()
+                    cid = str(a.get("candidateId", "")).strip()
+                    sc = a.get("scorecard") or {}
+                    apt_obj = {
+                        "overallScore": sc.get("overallScore", 0),
+                        "percentile": sc.get("percentile", 0),
+                        "accuracy": sc.get("accuracyPercent", 0),
+                        "trustScore": sc.get("trustScore", 100),
+                        "speedIndex": sc.get("speedIndex", "Balanced"),
+                        "completedAt": a.get("completedAt")
+                    }
+                    if e and e not in apt_map:
+                        apt_map[e] = apt_obj
+                    if cid and cid not in apt_map:
+                        apt_map[cid] = apt_obj
+
+        for c in candidates_list:
+            cand_email_key = str(c.get("email", "")).strip().lower()
+            cand_id_key = str(c.get("id", "")).strip()
+            c["aptitudeScore"] = apt_map.get(cand_email_key) or apt_map.get(cand_id_key) or None
+
         # Calculate accurate real-time stats
         tot_cand = len(candidates_list)
         act_jobs = len(jobs_list)
