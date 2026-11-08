@@ -91,7 +91,17 @@ def verify_password(password: str, stored_hash: str) -> tuple[bool, bool]:
                 return False, False
         return False, False
 
-    # 2. PBKDF2 fallback format ($pbkdf2$<rounds>$<salt>$<hex>)
+    # 2. Bcrypt fallback format ($2a$, $2b$, $2y$)
+    if stored.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            import bcrypt
+            if bcrypt.checkpw(password.encode("utf-8"), stored.encode("utf-8")):
+                return True, True  # Valid, upgrade to Argon2id
+        except Exception:
+            pass
+        return False, False
+
+    # 3. PBKDF2 fallback format ($pbkdf2$<rounds>$<salt>$<hex>)
     if stored.startswith("$pbkdf2$"):
         parts = stored.split("$")
         if len(parts) == 5:
