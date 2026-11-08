@@ -125,13 +125,13 @@ const nextConfig: NextConfig = {
     const flaskBase = (process.env.NEXT_PUBLIC_API_URL?.split(',')[0] || '').replace(/\/+$/, '') || defaultBackend;
     return {
       beforeFiles: [],
-      afterFiles: [
+      afterFiles: [],
+      fallback: [
         {
           source: '/api/:path*',
           destination: `${flaskBase}/api/:path*`,
         },
       ],
-      fallback: [],
     };
   },
 };
