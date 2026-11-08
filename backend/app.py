@@ -51,10 +51,10 @@ if os.environ.get("TRUST_PROXY_HEADERS", "false").lower() in ("true", "1", "t"):
 def _get_allowed_cors_origins() -> list[str]:
     raw = os.environ.get(
         "CORS_ORIGINS",
-        "http://localhost:3000,http://127.0.0.1:3000,https://atlas.progeni.live,https://api.progeni.live,https://atlas.progeni.live"
+        "http://localhost:3000,http://127.0.0.1:3000,https://atlas.progeni.live,https://api.progeni.live"
     )
     origins = [o.strip() for o in raw.split(",") if o.strip() and o.strip() != "*"]
-    for required in ("https://atlas.progeni.live", "https://api.progeni.live", "https://atlas.progeni.live"):
+    for required in ("https://atlas.progeni.live", "https://api.progeni.live"):
         if required not in origins:
             origins.append(required)
     return origins
