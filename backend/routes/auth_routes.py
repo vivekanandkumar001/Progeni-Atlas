@@ -46,7 +46,7 @@ def check_email_exists():
 
         return jsonify({"exists": False}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @auth_bp.route("/api/auth/register", methods=["POST"])
@@ -286,7 +286,7 @@ def verify_otp():
         if token:
             is_prod = os.environ.get("APP_ENV", "development").strip().lower() in ("production", "prod")
             resp.set_cookie("tp_session", token, max_age=7*24*3600, path="/", samesite="Lax", httponly=True, secure=is_prod)
-            resp.set_cookie("tp_role", user_role, max_age=7*24*3600, path="/", samesite="Lax", httponly=False, secure=is_prod)
+            resp.set_cookie("tp_role", user_role, max_age=7*24*3600, path="/", samesite="Lax", httponly=True, secure=is_prod)
         return resp
     except Exception as e:
         traceback.print_exc()
@@ -359,7 +359,7 @@ def resend_otp():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @auth_bp.route("/api/auth/otp-status", methods=["GET"])
@@ -397,7 +397,7 @@ def otp_status():
                         "cooldownSec": OTP_RESEND_COOLDOWN_SEC}), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @auth_bp.route("/api/auth/login", methods=["POST"])
@@ -468,7 +468,8 @@ def login():
             "role": user_role,
             "type": "access",
             "exp": exp_timestamp,
-            "ver": 1
+            "ver": 1,
+            "org_id": str(user.get("org_id")) if user.get("org_id") else None
         }
         token = jwt.encode(jwt_payload, SWAMI_SECRET_KEY, algorithm="HS256")
         if isinstance(token, bytes):
@@ -495,7 +496,7 @@ def login():
         # Set secure session cookies for SSR and authenticated requests
         is_prod = os.environ.get("APP_ENV", "development").strip().lower() in ("production", "prod")
         resp.set_cookie("tp_session", token, max_age=7*24*3600, path="/", samesite="Lax", httponly=True, secure=is_prod)
-        resp.set_cookie("tp_role", user_role, max_age=7*24*3600, path="/", samesite="Lax", httponly=False, secure=is_prod)
+        resp.set_cookie("tp_role", user_role, max_age=7*24*3600, path="/", samesite="Lax", httponly=True, secure=is_prod)
         return resp
     except Exception as e:
         traceback.print_exc()
@@ -630,7 +631,8 @@ def refresh_token():
             "role": role,
             "type": "access",
             "exp": exp_timestamp,
-            "ver": 1
+            "ver": 1,
+            "org_id": str(user.get("org_id")) if user.get("org_id") else None
         }
         new_token = jwt.encode(new_payload, SWAMI_SECRET_KEY, algorithm="HS256")
         if isinstance(new_token, bytes):
@@ -639,7 +641,7 @@ def refresh_token():
         resp = make_response(jsonify({"success": True, "token": new_token}), 200)
         is_prod = os.environ.get("APP_ENV", "development").strip().lower() in ("production", "prod")
         resp.set_cookie("tp_session", new_token, max_age=7*24*3600, path="/", samesite="Lax", httponly=True, secure=is_prod)
-        resp.set_cookie("tp_role", role, max_age=7*24*3600, path="/", samesite="Lax", httponly=False, secure=is_prod)
+        resp.set_cookie("tp_role", role, max_age=7*24*3600, path="/", samesite="Lax", httponly=True, secure=is_prod)
         return resp
     except Exception as e:
         return jsonify({"error": f"Token refresh failed: {str(e)}"}), 500
@@ -691,7 +693,7 @@ def forgot_password():
             "redirectUrl": f"/forgot-password?step=2&email={email}"
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @auth_bp.route("/api/auth/reset-password", methods=["POST"])
@@ -765,5 +767,5 @@ def reset_password():
             "redirectUrl": "/login"
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 

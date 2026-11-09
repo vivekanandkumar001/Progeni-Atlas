@@ -248,12 +248,29 @@ export default function CandidateWalletPage() {
     void loadWallet();
   }, [loadWallet]);
 
+  const selectedObj = useMemo(() => {
+    return candidatePacks.find((p) => p.credits === selectedPack) || candidatePacks[0];
+  }, [candidatePacks, selectedPack]);
+
+  const payableInr = useMemo(() => {
+    if (customAmount && customAmount.trim().length > 0) {
+      const parsed = parseFloat(customAmount);
+      return isNaN(parsed) ? 0 : Math.max(0, parsed);
+    }
+    return selectedObj?.inr ?? 99;
+  }, [customAmount, selectedObj]);
+
+  const payableCredits = useMemo(() => {
+    if (customAmount && customAmount.trim().length > 0) {
+      const parsed = parseFloat(customAmount);
+      return isNaN(parsed) ? 0 : Math.max(0, parsed);
+    }
+    return selectedObj?.credits ?? 100;
+  }, [customAmount, selectedObj]);
+
   const handleRecharge = async () => {
-    const selectedObj = candidatePacks.find((p) => p.credits === selectedPack) || candidatePacks[0];
-    const amountCredits = customAmount ? parseFloat(customAmount) : (selectedObj?.credits || 70);
-    const amountInr = customAmount ? parseFloat(customAmount) : (selectedObj?.inr || 99);
-    if (!amountCredits || amountCredits <= 0) {
-      setMessage({ text: 'Please enter a valid credit amount.', type: 'error' });
+    if (!payableCredits || payableCredits <= 0 || !payableInr || payableInr <= 0) {
+      setMessage({ text: 'Please enter a valid amount greater than 0.', type: 'error' });
       return;
     }
 
@@ -262,8 +279,8 @@ export default function CandidateWalletPage() {
 
     try {
       const orderRes = await createMayankUpiOrder({
-        amountCredits,
-        amountInr,
+        amountCredits: payableCredits,
+        amountInr: payableInr,
       });
       setActiveUpiOrder(orderRes);
       setRechargeModalOpen(false);
@@ -967,11 +984,11 @@ export default function CandidateWalletPage() {
                 <div className="flex items-center justify-between font-bold">
                   <span>Total Payable:</span>
                   <span className="text-base text-accent-cyan">
-                    ₹{customAmount ? parseFloat(customAmount) || 0 : selectedPack}.00
+                    ₹{payableInr.toFixed(2)}
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-ink-muted">
-                  Secured by <strong>Progeni Atlas UPI</strong> (Google Pay, PhonePe, Paytm, BHIM, QR). Instant credit addition.
+                  You will receive <strong>{payableCredits} Credits</strong> (~{customAmount ? Math.round(payableCredits * 2) : (selectedObj?.minutes ?? Math.round(payableCredits * 2))} mins practice). Secured by <strong>Progeni Atlas UPI</strong> (Google Pay, PhonePe, Paytm, BHIM, QR). Instant credit addition.
                 </p>
               </div>
             </div>
@@ -987,11 +1004,11 @@ export default function CandidateWalletPage() {
               </button>
               <button
                 type="button"
-                disabled={recharging}
+                disabled={recharging || payableInr <= 0}
                 onClick={() => void handleRecharge()}
                 className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#185adb] hover:bg-[#154bb7] shadow-md transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
               >
-                {recharging ? 'Creating UPI Order...' : `Pay ₹${customAmount ? parseFloat(customAmount) || 0 : selectedPack} via UPI Gateway`}
+                {recharging ? 'Creating UPI Order...' : `Pay ₹${payableInr.toFixed(0)} via UPI Gateway`}
               </button>
             </div>
           </div>

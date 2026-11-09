@@ -39,7 +39,7 @@ export function getActiveUserScope(): string {
     if (emailCookie && emailCookie[1]) {
       return decodeURIComponent(emailCookie[1]).trim().toLowerCase();
     }
-  } catch {}
+  } catch { }
   return 'anon';
 }
 
@@ -58,13 +58,13 @@ export function clearSession(): void {
     try {
       window.localStorage.removeItem(USER_KEY);
       window.localStorage.removeItem('tp_token');
-    } catch {}
+    } catch { }
     try {
       document.cookie = 'tp_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
       document.cookie = 'tp_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
       document.cookie = 'tp_refresh=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    } catch {}
-    try { window.dispatchEvent(new Event('tp_auth_change')); } catch {}
+    } catch { }
+    try { window.dispatchEvent(new Event('tp_auth_change')); } catch { }
   }
 }
 
@@ -107,21 +107,21 @@ export function persistSession(accessToken?: string, _refreshToken?: string, use
         if (email) {
           document.cookie = `tp_email=${encodeURIComponent(String(email))}; path=/; max-age=604800; SameSite=Lax`;
         }
-      } catch {}
+      } catch { }
     }
     const token = accessToken || (user as any)?.token || (user as any)?.access_token;
     if (token) {
       try {
         document.cookie = `tp_session=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
-      } catch {}
+      } catch { }
     }
     const role = (user as any)?.role;
     if (role) {
       try {
         document.cookie = `tp_role=${encodeURIComponent(String(role))}; path=/; max-age=604800; SameSite=Lax`;
-      } catch {}
+      } catch { }
     }
-    try { window.dispatchEvent(new Event('tp_auth_change')); } catch {}
+    try { window.dispatchEvent(new Event('tp_auth_change')); } catch { }
   }
 }
 
@@ -130,7 +130,7 @@ export async function logout(clearRefreshTokens: boolean = true): Promise<void> 
   if (typeof window !== 'undefined') {
     try {
       await fetch(getApiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include', cache: 'no-store' });
-    } catch {}
+    } catch { }
     clearSession();
   }
 }
@@ -476,7 +476,7 @@ function loadPersistentCache(): Map<string, CacheEntry<unknown>> {
   if (typeof window === 'undefined') return new Map();
 
   // Purge any legacy unencrypted localStorage cache
-  try { localStorage.removeItem('api_cache'); } catch {}
+  try { localStorage.removeItem('api_cache'); } catch { }
 
   try {
     const rawCache = sessionStorage.getItem('api_cache');
@@ -573,8 +573,8 @@ function getTtlForPath(path: string): number {
 export function invalidateApiCache(prefixOrPattern?: string): void {
   if (!prefixOrPattern) {
     responseCache.clear();
-    try { sessionStorage.removeItem('api_cache'); } catch {}
-    try { localStorage.removeItem('api_cache'); } catch {}
+    try { sessionStorage.removeItem('api_cache'); } catch { }
+    try { localStorage.removeItem('api_cache'); } catch { }
     return;
   }
   for (const key of responseCache.keys()) {
@@ -673,7 +673,7 @@ export async function apiJson<T>(
             headers.set('X-Candidate-Id', String(userObj.id).trim());
           }
         }
-      } catch {}
+      } catch { }
     }
 
     try {

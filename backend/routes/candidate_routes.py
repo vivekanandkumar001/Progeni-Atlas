@@ -137,7 +137,7 @@ def get_candidate_dashboard_data():
         })
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @candidate_bp.route("/api/candidate/invitations", methods=["GET"])
@@ -218,7 +218,6 @@ def get_candidate_profile():
             "fullName": user.get("full_name") or user.get("name") or "Candidate",
             "full_name": user.get("full_name") or user.get("name") or "Candidate",
             "email": user.get("email") or "",
-            "phone": user.get("phone") or "",
             "course": user.get("course") or "",
             "branch": user.get("branch") or "",
             "academicYear": user.get("academic_year") or "",
@@ -241,7 +240,7 @@ def get_candidate_profile():
         })
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @candidate_bp.route("/api/candidate/profile", methods=["PUT"])
@@ -561,7 +560,7 @@ def candidate_resume_endpoint():
             return jsonify(resumes), 200
         except Exception as e:
             traceback.print_exc()
-            return jsonify({"error": str(e)}), 500
+            return jsonify({"error": "An unexpected error occurred"}), 500
 
     # POST: Upload resume file, extract skills, and persist to MongoDB
     try:
@@ -693,7 +692,7 @@ def candidate_resume_endpoint():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @candidate_bp.route("/api/candidate/resume-parse", methods=["POST"])
@@ -738,7 +737,7 @@ def parse_candidate_resume_preview():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @candidate_bp.route("/api/candidate/diagnostics", methods=["POST"])
@@ -778,7 +777,7 @@ def log_hardware_diagnostics():
             "status": "HEALTHY" if mic_status == "passed" and camera_status == "passed" else "ATTENTION_REQUIRED"
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 
@@ -854,7 +853,7 @@ def get_candidate_interviews():
         })
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @candidate_bp.route("/api/candidate/skills", methods=["GET"])
@@ -979,7 +978,7 @@ def get_candidate_skill_insights():
         })
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @candidate_bp.route("/api/candidate/practice/job-roles", methods=["GET"])
@@ -1131,7 +1130,7 @@ def suggest_practice_jd():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 
@@ -1225,7 +1224,7 @@ def create_candidate_practice_interview():
         }), 201
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 
@@ -1249,7 +1248,7 @@ def candidate_generate_drill():
         }), 201
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 PRACTICE_MONGO_COLLECTION = "practice_sessions"

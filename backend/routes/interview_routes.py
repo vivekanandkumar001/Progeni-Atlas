@@ -50,22 +50,36 @@ def api_generate_dynamic_parameters():
         return jsonify(result), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>", methods=["GET"])
+@require_auth
 def get_interview_session(session_id):
-    """Fetch interview session details by ID."""
+    """Fetch interview session details by ID - authenticated access only."""
     try:
         db = get_mongo_db()
-        session_meta = None
-        if db is not None:
-            session_meta = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}]})
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
 
+        user_id = str(user.get("id") or user.get("_id"))
+
+        session_meta = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}]})
         if not session_meta:
             return jsonify({"error": "Interview session not found", "status": 404}), 404
+
+        # Verify access: candidate can access their own session, recruiter can access their hired session, admin has full access
+        role = str(user.get("role", "")).lower()
+        if role not in ("admin", "super_admin"):
+            cand_id = str(session_meta.get("candidate_id") or session_meta.get("userId") or "")
+            rec_id = str(session_meta.get("recruiter_id") or "")
+            cand_email = str(session_meta.get("candidate_email") or "").lower()
+            caller_email = str(user.get("email") or "").lower()
+            if user_id != cand_id and user_id != rec_id and (not caller_email or caller_email != cand_email):
+                return jsonify({"error": "Unauthorized: Access to this interview session is restricted", "status": 403}), 403
 
         if "_id" in session_meta and not isinstance(session_meta["_id"], str):
             session_meta["_id"] = str(session_meta["_id"])
@@ -73,7 +87,7 @@ def get_interview_session(session_id):
         return jsonify(session_meta), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 def generate_dynamic_session_questions(session_id: str, session_doc: dict | None, req=None) -> list[dict]:
@@ -736,7 +750,7 @@ def get_interview_session_scorecard(session_id):
         return jsonify(sc), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 # ------------------------------------------------------------------------------
@@ -818,7 +832,7 @@ def get_interview_lobby_info(session_id):
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/lobby-check", methods=["POST"])
@@ -859,7 +873,7 @@ def log_lobby_preflight_check(session_id):
             "roomUrl": f"/candidate/interview/{session_id}/room"
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/lobby-checkin", methods=["POST"])
@@ -930,7 +944,7 @@ def log_lobby_checkin(session_id):
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 # ------------------------------------------------------------------------------
@@ -981,7 +995,7 @@ def get_candidate_media_token(session_id):
             "status": "local_mock_mode"
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/interview/<session_id>/state", methods=["GET"])
@@ -1000,7 +1014,7 @@ def get_interview_state_route(session_id):
         return jsonify(contract), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/interview/<session_id>/preflight", methods=["POST"])
@@ -1044,7 +1058,7 @@ def interview_preflight_route(session_id):
         return jsonify(contract), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/interview/<session_id>/start", methods=["POST"])
@@ -1094,7 +1108,7 @@ def interview_start_route(session_id):
         return jsonify(contract), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 def synthesize_conversational_next_question(
@@ -1471,7 +1485,7 @@ def interview_answer_route(session_id):
         return jsonify(response_payload), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/interview/<session_id>/finish", methods=["POST"])
@@ -1645,7 +1659,7 @@ def interview_finish_route(session_id):
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/interview/<session_id>/retry", methods=["POST"])
@@ -1660,7 +1674,7 @@ def interview_retry_route(session_id):
         contract = build_interview_contract(session_id, session_doc, current_turn, "QUESTION_READY")
         return jsonify(contract), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/interview/<session_id>/question-timeout", methods=["POST"])
@@ -1672,7 +1686,7 @@ def interview_question_timeout_route(session_id):
             data["answer"] = data["partial_answer"]
         return interview_answer_route(session_id)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/interview/<session_id>/media-state", methods=["POST"])
@@ -1695,7 +1709,7 @@ def interview_media_state_route(session_id):
         contract = build_interview_contract(session_id, None, 1, "QUESTION_READY")
         return jsonify(contract), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 _TTS_AUDIO_CACHE: dict[str, bytes] = {}
@@ -2309,7 +2323,7 @@ def get_interview_room_data(session_id):
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 def _get_sandboxed_env(tmpdir: str) -> dict:
@@ -3046,7 +3060,7 @@ def get_candidate_evaluation_report(session_id):
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/report/pdf", methods=["GET"])
@@ -3208,4 +3222,4 @@ def export_report_pdf(session_id):
 </html>"""
         return Response(html, mimetype="text/html")
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500

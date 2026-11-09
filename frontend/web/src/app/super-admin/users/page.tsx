@@ -138,23 +138,31 @@ export default function SuperAdminUsersPage() {
 
   // Resolve the billing account that belongs to the selected platform user.
   // Recruiter/candidate accounts are user-scoped, so we match on userId first
-  // and fall back to the tenant account of the user's organization.
+  // and fall back to the tenant account of the user's organization, auto-provisioning
+  // if not yet linked.
   const loadCreditAccount = useCallback(async (target: PlatformUser) => {
     setCreditLoading(true);
     setCreditAccountError(null);
     setCreditAccount(null);
     try {
-      const res = await saFetch<{ success: boolean; accounts?: CreditAccountSummary[] }>(
-        '/api/super-admin/billing/accounts'
-      );
+      const res = await saFetch<{
+        success: boolean;
+        accounts?: CreditAccountSummary[];
+        account?: CreditAccountSummary;
+      }>(`/api/super-admin/billing/accounts?user_id=${encodeURIComponent(target.id)}`);
+
       const accounts = Array.isArray(res.accounts) ? res.accounts : [];
-      const byUser = accounts.find((a) => a.userId && a.userId === target.id);
-      const byOrg = target.orgId ? accounts.find((a) => a.orgId && a.orgId === target.orgId) : undefined;
-      const match = byUser || byOrg || null;
+      const match =
+        res.account ||
+        accounts.find((a) => a.userId && a.userId === target.id) ||
+        (target.orgId ? accounts.find((a) => a.orgId && a.orgId === target.orgId) : undefined) ||
+        accounts[0] ||
+        null;
+
       setCreditAccount(match);
       if (!match) {
         setCreditAccountError(
-          `No billing account is linked to ${target.fullName || target.email} yet. This account must be provisioned on the Billing & Usage Center before credits can be added.`
+          `No billing account could be resolved for ${target.fullName || target.email}.`
         );
       }
     } catch (e) {
@@ -474,8 +482,17 @@ export default function SuperAdminUsersPage() {
             {creditLoading ? (
               <p className="mt-5 text-xs text-ink-muted">Resolving billing account…</p>
             ) : creditAccountError ? (
-              <div className="mt-5">
+              <div className="mt-5 space-y-3">
                 <ErrorBanner message={creditAccountError} />
+                {creditUser && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void loadCreditAccount(creditUser)}
+                  >
+                    Provision &amp; Retry
+                  </Button>
+                )}
               </div>
             ) : creditAccount ? (
               <>

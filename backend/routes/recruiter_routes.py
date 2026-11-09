@@ -45,7 +45,7 @@ def get_recruiter_profile():
             except Exception:
                 org_data = None
             try:
-                team_cursor = db.users.find({"org_id": user["org_id"]})
+                team_cursor = db.users.find({"org_id": user["org_id"]})  # org_id from user document, set during JWT issuance
                 for tm in team_cursor:
                     team_members.append({
                         "id": str(tm.get("id") or tm.get("_id")),
@@ -137,7 +137,7 @@ def get_recruiter_profile():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/profile", methods=["PUT"])
@@ -563,7 +563,7 @@ def get_recruiter_dashboard():
         })
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/jobs", methods=["GET", "POST"])
@@ -1238,7 +1238,7 @@ def invite_candidate_screening():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/candidates/<candidate_id>/decision", methods=["POST"])
@@ -1360,7 +1360,7 @@ def update_candidate_decision(candidate_id):
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/sessions/<session_id>/reschedule", methods=["POST", "PATCH"])
@@ -1448,7 +1448,7 @@ def reschedule_interview_session(session_id):
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 # Duplicate confirm_recruiter_bulk_schedules removed (unified into confirm_bulk_schedules above)
@@ -1472,7 +1472,7 @@ def get_recruiter_dossiers():
         })
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 
@@ -1680,7 +1680,7 @@ def get_evaluation_rubrics():
         })
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/rubrics", methods=["POST"])
@@ -1737,7 +1737,7 @@ def update_evaluation_rubric():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 
@@ -1760,7 +1760,7 @@ def api_generate_recruiter_rubric():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 
@@ -1915,10 +1915,10 @@ def get_recruiter_integrations():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/integrations/<provider>", methods=["POST"])
@@ -1979,7 +1979,7 @@ def save_recruiter_integration(provider):
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/integrations/<provider>/test", methods=["POST"])
@@ -2019,7 +2019,7 @@ def test_recruiter_integration(provider):
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/integrations/sync-candidate", methods=["POST"])
@@ -2071,7 +2071,7 @@ def export_candidate_to_ats():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/integrations/rules", methods=["POST"])
@@ -2097,7 +2097,7 @@ def save_recruiter_integration_rules():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/integrations/bulk-import", methods=["POST"])
@@ -2184,7 +2184,7 @@ def bulk_import_candidates_from_source():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 # Public Inbound Webhook Handlers
@@ -2231,7 +2231,7 @@ def greenhouse_inbound_webhook():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/integrations/workday/webhook", methods=["POST", "GET"])
@@ -2274,7 +2274,7 @@ def workday_inbound_webhook():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 # =====================================================================
@@ -2388,7 +2388,7 @@ def recruiter_dossier_webhook_config():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/dossiers/webhook-test", methods=["POST"])
@@ -2450,7 +2450,7 @@ def test_dossier_webhook():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/dossiers/dispatch-webhook", methods=["POST"])
@@ -2546,7 +2546,7 @@ def dispatch_candidate_dossier_webhook():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/dossiers/<candidate_id>/pdf", methods=["GET"])
@@ -2699,4 +2699,4 @@ def download_candidate_dossier_pdf(candidate_id):
         )
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500

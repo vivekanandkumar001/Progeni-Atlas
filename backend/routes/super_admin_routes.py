@@ -1500,11 +1500,204 @@ def super_admin_billing_overview():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+def _normalize_billing_account(acc: dict) -> dict:
+    if not acc:
+        return {}
+
+    avail_usd = float(
+        acc.get("availableBalanceUsd")
+        if acc.get("availableBalanceUsd") is not None
+        else (float(acc.get("available_balance_nanousd", 0)) / 1_000_000_000.0)
+    )
+    paid_usd = float(
+        acc.get("paidCreditsUsd")
+        if acc.get("paidCreditsUsd") is not None
+        else (float(acc.get("paid_credits_nanousd", 0)) / 1_000_000_000.0)
+    )
+    promo_usd = float(
+        acc.get("promotionalCreditsUsd")
+        if acc.get("promotionalCreditsUsd") is not None
+        else (float(acc.get("promotional_credits_nanousd", 0)) / 1_000_000_000.0)
+    )
+    consumed_usd = float(
+        acc.get("consumedCreditsUsd")
+        if acc.get("consumedCreditsUsd") is not None
+        else (float(acc.get("consumed_credits_nanousd", 0)) / 1_000_000_000.0)
+    )
+
+    org_id = acc.get("orgId") or acc.get("org_id")
+    user_id = acc.get("userId") or acc.get("user_id")
+    account_name = acc.get("accountName") or acc.get("account_name") or "Operating Account"
+    account_type = acc.get("accountType") or acc.get("account_type") or ("user" if user_id else "enterprise")
+    currency = acc.get("currency") or "INR"
+    status = acc.get("status") or "active"
+    tier = acc.get("tier") or ("candidate" if user_id else "starter")
+
+    res = dict(acc)
+    res.pop("_id", None)
+    res.update({
+        "id": str(acc.get("id") or acc.get("_id")),
+        "orgId": str(org_id) if org_id else None,
+        "org_id": str(org_id) if org_id else None,
+        "userId": str(user_id) if user_id else None,
+        "user_id": str(user_id) if user_id else None,
+        "accountName": account_name,
+        "account_name": account_name,
+        "accountType": account_type,
+        "account_type": account_type,
+        "currency": currency,
+        "availableBalanceUsd": round(avail_usd, 2),
+        "availableBalanceFormatted": acc.get("availableBalanceFormatted") or f"₹{avail_usd:,.2f}",
+        "paidCreditsUsd": round(paid_usd, 2),
+        "promotionalCreditsUsd": round(promo_usd, 2),
+        "consumedCreditsUsd": round(consumed_usd, 2),
+        "status": status,
+        "tier": tier,
+    })
+    return res
+
+
+def _get_or_create_user_billing_account(db, user_id: str) -> dict:
+    if db is None or not user_id:
+        return None
+
+    clean_uid = str(user_id).strip()
+    # 1. Check existing billing account
+    acc = db.billing_accounts.find_one({"$or": [{"userId": clean_uid}, {"user_id": clean_uid}, {"id": f"acc-usr-{clean_uid[:12]}"}]})
+
+    # 2. Check user record
+    user = db.users.find_one({"$or": [{"_id": clean_uid}, {"id": clean_uid}]})
+    if not user:
+        try:
+            user = db.users.find_one({"_id": ObjectId(clean_uid)})
+        except Exception:
+            pass
+
+    user_name = (user.get("full_name") or user.get("name") or user.get("email") or "User") if user else "User"
+    role_name = (user.get("role") or "candidate").lower() if user else "candidate"
+    org_id = user.get("org_id") or user.get("orgId") if user else None
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # 3. Check or create wallet
+    wallet = db.wallets.find_one({"$or": [{"userId": clean_uid}, {"userId": user_id}]})
+    if not wallet:
+        init_credits = 10.0 if role_name == "candidate" else 0.0
+        wallet = {
+            "id": f"wallet-{clean_uid[:8]}",
+            "accountName": f"{user_name}'s Primary Wallet",
+            "accountType": role_name.upper(),
+            "orgId": org_id,
+            "userId": clean_uid,
+            "currency": "INR",
+            "ratePerMinuteCredits": 0.5,
+            "baseFeeCredits": 0.0,
+            "availableCredits": init_credits,
+            "paidCredits": 0.0,
+            "promotionalCredits": init_credits,
+            "consumedCredits": 0.0,
+            "reservedCredits": 0.0,
+            "lowBalanceThresholdCredits": 5.0,
+            "isLowBalance": init_credits <= 0,
+            "chargingEnabled": True,
+            "demoQuota": {
+                "totalAllowed": 2 if role_name == "candidate" else 0,
+                "completed": 0,
+                "remaining": 2 if role_name == "candidate" else 0,
+                "maxDurationSeconds": 600
+            },
+            "created_at": now_iso,
+            "updated_at": now_iso
+        }
+        db.wallets.insert_one(wallet)
+
+    current_bal = float(wallet.get("availableCredits", 0.0))
+    paid_cr = float(wallet.get("paidCredits", 0.0))
+    promo_cr = float(wallet.get("promotionalCredits", 0.0))
+    consumed_cr = float(wallet.get("consumedCredits", 0.0))
+
+    if not acc:
+        acc_id = f"acc-usr-{clean_uid[:12]}"
+        acc = {
+            "id": acc_id,
+            "orgId": str(org_id) if org_id else None,
+            "org_id": str(org_id) if org_id else None,
+            "userId": clean_uid,
+            "user_id": clean_uid,
+            "accountName": f"{user_name} ({role_name.capitalize()})",
+            "account_name": f"{user_name} ({role_name.capitalize()})",
+            "accountType": "user",
+            "account_type": "user",
+            "currency": "INR",
+            "openingBalanceNanoUsd": 0,
+            "paidCreditsNanoUsd": int(paid_cr * 1_000_000_000),
+            "paidCreditsUsd": paid_cr,
+            "promotionalCreditsNanoUsd": int(promo_cr * 1_000_000_000),
+            "promotionalCreditsUsd": promo_cr,
+            "consumedCreditsNanoUsd": int(consumed_cr * 1_000_000_000),
+            "consumedCreditsUsd": consumed_cr,
+            "providerCostNanoUsd": 0,
+            "providerCostUsd": 0.0,
+            "grossMarginNanoUsd": 0,
+            "grossMarginUsd": 0.0,
+            "reservedCreditsNanoUsd": 0,
+            "refundedCreditsNanoUsd": 0,
+            "adjustmentsNanoUsd": 0,
+            "availableBalanceNanoUsd": int(current_bal * 1_000_000_000),
+            "availableBalanceUsd": current_bal,
+            "availableBalanceFormatted": f"₹{current_bal:,.2f}",
+            "outstandingDueNanoUsd": 0,
+            "outstandingDueUsd": 0.0,
+            "creditLimitNanoUsd": 0,
+            "lowBalanceThresholdNanoUsd": 5_000_000_000,
+            "isLowBalance": current_bal <= 0,
+            "autoRecharge": {"enabled": False},
+            "status": "active",
+            "tier": role_name,
+            "billingEmail": user.get("email") if user else None,
+            "createdAt": now_iso,
+            "updatedAt": now_iso,
+            "created_at": now_iso,
+            "updated_at": now_iso
+        }
+        db.billing_accounts.insert_one(acc)
+    else:
+        # Keep balance and user linking in sync with wallet
+        update_set = {
+            "userId": clean_uid,
+            "user_id": clean_uid,
+            "availableBalanceUsd": current_bal,
+            "availableBalanceFormatted": f"₹{current_bal:,.2f}",
+            "paidCreditsUsd": paid_cr,
+            "promotionalCreditsUsd": promo_cr,
+            "consumedCreditsUsd": consumed_cr,
+            "tier": role_name,
+            "updatedAt": now_iso,
+            "updated_at": now_iso
+        }
+        if not acc.get("accountName"):
+            update_set["accountName"] = f"{user_name} ({role_name.capitalize()})"
+        db.billing_accounts.update_one({"_id": acc["_id"]}, {"$set": update_set})
+        acc.update(update_set)
+
+    return _normalize_billing_account(acc)
+
+
 @super_admin_bp.route("/api/super-admin/billing/accounts", methods=["GET"])
 @require_super_admin
 def super_admin_billing_accounts():
     try:
         db = get_mongo_db()
+        user_id = request.args.get("user_id") or request.args.get("userId")
+
+        if user_id:
+            user_acc = _get_or_create_user_billing_account(db, user_id)
+            if user_acc:
+                return jsonify({
+                    "success": True,
+                    "accounts": [user_acc],
+                    "account": user_acc
+                }), 200
+
         accounts = list(db.billing_accounts.find({})) if db is not None else []
         if not accounts:
             orgs = list(db.organizations.find({})) if db is not None else []
@@ -1513,9 +1706,13 @@ def super_admin_billing_accounts():
             default_acc = {
                 "id": f"acc-{org_id}",
                 "orgId": org_id,
+                "org_id": org_id,
                 "userId": None,
+                "user_id": None,
                 "accountName": f"{org.get('name', 'Progeni Atlas')} Operating Account",
+                "account_name": f"{org.get('name', 'Progeni Atlas')} Operating Account",
                 "accountType": "enterprise",
+                "account_type": "enterprise",
                 "currency": "INR",
                 "openingBalanceNanoUsd": 0,
                 "paidCreditsNanoUsd": 500000000000,
@@ -1533,7 +1730,7 @@ def super_admin_billing_accounts():
                 "adjustmentsNanoUsd": 0,
                 "availableBalanceNanoUsd": 550000000000,
                 "availableBalanceUsd": 550.0,
-                "availableBalanceFormatted": "$550.00",
+                "availableBalanceFormatted": "₹550.00",
                 "outstandingDueNanoUsd": 0,
                 "outstandingDueUsd": 0.0,
                 "creditLimitNanoUsd": 1000000000000,
@@ -1550,15 +1747,25 @@ def super_admin_billing_accounts():
                 db.billing_accounts.insert_one(default_acc)
             accounts = [default_acc]
 
-        clean_accounts = []
-        for a in accounts:
-            a.pop("_id", None)
-            clean_accounts.append(a)
+        clean_accounts = [_normalize_billing_account(a) for a in accounts]
 
         return jsonify({
             "success": True,
             "accounts": clean_accounts
         }), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/billing/accounts/user/<user_id>", methods=["GET"])
+@require_super_admin
+def super_admin_billing_user_account(user_id):
+    try:
+        db = get_mongo_db()
+        acc = _get_or_create_user_billing_account(db, user_id)
+        if not acc:
+            return jsonify({"success": False, "error": f"User {user_id} not found"}), 404
+        return jsonify({"success": True, "account": acc, "accounts": [acc]}), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -1576,19 +1783,39 @@ def super_admin_billing_recharge(account_id):
         if amount <= 0:
             return jsonify({"success": False, "error": "Recharge amount must be positive"}), 400
 
+        acc = None
+        if db is not None:
+            acc = db.billing_accounts.find_one({"$or": [{"id": account_id}, {"_id": account_id}]})
+            if not acc and account_id.startswith("acc-usr-"):
+                cand_uid = account_id.replace("acc-usr-", "")
+                acc = _get_or_create_user_billing_account(db, cand_uid)
+            elif not acc:
+                u_check = db.users.find_one({"$or": [{"_id": account_id}, {"id": account_id}]})
+                if u_check:
+                    acc = _get_or_create_user_billing_account(db, account_id)
+
+        user_id = str(acc.get("userId") or acc.get("user_id") or "") if acc else ""
+        org_id = str(acc.get("orgId") or acc.get("org_id") or "") if acc else ""
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        curr_bal = float(acc.get("availableBalanceUsd") if acc and acc.get("availableBalanceUsd") is not None else (float(acc.get("available_balance_nanousd", 0)) / 1_000_000_000.0) if acc else 0.0)
+        new_bal = max(0.0, curr_bal + amount)
+        amount_nano = int(amount * 1_000_000_000)
+        new_bal_nano = int(new_bal * 1_000_000_000)
+
         tx = {
             "id": f"tx-{uuid.uuid4().hex[:8]}",
             "txRef": ref,
             "accountId": account_id,
-            "orgId": None,
-            "userId": None,
+            "orgId": org_id or None,
+            "userId": user_id or None,
             "sessionId": None,
             "entryType": "recharge_paid",
-            "amountNanoUsd": int(amount * 1_000_000_000),
+            "amountNanoUsd": amount_nano,
             "amountUsd": amount,
             "amountFormatted": f"₹{amount:,.2f}",
-            "balanceAfterNanoUsd": 0,
-            "balanceAfterUsd": 0,
+            "balanceAfterNanoUsd": new_bal_nano,
+            "balanceAfterUsd": new_bal,
             "providerCostNanoUsd": None,
             "providerCostUsd": None,
             "currency": "INR",
@@ -1597,26 +1824,65 @@ def super_admin_billing_recharge(account_id):
             "reason": notes,
             "createdBy": "super_admin",
             "status": "settled",
-            "createdAt": datetime.now(timezone.utc).isoformat()
+            "createdAt": now_iso
         }
 
         if db is not None:
-            acc = db.billing_accounts.find_one({"id": account_id})
-            new_bal = max(0.0, (float(acc.get("availableBalanceUsd", 0)) if acc else 0) + amount)
-            tx["balanceAfterUsd"] = max(0.0, new_bal)
-            tx["balanceAfterNanoUsd"] = max(0, int(new_bal * 1_000_000_000))
             db.billing_accounts.update_one(
-                {"id": account_id},
-                {"$inc": {"paidCreditsUsd": amount, "availableBalanceUsd": amount},
-                 "$set": {"updatedAt": datetime.now(timezone.utc).isoformat()}},
+                {"$or": [{"id": account_id}, {"_id": account_id}]},
+                {
+                    "$inc": {
+                        "paidCreditsUsd": amount,
+                        "paid_credits_nanousd": amount_nano,
+                        "paidCreditsNanoUsd": amount_nano,
+                        "availableBalanceUsd": amount,
+                        "available_balance_nanousd": amount_nano,
+                        "availableBalanceNanoUsd": amount_nano,
+                    },
+                    "$set": {
+                        "updatedAt": now_iso,
+                        "updated_at": now_iso,
+                        "availableBalanceFormatted": f"₹{new_bal:,.2f}",
+                        "isLowBalance": False
+                    }
+                },
                 upsert=True
             )
+            if user_id:
+                db.wallets.update_one(
+                    {"userId": user_id},
+                    {
+                        "$inc": {
+                            "availableCredits": amount,
+                            "paidCredits": amount
+                        },
+                        "$set": {
+                            "updated_at": now_iso,
+                            "isLowBalance": False
+                        }
+                    },
+                    upsert=True
+                )
+                db.wallet_transactions.insert_one({
+                    "id": f"tx-admin-rech-{uuid.uuid4().hex[:8]}",
+                    "userId": user_id,
+                    "txRef": ref,
+                    "entryType": "recharge_paid",
+                    "category": "IN",
+                    "title": "Paid Recharge Recorded by Super Admin",
+                    "amountCredits": amount,
+                    "amountInr": amount,
+                    "paymentId": ref,
+                    "reason": notes,
+                    "status": "COMPLETED",
+                    "createdAt": now_iso
+                })
             db.billing_ledger.insert_one(tx)
 
         tx.pop("_id", None)
         return jsonify({
             "success": True,
-            "message": f"Successfully recharged ${amount:,.2f} to account {account_id}.",
+            "message": f"Successfully recharged ₹{amount:,.2f} to account {account_id}.",
             "transaction": tx
         }), 200
     except Exception as e:
@@ -1635,19 +1901,39 @@ def super_admin_billing_grant(account_id):
         if amount <= 0:
             return jsonify({"success": False, "error": "Grant amount must be positive"}), 400
 
+        acc = None
+        if db is not None:
+            acc = db.billing_accounts.find_one({"$or": [{"id": account_id}, {"_id": account_id}]})
+            if not acc and account_id.startswith("acc-usr-"):
+                cand_uid = account_id.replace("acc-usr-", "")
+                acc = _get_or_create_user_billing_account(db, cand_uid)
+            elif not acc:
+                u_check = db.users.find_one({"$or": [{"_id": account_id}, {"id": account_id}]})
+                if u_check:
+                    acc = _get_or_create_user_billing_account(db, account_id)
+
+        user_id = str(acc.get("userId") or acc.get("user_id") or "") if acc else ""
+        org_id = str(acc.get("orgId") or acc.get("org_id") or "") if acc else ""
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        curr_bal = float(acc.get("availableBalanceUsd") if acc and acc.get("availableBalanceUsd") is not None else (float(acc.get("available_balance_nanousd", 0)) / 1_000_000_000.0) if acc else 0.0)
+        new_bal = max(0.0, curr_bal + amount)
+        amount_nano = int(amount * 1_000_000_000)
+        new_bal_nano = int(new_bal * 1_000_000_000)
+
         tx = {
             "id": f"grant-{uuid.uuid4().hex[:8]}",
             "txRef": f"GRANT-{uuid.uuid4().hex[:6].upper()}",
             "accountId": account_id,
-            "orgId": None,
-            "userId": None,
+            "orgId": org_id or None,
+            "userId": user_id or None,
             "sessionId": None,
             "entryType": "credit_grant",
-            "amountNanoUsd": int(amount * 1_000_000_000),
+            "amountNanoUsd": amount_nano,
             "amountUsd": amount,
             "amountFormatted": f"₹{amount:,.2f}",
-            "balanceAfterNanoUsd": 0,
-            "balanceAfterUsd": 0,
+            "balanceAfterNanoUsd": new_bal_nano,
+            "balanceAfterUsd": new_bal,
             "providerCostNanoUsd": None,
             "providerCostUsd": None,
             "currency": "INR",
@@ -1656,26 +1942,65 @@ def super_admin_billing_grant(account_id):
             "reason": notes,
             "createdBy": "super_admin",
             "status": "settled",
-            "createdAt": datetime.now(timezone.utc).isoformat()
+            "createdAt": now_iso
         }
 
         if db is not None:
-            acc = db.billing_accounts.find_one({"id": account_id})
-            new_bal = max(0.0, (float(acc.get("availableBalanceUsd", 0)) if acc else 0) + amount)
-            tx["balanceAfterUsd"] = max(0.0, new_bal)
-            tx["balanceAfterNanoUsd"] = max(0, int(new_bal * 1_000_000_000))
             db.billing_accounts.update_one(
-                {"id": account_id},
-                {"$inc": {"promotionalCreditsUsd": amount, "availableBalanceUsd": amount},
-                 "$set": {"updatedAt": datetime.now(timezone.utc).isoformat()}},
+                {"$or": [{"id": account_id}, {"_id": account_id}]},
+                {
+                    "$inc": {
+                        "promotionalCreditsUsd": amount,
+                        "promotional_credits_nanousd": amount_nano,
+                        "promotionalCreditsNanoUsd": amount_nano,
+                        "availableBalanceUsd": amount,
+                        "available_balance_nanousd": amount_nano,
+                        "availableBalanceNanoUsd": amount_nano,
+                    },
+                    "$set": {
+                        "updatedAt": now_iso,
+                        "updated_at": now_iso,
+                        "availableBalanceFormatted": f"₹{new_bal:,.2f}",
+                        "isLowBalance": False
+                    }
+                },
                 upsert=True
             )
+            if user_id:
+                db.wallets.update_one(
+                    {"userId": user_id},
+                    {
+                        "$inc": {
+                            "availableCredits": amount,
+                            "promotionalCredits": amount
+                        },
+                        "$set": {
+                            "updated_at": now_iso,
+                            "isLowBalance": False
+                        }
+                    },
+                    upsert=True
+                )
+                db.wallet_transactions.insert_one({
+                    "id": f"tx-admin-grant-{uuid.uuid4().hex[:8]}",
+                    "userId": user_id,
+                    "txRef": f"GRANT-{uuid.uuid4().hex[:6].upper()}",
+                    "entryType": "credit_grant",
+                    "category": "IN",
+                    "title": "Promotional Credits Granted by Super Admin",
+                    "amountCredits": amount,
+                    "amountInr": amount,
+                    "paymentId": "PROMO_GRANT",
+                    "reason": notes,
+                    "status": "COMPLETED",
+                    "createdAt": now_iso
+                })
             db.billing_ledger.insert_one(tx)
 
         tx.pop("_id", None)
         return jsonify({
             "success": True,
-            "message": f"Successfully granted ${amount:,.2f} in promotional credits.",
+            "message": f"Successfully granted ₹{amount:,.2f} in promotional credits.",
             "transaction": tx
         }), 200
     except Exception as e:
