@@ -3,7 +3,7 @@ import { Card, CardHeader, Pill, Spinner } from '@/components/super-admin/ui';
 import { formatDateTime, type RateCard } from '@/lib/super-admin';
 import type { PricingPolicy } from '../billing-types';
 
-const LAUNCH_RATE_PER_MINUTE = 1 / 3;
+const LAUNCH_RATE_PER_MINUTE = 0.5; // 0.5 Credits/min (₹1 = 2 Minutes)
 
 interface RatesTabProps {
   pricingPolicy: PricingPolicy | null;
@@ -95,14 +95,14 @@ export function RatesTab({
               )}
             </div>
             <div className="mt-2 flex items-baseline gap-1">
-              <span className="text-2xl font-black text-ink">⅓ Credit</span>
-              <span className="text-xs text-ink-muted">/ min (₹1 / 3 min)</span>
+              <span className="text-2xl font-black text-ink">0.5 Credit</span>
+              <span className="text-xs text-ink-muted">/ min (₹1 / 2 min)</span>
             </div>
             <p className="mt-2 text-xs text-ink-muted">
-              ₹1 for every 3 billed interview minutes. Time is rounded up to the next full minute.
+              ₹1 for every 2 billed interview minutes (50 paise/min). Time is rounded up to the next full minute.
             </p>
             <div className="mt-3 text-[11px] font-mono text-ink-faint">
-              20-Min Session = 6.67 Credits (₹6.67)
+              20-Min Session = 10 Credits (₹10.00)
             </div>
           </div>
 

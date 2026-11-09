@@ -26,6 +26,23 @@ export function getApiUrl(path: string): string {
 
 export const USER_KEY = 'tp_user';
 
+export function getActiveUserScope(): string {
+  if (typeof window === 'undefined') return 'anon';
+  try {
+    const rawUser = window.localStorage.getItem(USER_KEY);
+    if (rawUser) {
+      const userObj = JSON.parse(rawUser);
+      const idOrEmail = userObj?.id || userObj?._id || userObj?.email;
+      if (idOrEmail) return String(idOrEmail).trim().toLowerCase();
+    }
+    const emailCookie = document.cookie.match(/(?:^|;\s*)tp_email=([^;]+)/);
+    if (emailCookie && emailCookie[1]) {
+      return decodeURIComponent(emailCookie[1]).trim().toLowerCase();
+    }
+  } catch {}
+  return 'anon';
+}
+
 
 export function isValidSessionId(id: string | null | undefined): boolean {
   if (!id) return false;
@@ -610,18 +627,21 @@ export async function apiJson<T>(
     }
   }
 
+  const userScope = getActiveUserScope();
+  const cacheKey = `${userScope}::${path}`;
+
   // 1. FAST-PATH FOR GET: Check in-memory / persistent cache FIRST before dispatching any fetch
   if (isGet && !init.body && !options.skipCache) {
     const ttlMs = getTtlForPath(path);
     if (ttlMs > 0) {
-      const cached = responseCache.get(path);
+      const cached = responseCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < cached.ttlMs) {
         return cached.data as T;
       }
     }
 
     // 2. IN-FLIGHT DEDUPLICATION: If identical request is currently active, reuse its promise
-    const existingPromise = inFlightGetRequests.get(path);
+    const existingPromise = inFlightGetRequests.get(cacheKey);
     if (existingPromise) {
       return existingPromise as Promise<T | null>;
     }
@@ -678,11 +698,11 @@ export async function apiJson<T>(
       if (!contentType.includes('application/json')) return null;
       const data = (await res.json()) as T;
 
-      // Cache successful GET responses
+      // Cache successful GET responses strictly bound to active user scope
       if (isGet && !init.body && data !== null && !options.skipCache) {
         const ttlMs = getTtlForPath(path);
         if (ttlMs > 0) {
-          responseCache.set(path, {
+          responseCache.set(cacheKey, {
             data,
             timestamp: Date.now(),
             ttlMs,
@@ -700,13 +720,13 @@ export async function apiJson<T>(
       return null;
     } finally {
       if (isGet) {
-        inFlightGetRequests.delete(path);
+        inFlightGetRequests.delete(cacheKey);
       }
     }
   })();
 
   if (isGet && !init.body && !options.skipCache) {
-    inFlightGetRequests.set(path, fetchPromise as Promise<unknown>);
+    inFlightGetRequests.set(cacheKey, fetchPromise as Promise<unknown>);
   }
 
   return fetchPromise;
