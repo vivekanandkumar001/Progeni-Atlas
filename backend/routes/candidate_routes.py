@@ -34,27 +34,30 @@ candidate_bp = Blueprint("candidate_bp", __name__)
 
 @candidate_bp.route("/api/candidate/dashboard", methods=["GET"])
 @candidate_bp.route("/api/candidate/dashboard-data", methods=["GET"])
+@require_auth
 def get_candidate_dashboard_data():
     """Fetch candidate dashboard data dynamically from user profile, resume, and interview history."""
     try:
         db = get_mongo_db()
-        user, resume_doc, skills = get_current_candidate(request)
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
 
-        user_name = (user and (user.get("full_name") or user.get("name"))) or "Candidate"
-        course = (user and (user.get("course") or user.get("degree"))) or "B.Tech"
-        branch = (user and user.get("branch")) or "Computer Science"
-        year = (user and user.get("academic_year")) or "Senior"
+        _, resume_doc, skills = get_current_candidate(request)
+
+        user_name = user.get("full_name") or user.get("name") or "Candidate"
+        course = user.get("course") or user.get("degree") or "B.Tech"
+        branch = user.get("branch") or "Computer Science"
+        year = user.get("academic_year") or "Senior"
         academic_tag = f"{course} {branch} • {year}"
 
-        user_id = str(user.get("id") or user.get("_id")) if user else ""
+        user_id = str(user.get("id") or user.get("_id"))
         session_row = None
         if db is not None and user_id:
             session_row = db.interview_sessions.find_one(
-                {"$or": [{"candidate_id": user_id}, {"candidate_email": user.get("email") if user else ""}]},
+                {"$or": [{"candidate_id": user_id}, {"candidate_email": user.get("email") or ""}]},
                 sort=[("created_at", -1)]
             )
-        if not session_row and db is not None:
-            session_row = db.interview_sessions.find_one({}, sort=[("created_at", -1)])
 
         upcoming = None
         if session_row:
@@ -128,13 +131,7 @@ def get_candidate_dashboard_data():
                 "percentileRank": max(5, 100 - readiness_score),
                 "growthChange": 5,
             },
-            "upcomingSession": upcoming or {
-                "id": str(uuid.uuid4()),
-                "title": f"{display_skills[0]} Systems Screening",
-                "company": "Campus Placement Drive",
-                "scheduledTime": "Scheduled",
-                "durationMinutes": 45,
-            },
+            "upcomingSession": upcoming,
             "competencyScores": competency_scores,
             "resumeStatus": resume_status
         })
@@ -144,12 +141,13 @@ def get_candidate_dashboard_data():
 
 
 @candidate_bp.route("/api/candidate/invitations", methods=["GET"])
+@require_auth
 def get_candidate_invitations():
     """Fetch active interview invitations for the candidate."""
     try:
-        user, _, _ = get_current_candidate(request)
+        user = getattr(g, "user", None)
         if not user:
-            return jsonify([]), 200
+            return jsonify({"success": False, "error": "Authentication required"}), 401
         candidate_id = str(user.get("id") or user.get("_id"))
         email = (user.get("email") or "").strip().lower()
 
@@ -191,10 +189,15 @@ def get_candidate_invitations():
 
 
 @candidate_bp.route("/api/candidate/profile", methods=["GET"])
+@require_auth
 def get_candidate_profile():
     """Fetch candidate profile and active resume dynamically without placeholder values."""
     try:
-        user, resume_doc, skills = get_current_candidate(request)
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
+
+        _, resume_doc, skills = get_current_candidate(request)
 
         resume_data = None
         if resume_doc:
@@ -209,24 +212,6 @@ def get_candidate_profile():
                 "extractedSkills": resume_doc.get("extracted_skills", []),
                 "isActive": bool(resume_doc.get("is_active", True))
             }
-
-        if not user:
-            return jsonify({
-                "fullName": "Candidate",
-                "email": request.args.get("email", ""),
-                "phone": "",
-                "course": "",
-                "branch": "",
-                "academicYear": "",
-                "collegeName": "",
-                "bio": "",
-                "githubUrl": "",
-                "linkedinUrl": "",
-                "portfolioUrl": "",
-                "skillsSummary": skills,
-                "twoFactorEnabled": False,
-                "resume": resume_data
-            })
 
         return jsonify({
             "id": str(user.get("id") or user.get("_id")),
@@ -260,12 +245,14 @@ def get_candidate_profile():
 
 
 @candidate_bp.route("/api/candidate/profile", methods=["PUT"])
+@require_auth
 def update_candidate_profile():
     """Update candidate profile fields in MongoDB."""
     try:
         data = request.get_json(silent=True, force=True) or {}
-        user, _, _ = get_current_candidate(request)
-        email = data.get("email", "").strip().lower() or (user.get("email") if user else "")
+        user = g.user
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required to update profile."}), 401
 
         update_fields = {}
         for k, v in [
@@ -289,14 +276,10 @@ def update_candidate_profile():
 
         db = get_mongo_db()
         if db is not None:
-            user_filter = None
-            if user and user.get("_id"):
-                user_filter = {"_id": user["_id"]}
-            elif user and user.get("id"):
-                user_filter = {"id": user["id"]}
-            elif email:
-                user_filter = {"email": email}
-            else:
+            user_filter = {"_id": user["_id"]} if user.get("_id") else ({"id": user["id"]} if user.get("id") else None)
+            if not user_filter and user.get("email"):
+                user_filter = {"email": user.get("email")}
+            if not user_filter:
                 return jsonify({"success": False, "error": "Authentication required to update profile."}), 401
 
             db.users.update_one(
@@ -329,12 +312,13 @@ def update_candidate_profile():
 
 
 @candidate_bp.route("/api/candidate/notifications", methods=["GET"])
+@require_auth
 def get_candidate_notifications():
     """Fetch candidate notifications from MongoDB."""
     try:
-        user, _, _ = get_current_candidate(request)
+        user = getattr(g, "user", None)
         if not user:
-            return jsonify([]), 200
+            return jsonify({"success": False, "error": "Authentication required"}), 401
         candidate_id = str(user.get("id") or user.get("_id"))
         email = (user.get("email") or "").strip().lower()
 
@@ -364,9 +348,13 @@ def get_candidate_notifications():
 
 
 @candidate_bp.route("/api/candidate/notifications/mark-read", methods=["POST"])
+@require_auth
 def mark_candidate_notifications_read():
     """Mark candidate notifications as read in MongoDB."""
     try:
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
         data = request.get_json(silent=True, force=True) or {}
         notification_ids = data.get("notification_ids", [])
         db = get_mongo_db()
@@ -503,18 +491,28 @@ def extract_text_and_skills_from_file(file_path: str, filename: str) -> tuple[st
 
 
 @candidate_bp.route("/api/candidate/resume", methods=["GET", "POST"])
+@require_auth
 def candidate_resume_endpoint():
     """Handle resume retrieval (GET) or resume upload, automated text/skills extraction, and cloud sync (POST)."""
+    user = getattr(g, "user", None)
+    if not user:
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+
     if request.method == "GET":
         try:
             db = get_mongo_db()
-            user, resume_doc, skills = get_current_candidate(request)
-            candidate_id = str(user.get("id") or user.get("_id")) if user else "candidate-default"
+            _, resume_doc, skills = get_current_candidate(request)
+
+            candidate_id = str(user.get("id") or user.get("_id"))
+            candidate_email = (user.get("email") or "").strip().lower()
 
             resumes = []
-            if db is not None:
+            if db is not None and candidate_id:
+                filter_conds = [{"candidate_id": candidate_id}]
+                if candidate_email:
+                    filter_conds.append({"candidate_email": candidate_email})
                 docs = list(db.candidate_resumes.find(
-                    {"$or": [{"candidate_id": candidate_id}, {"is_active": True}]}
+                    {"$or": filter_conds}
                 ).sort("uploaded_at", -1))
                 for r in docs:
                     f_size = r.get("file_size_bytes") or r.get("file_size") or 0
@@ -567,12 +565,36 @@ def candidate_resume_endpoint():
 
     # POST: Upload resume file, extract skills, and persist to MongoDB
     try:
+        # Pre-auth verification before accepting file write to disk
+        db = get_mongo_db()
+        user = getattr(g, "user", None) or resolve_user(request)
+        if not user:
+            user, _, _ = get_current_candidate(request)
+        if not user:
+            return jsonify({"error": "Authentication required to upload a resume"}), 401
+
         saved_path = None
         if 'file' in request.files:
             file = request.files['file']
             from werkzeug.utils import secure_filename
             raw_name = file.filename or "resume.pdf"
             file_name = secure_filename(raw_name) or f"resume_{int(time.time())}.pdf"
+
+            # Strict extension & MIME validation
+            ext = os.path.splitext(file_name)[1].lower()
+            allowed_exts = {".pdf", ".docx", ".doc"}
+            if ext not in allowed_exts:
+                return jsonify({"error": f"Invalid file format '{ext}'. Only PDF and Word documents (.pdf, .docx, .doc) are permitted."}), 400
+
+            content_type = (file.content_type or "").strip().lower()
+            allowed_mimes = os.environ.get(
+                "ALLOWED_RESUME_MIME",
+                "application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+            ).split(",")
+            allowed_mimes = [m.strip().lower() for m in allowed_mimes if m.strip()]
+            if content_type and allowed_mimes and content_type not in allowed_mimes and content_type != "application/octet-stream":
+                return jsonify({"error": f"Unsupported file MIME type '{content_type}'."}), 400
+
             resumes_dir = os.path.join(UPLOAD_DIR, "resumes")
             os.makedirs(resumes_dir, exist_ok=True)
             saved_path = os.path.join(resumes_dir, f"{int(time.time())}_{file_name}")
@@ -592,22 +614,20 @@ def candidate_resume_endpoint():
 
         size_fmt = f"{round(file_size / 1024, 1)} KB" if file_size < 1024 * 1024 else f"{round(file_size / (1024 * 1024), 2)} MB"
 
-        db = get_mongo_db()
         if db is not None:
-            user = resolve_user(request)
-            if not user:
-                form_email = request.form.get("email") or request.args.get("email")
-                if not form_email and request.is_json:
-                    form_email = (request.get_json(silent=True) or {}).get("email")
-                if form_email:
-                    user = db.users.find_one({"email": form_email.strip().lower()})
-            candidate_id = str(user.get("id") or user.get("_id")) if user else "candidate-default"
-            db.candidate_resumes.update_many({"candidate_id": candidate_id}, {"$set": {"is_active": False}})
+            candidate_id = str(user.get("id") or user.get("_id"))
+            candidate_email = (user.get("email") or "").strip().lower()
+
+            db.candidate_resumes.update_many(
+                {"$or": [{"candidate_id": candidate_id}, {"candidate_email": candidate_email}]},
+                {"$set": {"is_active": False}}
+            )
             res_id = str(uuid.uuid4())
             now_iso = datetime.now(timezone.utc).isoformat()
             db.candidate_resumes.insert_one({
                 "id": res_id,
                 "candidate_id": candidate_id,
+                "candidate_email": candidate_email,
                 "file_name": file_name,
                 "file_size_bytes": file_size,
                 "file_url": file_url,
@@ -768,13 +788,17 @@ def log_hardware_diagnostics():
 # ------------------------------------------------------------------------------
 
 @candidate_bp.route("/api/candidate/interviews", methods=["GET"])
+@require_auth
 def get_candidate_interviews():
     """Fetch candidate scheduled interviews, completed session history, recordings & reports dynamically."""
     try:
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
         db = get_mongo_db()
-        user, resume_doc, skills = get_current_candidate(request)
-        user_id = str(user.get("id") or user.get("_id")) if user else ""
-        user_email = (user.get("email") or "").strip().lower() if user else ""
+        _, resume_doc, skills = get_current_candidate(request)
+        user_id = str(user.get("id") or user.get("_id"))
+        user_email = (user.get("email") or "").strip().lower()
 
         upcoming = []
         completed = []
@@ -835,12 +859,16 @@ def get_candidate_interviews():
 
 @candidate_bp.route("/api/candidate/skills", methods=["GET"])
 @candidate_bp.route("/api/candidate/skill-insights", methods=["GET"])
+@require_auth
 def get_candidate_skill_insights():
     """Fetch candidate skill matrix, technical competency scores, and AI improvement recommendations dynamically."""
     try:
-        user, resume_doc, skills = get_current_candidate(request)
-        user_id = str(user.get("id") or user.get("_id")) if user else ""
-        user_email = (user and user.get("email", "")).strip().lower()
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
+        _, resume_doc, skills = get_current_candidate(request)
+        user_id = str(user.get("id") or user.get("_id"))
+        user_email = (user.get("email") or "").strip().lower()
 
         db = get_mongo_db()
         completed_sessions = []
@@ -971,12 +999,16 @@ def get_practice_job_roles():
 
 
 @candidate_bp.route("/api/candidate/practice/suggest-jd", methods=["POST"])
+@require_auth
 def suggest_practice_jd():
     """Dynamically generate a targeted job description for technical interview practice using LLM or live job postings."""
     try:
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
         data = request.get_json(silent=True) or {}
         job_role = (data.get("job_role") or "Software Engineer").strip()
-        user, resume_doc, skills = get_current_candidate(request)
+        _, resume_doc, skills = get_current_candidate(request)
 
         # 1. Check MongoDB for live matching job postings
         db = get_mongo_db()
@@ -1106,13 +1138,21 @@ def suggest_practice_jd():
 
 @candidate_bp.route("/api/candidate/practice-interview", methods=["POST"])
 @candidate_bp.route("/api/candidate/practice", methods=["POST"])
+@require_auth
 def create_candidate_practice_interview():
     """Create a new technical practice interview session tailored to the candidate's target role and JD."""
     try:
-        user, resume_doc, skills = get_current_candidate(request)
-        candidate_id = str(user.get("id") or user.get("_id")) if user else str(uuid.uuid4())
-        candidate_name = (user and (user.get("full_name") or user.get("name"))) or "Candidate"
-        candidate_email = (user and user.get("email")) or ""
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({
+                "success": False,
+                "error": "Authentication required to start a practice interview. Please sign in.",
+                "error_code": "AUTH_REQUIRED"
+            }), 401
+        _, resume_doc, skills = get_current_candidate(request)
+        candidate_id = str(user.get("id") or user.get("_id"))
+        candidate_name = user.get("full_name") or user.get("name") or "Candidate"
+        candidate_email = user.get("email") or ""
 
         # Check wallet balance: candidate cannot go for practice interview if balance is 0 or negative
         cand_bal = get_user_wallet_balance(candidate_id)
@@ -1191,9 +1231,13 @@ def create_candidate_practice_interview():
 
 
 @candidate_bp.route("/api/candidate/practice/generate-drill", methods=["POST"])
+@require_auth
 def candidate_generate_drill():
     """Dynamically generate an authentic practice drill for any technology or topic on demand."""
     try:
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
         data = request.get_json(silent=True) or {}
         skill = (data.get("skill") or data.get("skill_name") or data.get("topic") or "System Architecture").strip()
         category = data.get("category")
@@ -1484,6 +1528,7 @@ def _build_practice_stats(sessions: list[dict]) -> dict:
 
 
 @candidate_bp.route("/api/v1/practice/drills", methods=["GET"])
+@require_auth
 def get_practice_drills():
     """List personalized practice drills dynamically generated for caller's resume & skills."""
     try:
@@ -1494,16 +1539,9 @@ def get_practice_drills():
 
         user = getattr(g, "user", None)
         if not user:
-            claims, _ = _authenticate_request()
-            if claims and claims.get("sub"):
-                try:
-                    user = resolve_user(claims.get("sub"))
-                except Exception:
-                    user = None
-        if not user:
-            user, _, _ = get_current_candidate(request)
+            return jsonify({"success": False, "error": "Authentication required"}), 401
 
-        user_id = str(user.get("id") or user.get("_id")) if user else "candidate-default"
+        user_id = str(user.get("id") or user.get("_id"))
         sessions = _load_practice_sessions(user_id)
 
         # Retrieve or synthesize drills tailored to this student's skills & resume

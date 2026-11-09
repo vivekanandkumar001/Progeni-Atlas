@@ -14,6 +14,17 @@ from app.models import ActionDecision, InterviewStage
 
 logger = logging.getLogger("progeni_atlas.llm")
 
+_shared_http_client: httpx.Client | None = None
+
+def _get_shared_client(timeout: float = 60.0) -> httpx.Client:
+    global _shared_http_client
+    if _shared_http_client is None or _shared_http_client.is_closed:
+        _shared_http_client = httpx.Client(
+            timeout=timeout,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=50)
+        )
+    return _shared_http_client
+
 
 class LLMError(RuntimeError):
     pass
@@ -78,8 +89,8 @@ def _call_openai(
     }
 
     try:
-        with httpx.Client(timeout=60.0) as client:
-            resp = client.post(url, json=payload, headers=headers)
+        client = _get_shared_client(timeout=60.0)
+        resp = client.post(url, json=payload, headers=headers)
     except httpx.TimeoutException as exc:
         raise _LLMFallbackTrigger(f"OpenAI request timed out: {exc}") from exc
     except (httpx.NetworkError, httpx.ConnectError, httpx.RemoteProtocolError) as exc:
@@ -132,8 +143,8 @@ def _call_openrouter(
     }
 
     try:
-        with httpx.Client(timeout=60.0) as client:
-            resp = client.post(url, json=payload, headers=headers)
+        client = _get_shared_client(timeout=60.0)
+        resp = client.post(url, json=payload, headers=headers)
     except httpx.TimeoutException as exc:
         raise _LLMFallbackTrigger(f"OpenRouter request timed out: {exc}") from exc
     except (httpx.NetworkError, httpx.ConnectError, httpx.RemoteProtocolError) as exc:
@@ -168,7 +179,7 @@ def _call_gemini(
     if not key:
         raise _LLMFallbackTrigger("GEMINI_API_KEY / GEMINI_API is not configured or empty")
 
-    model = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
+    model = settings.GEMINI_MODEL or "gemini-2.0-flash"
     url = f"{settings.GEMINI_BASE_URL.rstrip('/')}/models/{model}:generateContent?key={key}"
 
     payload: dict[str, Any] = {
@@ -188,8 +199,8 @@ def _call_gemini(
     headers = {"Content-Type": "application/json"}
 
     try:
-        with httpx.Client(timeout=35.0) as client:
-            resp = client.post(url, json=payload, headers=headers)
+        client = _get_shared_client(timeout=35.0)
+        resp = client.post(url, json=payload, headers=headers)
     except httpx.TimeoutException as exc:
         raise _LLMFallbackTrigger(f"Gemini request timed out: {exc}") from exc
     except (httpx.NetworkError, httpx.ConnectError, httpx.RemoteProtocolError) as exc:

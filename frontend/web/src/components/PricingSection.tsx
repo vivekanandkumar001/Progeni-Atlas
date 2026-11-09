@@ -1,77 +1,166 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Check, Zap, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight } from 'lucide-react';
+
+interface PricingPlan {
+  id?: string;
+  name: string;
+  price: string;
+  credits: string;
+  period: string;
+  description: string;
+  features: string[];
+  cta: string;
+  href: string;
+  popular: boolean;
+}
+
+const DEFAULT_CANDIDATE_PLANS: PricingPlan[] = [
+  {
+    name: 'Free Starter',
+    price: '₹0',
+    credits: '10 Credits',
+    period: 'on signup',
+    description: 'Experience the AI mock interview with full voice, video & code execution.',
+    features: [
+      '1 Full AI Technical Mock Round (20 mins free)',
+      'Live Spoken Dialogue & Real-Time Voice',
+      'Instant Performance Scorecard',
+      'No Credit Card Required',
+    ],
+    cta: 'Start Free Mock',
+    href: '/register',
+    popular: false,
+  },
+  {
+    name: 'Warm-up Pack',
+    price: '₹49',
+    credits: '50 Credits',
+    period: 'one-time pack',
+    description: 'Quick pre-interview brush-up right before your actual technical round.',
+    features: [
+      '50 AI Credits (100 mins practice)',
+      '3 Full In-Depth DSA or Behavioral Rounds',
+      'Turn-by-Turn Audio Transcripts',
+      'Actionable Improvement Guidance',
+    ],
+    cta: 'Buy Pack (₹49)',
+    href: '/candidate/wallet',
+    popular: false,
+  },
+  {
+    name: 'Placement Ready',
+    price: '₹99',
+    credits: '100 Credits',
+    period: 'one-time pack (Save 30%)',
+    description: 'Most chosen by engineering students preparing for placements & tech roles.',
+    features: [
+      '100 AI Credits (200 mins practice)',
+      '6-7 Full Technical & Design Rounds',
+      'Resume Defense & Target JD Parsing',
+      'Company Benchmarks (TCS, Google, Amazon)',
+    ],
+    cta: 'Get 100 Credits (₹99)',
+    href: '/candidate/wallet',
+    popular: true,
+  },
+  {
+    name: 'Pro Mastery',
+    price: '₹199',
+    credits: '200 Credits',
+    period: 'one-time pack (Best Value)',
+    description: 'Complete end-to-end placement & FAANG interview preparation.',
+    features: [
+      '200 AI Credits (400 mins practice)',
+      '13+ Full Technical, DSA & HR Mock Rounds',
+      'Company-Specific Question Banks',
+      'Priority AI Voice & Video Latency',
+    ],
+    cta: 'Get 200 Credits (₹199)',
+    href: '/candidate/wallet',
+    popular: false,
+  },
+];
 
 export const PricingSection: React.FC = () => {
-  const plans = [
-    {
-      name: 'Free Starter',
-      price: '₹0',
-      credits: '10 Credits',
-      period: 'on signup',
-      description: 'Experience the AI mock interview with full voice, video & code execution.',
-      features: [
-        '1 Full AI Technical Mock Round',
-        'Live Spoken Dialogue & Real-Time Voice',
-        'Instant Performance Scorecard',
-        'No Credit Card Required',
-      ],
-      cta: 'Start Free Mock',
-      href: '/register',
-      popular: false,
-    },
-    {
-      name: 'Warm-up Pack',
-      price: '₹49',
-      credits: '30 Credits',
-      period: 'one-time pack',
-      description: 'Quick pre-interview brush-up right before your actual technical round.',
-      features: [
-        '30 AI Credits (~15-20 mins)',
-        '1 Full DSA or Behavioral Round',
-        'Turn-by-Turn Audio Transcripts',
-        'Actionable Improvement Guidance',
-      ],
-      cta: 'Buy Pack (₹49)',
-      href: '/candidate/wallet',
-      popular: false,
-    },
-    {
-      name: 'Placement Ready',
-      price: '₹99',
-      credits: '70 Credits',
-      period: 'one-time pack (Save 30%)',
-      description: 'Most chosen by engineering students preparing for placements & tech roles.',
-      features: [
-        '70 AI Credits (~35-40 mins)',
-        '2-3 Full Technical & Design Rounds',
-        'Resume Defense & Target JD Parsing',
-        'Company Benchmarks (TCS, Google, Amazon)',
-      ],
-      cta: 'Get 70 Credits (₹99)',
-      href: '/candidate/wallet',
-      popular: true,
-    },
-    {
-      name: 'Pro Mastery',
-      price: '₹199',
-      credits: '150 Credits',
-      period: 'one-time pack (Best Value)',
-      description: 'Complete end-to-end placement & FAANG interview preparation.',
-      features: [
-        '150 AI Credits (~75-80 mins)',
-        '5+ Full Technical, DSA & HR Mock Rounds',
-        'Company-Specific Question Banks',
-        'Priority AI Voice & Video Latency',
-      ],
-      cta: 'Get 150 Credits (₹199)',
-      href: '/candidate/wallet',
-      popular: false,
-    },
-  ];
+  const [plans, setPlans] = useState<PricingPlan[]>(DEFAULT_CANDIDATE_PLANS);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchDynamicPackages() {
+      try {
+        const res = await fetch('/api/packages');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.packages) && data.packages.length > 0) {
+          // Filter candidate/individual plans set by Admin in Super Admin panel
+          const candidatePkgs = data.packages.filter(
+            (p: any) => p.target_audience === 'individual' || p.target_audience === 'both'
+          );
+
+          if (candidatePkgs.length > 0 && isMounted) {
+            const mapped: PricingPlan[] = candidatePkgs.map((pkg: any) => {
+              const priceNum = Number(pkg.price ?? pkg.monthlyPrice ?? 0);
+              const priceFormatted = priceNum === 0 ? '₹0' : `₹${priceNum.toLocaleString('en-IN')}`;
+              const periodFormatted =
+                priceNum === 0
+                  ? 'on signup'
+                  : pkg.billing_period === 'monthly'
+                  ? 'month'
+                  : pkg.billing_period === 'yearly'
+                  ? 'year'
+                  : 'one-time pack';
+
+              const creditsDisplay = pkg.credits
+                ? `${pkg.credits} Credits`
+                : `${pkg.included_interviews || 1} Mock Round${(pkg.included_interviews || 1) > 1 ? 's' : ''}`;
+
+              const defaultFeatures = [
+                `${pkg.included_interviews || 1} Full AI Technical Mock Round${(pkg.included_interviews || 1) > 1 ? 's' : ''}`,
+                'Live Spoken Dialogue & Adaptive Voice',
+                'Browser Code Execution & Turn-by-Turn Telemetry',
+                'Instant Performance Scorecard & Dossier',
+              ];
+
+              const features = Array.isArray(pkg.features) && pkg.features.length > 0
+                ? pkg.features
+                : defaultFeatures;
+
+              const isPopular = Boolean(
+                pkg.popular ||
+                pkg.tier === 'pro' ||
+                String(pkg.name || '').toLowerCase().includes('popular') ||
+                String(pkg.name || '').toLowerCase().includes('placement')
+              );
+
+              return {
+                id: pkg.id || pkg.package_id,
+                name: pkg.name || 'Practice Plan',
+                price: priceFormatted,
+                credits: creditsDisplay,
+                period: periodFormatted,
+                description: pkg.description || 'AI mock interview preparation plan.',
+                features,
+                cta: priceNum === 0 ? 'Start Free Mock' : `Buy ${pkg.name} (${priceFormatted})`,
+                href: priceNum === 0 ? '/register' : '/candidate/wallet',
+                popular: isPopular,
+              };
+            });
+            setPlans(mapped);
+          }
+        }
+      } catch (err) {
+        console.warn('[PricingSection] Using fallback pricing due to network error:', err);
+      }
+    }
+    void fetchDynamicPackages();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <section id="pricing" className="w-full py-16 px-6 bg-surface-deep relative z-10 scroll-mt-20 border-t border-line">
@@ -84,14 +173,14 @@ export const PricingSection: React.FC = () => {
             Simple, Transparent Credit Packs
           </h2>
           <p className="text-sm text-ink-muted mt-2 max-w-xl mx-auto font-normal">
-            No recurring monthly subscriptions. Start free with 10 credits, then buy affordable practice packs starting at ₹49.
+            No recurring monthly subscriptions. Choose flexible practice packs set dynamically by the platform.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map((plan, index) => (
             <motion.div
-              key={index}
+              key={plan.id || index}
               initial={{ opacity: 1, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}

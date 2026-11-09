@@ -1,137 +1,89 @@
 """
-Progeni Atlas — Context Resolution Helpers
-===========================================
-Dynamically resolves candidate or recruiter user, active resume, and skill profile
-from request token/cookie/headers/MongoDB.
+Progeni Atlas — Cryptographically Secure Context Resolution Helpers
+===================================================================
+Authoritatively resolves candidate or recruiter user, active resume, and skill profile
+ONLY from cryptographically verified JWT claims in request token or secure session cookie.
+Zero client-header spoofing, zero unsigned cookie trust, zero cross-tenant fallback leaks.
 """
 
-import os
-from flask import request
+from __future__ import annotations
+
+import logging
+from flask import request, g
 from core.db import get_mongo_db
 from core.security import _authenticate_request, resolve_user
 
+logger = logging.getLogger("progeni_atlas.context")
 
-def get_current_candidate(req=None):
+
+def get_current_candidate(req=None) -> tuple[dict | None, dict | None, list[str]]:
     """
-    Dynamically resolve current candidate (user, active resume, and extracted skills).
-    Reads authenticated user from token/claims/cookie, headers, then request context.
+    Authoritatively resolve current candidate (user, active resume, and extracted skills).
+    Only resolves from verified JWT authentication claims.
+    Returns: (user, resume_doc, skills)
     """
     db = get_mongo_db()
-    r = req or request
     user = None
 
-    # 1. Resolve from authenticated claims or token in request
-    try:
-        claims, _ = _authenticate_request()
-        if claims and claims.get("sub"):
-            user = resolve_user(claims.get("sub"))
-        if not user and claims and claims.get("email") and db is not None:
-            user = db.users.find_one({"email": claims.get("email").strip().lower()})
-    except Exception:
-        pass
+    # 1. Use flask.g if already verified by @require_auth decorator
+    if hasattr(g, "user") and g.user and str(g.user.get("role", "")).lower() == "candidate":
+        user = g.user
 
-    # 2. Check custom candidate identity headers
-    if not user and r and db is not None:
+    # 2. Resolve from cryptographically verified JWT claims in request
+    if not user:
         try:
-            h_email = (r.headers.get("X-Candidate-Email") or r.headers.get("X-User-Email") or "").strip().lower()
-            h_id = (r.headers.get("X-Candidate-Id") or r.headers.get("X-User-Id") or "").strip()
-            if h_email:
-                user = db.users.find_one({"email": h_email})
-            if not user and h_id:
-                user = resolve_user(h_id)
-        except Exception:
-            pass
+            claims, _ = _authenticate_request()
+            if claims and claims.get("sub"):
+                user = resolve_user(claims.get("sub"))
+            if not user and claims and claims.get("email") and db is not None:
+                user = db.users.find_one({"email": claims.get("email").strip().lower()})
+        except Exception as e:
+            logger.debug(f"[get_current_candidate] Auth claim resolution: {e}")
 
-    # 3. Check cookies
-    if not user and r and db is not None:
-        try:
-            c_email = (r.cookies.get("tp_email") or r.cookies.get("tp_user_email") or "").strip().lower()
-            if c_email:
-                user = db.users.find_one({"email": c_email})
-        except Exception:
-            pass
+    # No unverified fallbacks (headers, unsigned cookies, or query params) are allowed.
+    if not user:
+        return None, None, []
 
-    # 4. Fallback: check email or candidate_id parameter
-    if not user and r and db is not None:
-        email = (r.args.get("email") if hasattr(r, "args") else None) or ""
-        cid = (r.args.get("candidate_id") if hasattr(r, "args") else None) or (r.args.get("userId") if hasattr(r, "args") else None) or ""
-        if not email and hasattr(r, "get_json"):
-            try:
-                data = r.get_json(silent=True) or {}
-                email = data.get("email") or ""
-                cid = cid or data.get("candidate_id") or data.get("userId") or ""
-            except Exception:
-                email = ""
-        if email:
-            user = db.users.find_one({"email": email.strip().lower()})
-        if not user and cid:
-            user = resolve_user(cid)
-
-    # 5. Smart fallback: only in local development/single-candidate testing environments
-    is_prod = os.environ.get("APP_ENV", "development").strip().lower() in ("production", "prod")
-    if not user and db is not None and not is_prod:
-        try:
-            latest_resume = db.candidate_resumes.find_one({}, sort=[("uploaded_at", -1)])
-            if latest_resume:
-                r_cand_id = latest_resume.get("candidate_id")
-                r_cand_email = latest_resume.get("candidate_email")
-                if r_cand_id:
-                    user = resolve_user(r_cand_id)
-                if not user and r_cand_email:
-                    user = db.users.find_one({"email": r_cand_email.strip().lower()})
-            if not user:
-                user = db.users.find_one(
-                    {"role": {"$in": ["candidate", "CANDIDATE"]}},
-                    sort=[("created_at", -1)]
-                )
-            if not user:
-                user = db.users.find_one(
-                    {"email": {"$ne": "admin@progeni.live"}},
-                    sort=[("created_at", -1)]
-                )
-        except Exception:
-            pass
-
+    # 3. Resolve active resume belonging strictly to THIS candidate (NO cross-tenant leaks)
     resume_doc = None
     if db is not None:
         try:
+            u_id = str(user.get("id") or user.get("_id") or "").strip()
+            u_email = (user.get("email") or "").strip().lower()
+
             query_conditions = []
-            if user:
-                u_id = str(user.get("id") or "")
-                u_oid = str(user.get("_id") or "")
-                u_email = user.get("email")
-                if u_id:
-                    query_conditions.append({"candidate_id": u_id})
-                if u_oid and u_oid != u_id:
-                    query_conditions.append({"candidate_id": u_oid})
-                if u_email:
-                    query_conditions.append({"candidate_email": u_email.strip().lower()})
-                    query_conditions.append({"candidate_id": u_email.strip().lower()})
+            if u_id:
+                query_conditions.append({"candidate_id": u_id})
+            if u_email:
+                query_conditions.append({"candidate_email": u_email})
 
             if query_conditions:
+                # Prefer explicitly active resume first, then latest uploaded
                 resume_doc = db.candidate_resumes.find_one(
-                    {"$or": query_conditions},
+                    {"$and": [{"$or": query_conditions}, {"is_active": True}]},
                     sort=[("uploaded_at", -1)]
                 )
-            if not resume_doc:
-                resume_doc = db.candidate_resumes.find_one(
-                    {"is_active": True},
-                    sort=[("uploaded_at", -1)]
-                )
-            if not resume_doc:
-                resume_doc = db.candidate_resumes.find_one({}, sort=[("uploaded_at", -1)])
-        except Exception:
-            pass
+                if not resume_doc:
+                    resume_doc = db.candidate_resumes.find_one(
+                        {"$or": query_conditions},
+                        sort=[("uploaded_at", -1)]
+                    )
+        except Exception as e:
+            logger.warning(f"[get_current_candidate] Resume query warning: {e}")
 
-    skills = []
-    if resume_doc and resume_doc.get("extracted_skills"):
+    # 4. Extract skills belonging strictly to this candidate's profile and resume
+    skills: list[str] = []
+    if resume_doc and isinstance(resume_doc.get("extracted_skills"), list):
         for s in resume_doc.get("extracted_skills"):
-            if s and s not in skills:
-                skills.append(s)
-    if user and user.get("skills_summary"):
+            clean_s = str(s).strip()
+            if clean_s and clean_s not in skills:
+                skills.append(clean_s)
+
+    if user and isinstance(user.get("skills_summary"), list):
         for s in user.get("skills_summary"):
-            if s and s not in skills:
-                skills.append(s)
+            clean_s = str(s).strip()
+            if clean_s and clean_s not in skills:
+                skills.append(clean_s)
 
     if not skills:
         skills = ["Software Engineering", "System Design", "Problem Solving", "Web Development"]
@@ -139,56 +91,34 @@ def get_current_candidate(req=None):
     return user, resume_doc, skills
 
 
-def get_current_recruiter(req=None):
+def get_current_recruiter(req=None) -> dict | None:
     """
-    Dynamically resolve the currently authenticated recruiter/admin user.
-    Reads authenticated claims from token/claims/cookie, headers, then request context.
+    Authoritatively resolve the currently authenticated recruiter/admin user.
+    Only resolves from verified JWT authentication claims.
     """
     db = get_mongo_db()
-    r = req or request
     user = None
 
+    # 1. Use flask.g if already verified by @require_auth decorator
+    if hasattr(g, "user") and g.user:
+        role = str(g.user.get("role", "")).lower()
+        if role in ("recruiter", "admin", "super_admin", "employer", "hr"):
+            return g.user
+
+    # 2. Resolve from cryptographically verified JWT claims in request
     try:
         claims, _ = _authenticate_request()
         if claims and claims.get("sub"):
             user = resolve_user(claims.get("sub"))
         if not user and claims and claims.get("email") and db is not None:
             user = db.users.find_one({"email": claims.get("email").strip().lower()})
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[get_current_recruiter] Auth claim resolution: {e}")
 
-    if not user and r and db is not None:
-        try:
-            h_email = (r.headers.get("X-Recruiter-Email") or r.headers.get("X-User-Email") or "").strip().lower()
-            h_id = (r.headers.get("X-Recruiter-Id") or r.headers.get("X-User-Id") or "").strip()
-            if h_email:
-                user = db.users.find_one({"email": h_email})
-            if not user and h_id:
-                user = resolve_user(h_id)
-        except Exception:
-            pass
-
-    if not user and r and db is not None:
-        try:
-            c_email = (r.cookies.get("tp_email") or r.cookies.get("tp_user_email") or "").strip().lower()
-            if c_email:
-                user = db.users.find_one({"email": c_email})
-        except Exception:
-            pass
-
-    if not user and r and db is not None:
-        email = (r.args.get("email") if hasattr(r, "args") else None) or (r.args.get("recruiter_email") if hasattr(r, "args") else None) or ""
-        rid = (r.args.get("recruiter_id") if hasattr(r, "args") else None) or (r.args.get("userId") if hasattr(r, "args") else None) or ""
-        if not email and hasattr(r, "get_json"):
-            try:
-                data = r.get_json(silent=True) or {}
-                email = data.get("email") or data.get("recruiter_email") or ""
-                rid = rid or data.get("recruiter_id") or data.get("userId") or ""
-            except Exception:
-                email = ""
-        if email:
-            user = db.users.find_one({"email": email.strip().lower()})
-        if not user and rid:
-            user = resolve_user(rid)
+    # Verify role permissions
+    if user:
+        role = str(user.get("role", "")).lower()
+        if role not in ("recruiter", "admin", "super_admin", "employer", "hr"):
+            return None
 
     return user

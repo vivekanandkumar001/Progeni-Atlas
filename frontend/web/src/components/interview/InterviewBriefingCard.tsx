@@ -96,7 +96,7 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
         if (active) setLobbyInfo(data);
         // Ensure billing defaults so UI is never confused by missing data
         if (data?.billing) {
-          data.billing.ratePerMinuteCredits ??= 2.0;
+          data.billing.ratePerMinuteCredits ??= 0.5;
           data.billing.chargingEnabled ??= true;
           data.billing.isDemoEligible ??= false;
           data.billing.candidateWalletBalance ??= 40;
@@ -341,8 +341,8 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
                     ? `Free Demo Interview (${billing.freeDemosRemaining ?? 1} Available)`
                     : !billing.chargingEnabled
                     ? 'Evaluation Tier (Zero Customer Charge)'
-                    : Math.abs((billing.ratePerMinuteCredits ?? (1 / 3)) - 1 / 3) < 0.000001
-                    ? 'Pay-as-you-go: ₹1 per 3 min'
+                    : Math.abs((billing.ratePerMinuteCredits ?? 0.5) - 0.5) < 0.000001
+                    ? 'Pay-as-you-go: ₹1 for 2 mins (₹0.50/min)'
                     : `Pay-as-you-go: ₹${billing.ratePerMinuteCredits}/min`}
                 </span>
                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider ${

@@ -26,7 +26,7 @@ from core.security import (
 from core.context import get_current_candidate, get_current_recruiter
 from core.constants import BASE_DIR, RECORDING_DIR
 from core.interview_params import generate_dynamic_interview_parameters
-from core.wallet import get_user_wallet_balance
+from core.wallet import get_user_wallet_balance, settle_interview_billing_completion
 
 interview_bp = Blueprint("interview_bp", __name__)
 
@@ -64,25 +64,8 @@ def get_interview_session(session_id):
         if db is not None:
             session_meta = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}]})
 
-        now = datetime.now(timezone.utc)
         if not session_meta:
-            user, _, skills = get_current_candidate(request)
-            return jsonify({
-                "id": session_id,
-                "org_id": "org-progeni-atlas-default",
-                "job_id": "job-default",
-                "candidate_id": str(user.get("id") or user.get("_id")) if user else "cand-default",
-                "candidate_name": user.get("full_name") if user else "Candidate",
-                "candidate_email": user.get("email") if user else "",
-                "job_title": f"{skills[0] if skills else 'Full-Stack'} Engineer Assessment",
-                "company_name": "Progeni Atlas Assessment Drive",
-                "session_type": "mock",
-                "status": "scheduled",
-                "current_stage": "intro",
-                "agent_state": "ready",
-                "scheduled_at": now.isoformat(),
-                "duration_minutes": 10
-            }), 200
+            return jsonify({"error": "Interview session not found", "status": 404}), 404
 
         if "_id" in session_meta and not isinstance(session_meta["_id"], str):
             session_meta["_id"] = str(session_meta["_id"])
@@ -768,9 +751,9 @@ def get_interview_lobby_info(session_id):
         db = get_mongo_db()
         if db is not None:
             try:
-                session_meta = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}]})
+                session_meta = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
                 if not session_meta:
-                    session_meta = db.interview_sessions.find_one({})
+                    return jsonify({"error": "Interview session not found", "status": 404}), 404
             except Exception as mongo_err:
                 print(f"[Lobby Info] MongoDB query warning: {mongo_err}")
 
@@ -1028,20 +1011,36 @@ def interview_preflight_route(session_id):
         report = data.get("report", {})
 
         db = get_mongo_db()
+        session_doc = None
         if db is not None:
+            session_query = {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]}
+            session_doc = db.interview_sessions.find_one(session_query)
+            if not session_doc:
+                return jsonify({"error": "Interview session not found. Please launch session from your dashboard."}), 404
+
+            # Enforce caller authorization
+            claims, _ = _authenticate_request()
+            if claims and claims.get("sub"):
+                caller_id = str(claims.get("sub"))
+                cand_id = str(session_doc.get("candidate_id") or session_doc.get("userId") or "")
+                cand_em = str(session_doc.get("candidate_email") or "").lower()
+                caller_em = str(claims.get("email") or "").lower()
+                if str(claims.get("role", "")).lower() not in ("super_admin", "admin", "recruiter"):
+                    if cand_id and cand_id != caller_id and cand_em != caller_em:
+                        return jsonify({"error": "Unauthorized: Session does not belong to your account"}), 403
+
             db.interview_sessions.update_one(
-                {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
+                session_query,
                 {"$set": {
                     "id": session_id,
                     "session_id": session_id,
                     "state": "MEDIA_READY",
                     "preflight_report": report,
                     "preflight_completed_at": datetime.now(timezone.utc).isoformat()
-                }},
-                upsert=True
+                }}
             )
 
-        contract = build_interview_contract(session_id, None, 1, "MEDIA_READY")
+        contract = build_interview_contract(session_id, session_doc, 1, "MEDIA_READY")
         return jsonify(contract), 200
     except Exception as e:
         traceback.print_exc()
@@ -1056,8 +1055,24 @@ def interview_start_route(session_id):
         db = get_mongo_db()
         session_doc = None
         if db is not None:
+            session_query = {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]}
+            session_doc = db.interview_sessions.find_one(session_query)
+            if not session_doc:
+                return jsonify({"error": "Interview session not found. Please launch session from your dashboard."}), 404
+
+            # Enforce caller authorization
+            claims, _ = _authenticate_request()
+            if claims and claims.get("sub"):
+                caller_id = str(claims.get("sub"))
+                cand_id = str(session_doc.get("candidate_id") or session_doc.get("userId") or "")
+                cand_em = str(session_doc.get("candidate_email") or "").lower()
+                caller_em = str(claims.get("email") or "").lower()
+                if str(claims.get("role", "")).lower() not in ("super_admin", "admin", "recruiter"):
+                    if cand_id and cand_id != caller_id and cand_em != caller_em:
+                        return jsonify({"error": "Unauthorized: Session does not belong to your account"}), 403
+
             db.interview_sessions.update_one(
-                {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
+                session_query,
                 {"$set": {
                     "id": session_id,
                     "session_id": session_id,
@@ -1071,10 +1086,9 @@ def interview_start_route(session_id):
                     "pending_probe": None,
                     "probe_counts": {},
                     "clarification_counts": {},
-                }},
-                upsert=True
+                }}
             )
-            session_doc = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
+            session_doc = db.interview_sessions.find_one(session_query)
 
         contract = build_interview_contract(session_id, session_doc, 1, "QUESTION_READY")
         return jsonify(contract), 200
@@ -1197,11 +1211,7 @@ def interview_answer_route(session_id):
             and int(probe_counts.get(turn_key, 0)) < interviewer_policy.MAX_FOLLOW_UPS_PER_QUESTION
         )
 
-        if (
-            not is_timeout_placeholder
-            and len(clean_ans.split()) < 3
-            and interviewer_policy.is_clarification_request(clean_ans)
-        ):
+        if not is_timeout_placeholder and interviewer_policy.is_clarification_request(clean_ans):
             assessment = interviewer_policy.TurnAssessment(
                 intent="clarification",
                 decision="CLARIFY",
@@ -1249,17 +1259,31 @@ def interview_answer_route(session_id):
                 clarification_line = assessment.interviewer_line or interviewer_policy.default_clarification_line(
                     active_q.get("prompt_text") or ""
                 )
+                clarification_turn_item = {
+                    "turn_index": current_turn,
+                    "question": active_q.get("prompt_text"),
+                    "answer": candidate_answer,
+                    "interviewer_response": clarification_line,
+                    "intent": "clarification",
+                    "action_decision": "CLARIFY",
+                    "is_clarification": True,
+                    "scores": None,
+                    "timestamp": now_ans_iso,
+                }
                 if db is not None:
                     db.interview_sessions.update_one(
                         session_query,
-                        {"$set": {
-                            "id": session_id,
-                            "session_id": session_id,
-                            "clarification_counts": clarification_counts,
-                            "last_interviewer_response": clarification_line,
-                            "turn_started_at": now_ans_iso,
-                            "updated_at": now_ans_iso,
-                        }},
+                        {
+                            "$set": {
+                                "id": session_id,
+                                "session_id": session_id,
+                                "clarification_counts": clarification_counts,
+                                "last_interviewer_response": clarification_line,
+                                "turn_started_at": now_ans_iso,
+                                "updated_at": now_ans_iso,
+                            },
+                            "$push": {"history": clarification_turn_item}
+                        },
                         upsert=True,
                     )
                     session_doc = db.interview_sessions.find_one(session_query)
@@ -1530,6 +1554,29 @@ def interview_finish_route(session_id):
         score_val = sc.get("overall_score")
         rec_val = sc.get("recommendation", "COMPLETED")
 
+        # Compute differentiated competency scores from evidence-based scorecard parameters
+        param_dict = {}
+        for p in sc.get("overall_parameter_scores", []):
+            if isinstance(p, dict) and p.get("name") and p.get("percentage") is not None:
+                param_dict[p["name"].lower()] = float(p["percentage"])
+
+        base_score = float(score_val if score_val is not None else 85.0)
+        rel_pct = param_dict.get("relevance", base_score)
+        dep_pct = param_dict.get("technical depth", base_score)
+        cor_pct = param_dict.get("correctness & accuracy", base_score)
+
+        tech_depth_score = round(dep_pct, 1)
+        sys_arch_score = round(min(100.0, max(0.0, dep_pct * 0.6 + cor_pct * 0.4)), 1)
+        comm_score = round(min(100.0, max(0.0, rel_pct * 0.7 + base_score * 0.3)), 1)
+        prob_solving_score = round(min(100.0, max(0.0, cor_pct * 0.6 + dep_pct * 0.4)), 1)
+
+        # Atomically settle interview billing and wallet transaction ledger
+        try:
+            if session_doc:
+                settle_interview_billing_completion(session_id, session_doc)
+        except Exception as settle_err:
+            print(f"[Interview Billing Settlement Warning]: {settle_err}")
+
         # Persist dynamic scorecard and evaluation metrics directly to MongoDB interview_sessions
         if db is not None:
             try:
@@ -1542,10 +1589,10 @@ def interview_finish_route(session_id):
                         "recommendation": rec_val,
                         "summary": sc.get("executive_summary") or "Technical assessment completed.",
                         "score_breakdown": {
-                            "technicalDepth": score_val,
-                            "systemArchitecture": score_val,
-                            "communication": score_val,
-                            "problemSolving": score_val
+                            "technicalDepth": tech_depth_score,
+                            "systemArchitecture": sys_arch_score,
+                            "communication": comm_score,
+                            "problemSolving": prob_solving_score
                         },
                         "key_highlights": sc.get("strengths", []),
                         "status": "completed",
@@ -1812,8 +1859,12 @@ def generate_speech_audio(text: str, voice: str = "default") -> tuple[bytes, str
     # Tier 4: Zero-Robotic Studio Human Voice Fallback
     # Never return robotic TTS! Load pre-recorded neural studio assets from disk.
     studio_fallback_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "web", "public", "audio", "voice")
+        os.path.join(os.path.dirname(__file__), "..", "data", "audio", "voice")
     )
+    if not os.path.isdir(studio_fallback_dir):
+        studio_fallback_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "web", "public", "audio", "voice")
+        )
     fallback_filenames = ["thinking_bridge.mp3", "tracking_approach.mp3", "got_it.mp3"]
     for fname in fallback_filenames:
         candidate_path = os.path.join(studio_fallback_dir, fname)
@@ -1905,7 +1956,7 @@ Return ONLY a valid JSON object in this exact schema:
         res_json = None
         if gemini_key:
             import requests, json
-            gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+            gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
             gem_payload = {
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"response_mime_type": "application/json"}
@@ -2043,29 +2094,7 @@ def interview_proctoring_events_route(session_id):
         return jsonify({"warningCount": 0, "flagged": False}), 200
 
 
-@interview_bp.route("/api/v1/interview-sessions/<session_id>/companion/pair", methods=["POST"])
-def companion_pair(session_id):
-    """Phone companion pairing QR and token generation."""
-    frontend_base = os.environ.get("FRONTEND_BASE_URL", "http://localhost:3000").rstrip("/")
-    pair_token = uuid.uuid4().hex[:12]
-    return jsonify({
-        "paired": True,
-        "token": pair_token,
-        "companionUrl": f"{frontend_base}/companion/{pair_token}?sessionId={session_id}",
-        "qrCode": f"{frontend_base}/companion/{pair_token}?sessionId={session_id}"
-    }), 200
-
-
-@interview_bp.route("/api/v1/interview-sessions/<session_id>/companion/viewer-token", methods=["GET"])
-def companion_viewer_token(session_id):
-    """Phone companion WebRTC viewer credentials."""
-    return jsonify({"token": f"companion_viewer_{session_id[:8]}"}), 200
-
-
-@interview_bp.route("/api/v1/interview-sessions/<session_id>/companion/event", methods=["POST"])
-def companion_event(session_id):
-    """Phone companion telemetry sync event."""
-    return jsonify({"success": True}), 200
+# Companion Phone-as-Camera/Mic routes are authoritatively handled by companion.py blueprint (companion_bp)
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/recruiter-viewer-token", methods=["GET"])
@@ -2241,9 +2270,9 @@ def get_interview_room_data(session_id):
         db = get_mongo_db()
         if db is not None:
             try:
-                session_meta = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}]})
+                session_meta = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
                 if not session_meta:
-                    session_meta = db.interview_sessions.find_one({})
+                    return jsonify({"error": "Interview session not found", "status": 404}), 404
             except Exception as mongo_err:
                 print(f"[Room Data] MongoDB query warning: {mongo_err}")
 
@@ -2309,9 +2338,90 @@ def _get_sandboxed_env(tmpdir: str) -> dict:
     }
 
 
+def validate_code_security(code: str, language: str) -> tuple[bool, str | None]:
+    """
+    Multi-layer AST and heuristic security inspection.
+    Rejects any destructive system calls, arbitrary file read/writes, network sockets,
+    and reflection attacks across Python, JavaScript, C++, and Java.
+    """
+    clean_code = code or ""
+    lang = language.lower()
+
+    if lang in ("python", "py", "python3"):
+        import ast
+
+        FORBIDDEN_MODULES = frozenset([
+            "os", "subprocess", "sys", "socket", "pty", "shutil", "winreg",
+            "ctypes", "builtins", "__future__", "importlib", "pickle", "posix",
+            "resource", "signal", "inspect", "multiprocessing", "threading",
+            "urllib", "requests", "http", "webbrowser", "tempfile"
+        ])
+
+        FORBIDDEN_NAMES = frozenset([
+            "open", "__import__", "eval", "exec", "compile", "globals",
+            "locals", "vars", "__builtins__", "getattr", "setattr", "delattr",
+            "help", "breakpoint", "input", "exit", "quit"
+        ])
+
+        FORBIDDEN_ATTRS = frozenset([
+            "__class__", "__bases__", "__subclasses__", "__globals__",
+            "__code__", "__builtins__", "__dict__", "__module__",
+            "tb_frame", "f_builtins", "f_globals", "f_locals", "cr_frame", "gi_frame"
+        ])
+
+        try:
+            parsed = ast.parse(clean_code)
+            for node in ast.walk(parsed):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        base = alias.name.split('.')[0]
+                        if base in FORBIDDEN_MODULES:
+                            return False, f"Direct access to module '{alias.name}' is restricted in the interview sandbox."
+                elif isinstance(node, ast.ImportFrom):
+                    base = (node.module or "").split('.')[0]
+                    if base in FORBIDDEN_MODULES:
+                        return False, f"Direct access to module '{node.module}' is restricted in the interview sandbox."
+                elif isinstance(node, ast.Name):
+                    if node.id in FORBIDDEN_NAMES:
+                        return False, f"Direct use of builtin function '{node.id}' is restricted in the interview sandbox."
+                elif isinstance(node, ast.Attribute):
+                    if node.attr in FORBIDDEN_ATTRS:
+                        return False, f"Reflection attribute '{node.attr}' is restricted in the interview sandbox."
+        except SyntaxError:
+            pass  # Compiler will report natural syntax error diagnostics
+
+    elif lang in ("javascript", "typescript", "js", "ts", "node"):
+        js_forbidden = re.compile(
+            r"\b(process|child_process|fs|require|eval|Function|global|globalThis|__dirname|__filename|import\s*\(|fetch|XMLHttpRequest|WebSocket|Worker)\b",
+            re.IGNORECASE
+        )
+        match = js_forbidden.search(clean_code)
+        if match:
+            return False, f"Operation '{match.group(0)}' is restricted in the JavaScript interview sandbox."
+
+    elif lang in ("cpp", "c++", "c"):
+        cpp_forbidden = re.compile(
+            r"(#\s*include\s*[<\"].*(fstream|filesystem|sys/|windows\.h|unistd\.h|cstdlib|winsock|pthread|stdio\.h|cstdio|fcntl\.h).*?[>\"]|\b(system|popen|fork|exec[lvp]*|socket|connect|remove|rename|fopen|freopen|tmpfile|getenv|putenv|setenv|kill|signal|syscall|__asm__|asm|WinExec|CreateProcess[AW]?|ShellExecute[AW]?|URLDownloadToFile[AW]?|LoadLibrary[AW]?|GetProcAddress)\b)",
+            re.IGNORECASE
+        )
+        match = cpp_forbidden.search(clean_code)
+        if match:
+            return False, f"System header or call '{match.group(0)}' is restricted in the C++ interview sandbox."
+
+    elif lang in ("java",):
+        java_forbidden = re.compile(
+            r"\b(java\.io\.(File|RandomAccessFile)|java\.nio\.file|java\.lang\.(Process|Runtime|ProcessBuilder|ClassLoader|System\.exit)|java\.net)\b"
+        )
+        match = java_forbidden.search(clean_code)
+        if match:
+            return False, f"System class '{match.group(0)}' is restricted in the Java interview sandbox."
+
+    return True, None
+
+
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/code-run", methods=["POST"])
 def run_interview_code(session_id):
-    """Execute candidate code submission in real sandbox."""
+    """Execute candidate code submission in real isolated sandbox."""
     try:
         data = request.get_json(silent=True) or {}
         code = str(data.get("code", "")).strip()
@@ -2333,43 +2443,38 @@ def run_interview_code(session_id):
         if db is not None:
             session_meta = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
 
+        if not session_meta:
+            return jsonify({"success": False, "error": "Active interview session required to execute code"}), 404
+
+        # Enforce authentication & session ownership verification
+        claims, _ = _authenticate_request()
+        if claims and claims.get("sub"):
+            caller_id = str(claims.get("sub"))
+            caller_role = str(claims.get("role", "")).lower()
+            cand_id = str(session_meta.get("candidate_id") or session_meta.get("userId") or "")
+            cand_em = str(session_meta.get("candidate_email") or "").lower()
+            caller_em = str(claims.get("email") or "").lower()
+            if caller_role not in ("admin", "super_admin"):
+                if cand_id and cand_id != caller_id and cand_em != caller_em:
+                    return jsonify({"success": False, "error": "Unauthorized: Session does not belong to your account"}), 403
+
+        # Validate code security
+        is_safe, sec_error = validate_code_security(code, language)
+        if not is_safe:
+            return jsonify({
+                "success": False,
+                "stdout": "",
+                "stderr": f"Security restriction: {sec_error}",
+                "executionTimeMs": 0,
+                "passedCount": 0,
+                "totalCount": 1,
+                "status": "Security Restriction"
+            }), 200
+
         problem = get_or_generate_session_coding_problem(session_id, session_meta, request)
         start_time = time.perf_counter()
 
         if language in ("python", "py", "python3"):
-            # Static AST Security Guard: Prevent destructive system calls & network sockets in sandbox
-            try:
-                import ast
-                parsed_ast = ast.parse(code)
-                for node in ast.walk(parsed_ast):
-                    if isinstance(node, ast.Import):
-                        for alias in node.names:
-                            base_mod = alias.name.split('.')[0]
-                            if base_mod in ("os", "subprocess", "socket", "pty", "shutil", "winreg"):
-                                return jsonify({
-                                    "success": False,
-                                    "stdout": "",
-                                    "stderr": f"Security restriction: Direct access to module '{alias.name}' is restricted in the interview sandbox.",
-                                    "executionTimeMs": 0,
-                                    "passedCount": 0,
-                                    "totalCount": 1,
-                                    "status": "Security Restriction"
-                                }), 200
-                    elif isinstance(node, ast.ImportFrom):
-                        base_mod = (node.module or "").split('.')[0]
-                        if base_mod in ("os", "subprocess", "socket", "pty", "shutil", "winreg"):
-                            return jsonify({
-                                "success": False,
-                                "stdout": "",
-                                "stderr": f"Security restriction: Direct access to module '{node.module}' is restricted in the interview sandbox.",
-                                "executionTimeMs": 0,
-                                "passedCount": 0,
-                                "totalCount": 1,
-                                "status": "Security Restriction"
-                            }), 200
-            except SyntaxError:
-                pass  # Let the python runner emit natural syntax error diagnostics
-
             test_harness = (problem.get("testHarness") or {}).get("python", "")
             exec_code = code
             if test_harness and test_harness not in code:
@@ -2698,9 +2803,24 @@ def get_candidate_evaluation_report(session_id):
         db = get_mongo_db()
         if db is not None:
             try:
-                session_doc = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}]})
+                session_doc = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
                 if not session_doc:
-                    session_doc = db.interview_sessions.find_one({})
+                    return jsonify({"error": "Interview session not found", "status": 404}), 404
+
+                # Authoritative ownership guard: Only candidate, recruiter or admin can access report
+                claims, err = _authenticate_request()
+                if err or not claims or not claims.get("sub"):
+                    return jsonify({"error": "Authentication required to access evaluation report", "status": 401}), 401
+
+                caller_id = str(claims.get("sub"))
+                caller_role = str(claims.get("role", "")).lower()
+                cand_id = str(session_doc.get("candidate_id") or session_doc.get("userId") or "")
+                rec_id = str(session_doc.get("recruiter_id") or "")
+                cand_em = str(session_doc.get("candidate_email") or "").lower()
+                caller_em = str(claims.get("email") or "").lower()
+                if caller_role not in ("admin", "super_admin"):
+                    if caller_id != cand_id and caller_id != rec_id and caller_em != cand_em:
+                        return jsonify({"error": "Unauthorized: Access to this evaluation report is restricted", "status": 403}), 403
 
                 if session_doc:
                     if session_doc.get("candidate_name") or session_doc.get("full_name"):
@@ -2940,19 +3060,29 @@ def export_report_pdf(session_id):
             sess = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
 
         if not sess:
-            cand_name = "Candidate"
-            cand_email = "candidate@example.com"
-            job_title = "Technical Assessment"
-            score = 88
-            rec = "HIRE"
-            summary = "Technical evaluation completed with verified proctoring."
-        else:
-            cand_name = sess.get("candidate_name") or sess.get("name") or "Candidate"
-            cand_email = sess.get("candidate_email") or ""
-            job_title = sess.get("job_title") or sess.get("target_position") or "Software Engineer"
-            score = round(float(sess.get("total_score") or 88))
-            rec = str(sess.get("final_recommendation") or ("STRONG_HIRE" if score >= 90 else "HIRE" if score >= 80 else "LEAN_HIRE")).upper().replace("_", " ")
-            summary = sess.get("summary") or "Technical screening evaluation successfully recorded."
+            return jsonify({"error": "Interview session not found", "status": 404}), 404
+
+        # Authoritative ownership guard: Only candidate, recruiter or admin can access PDF report
+        claims, err = _authenticate_request()
+        if err or not claims or not claims.get("sub"):
+            return jsonify({"error": "Authentication required to access dossier PDF", "status": 401}), 401
+
+        caller_id = str(claims.get("sub"))
+        caller_role = str(claims.get("role", "")).lower()
+        cand_id = str(sess.get("candidate_id") or sess.get("userId") or "")
+        rec_id = str(sess.get("recruiter_id") or "")
+        cand_em = str(sess.get("candidate_email") or "").lower()
+        caller_em = str(claims.get("email") or "").lower()
+        if caller_role not in ("admin", "super_admin"):
+            if caller_id != cand_id and caller_id != rec_id and caller_em != cand_em:
+                return jsonify({"error": "Unauthorized: Access to this dossier PDF is restricted", "status": 403}), 403
+
+        cand_name = sess.get("candidate_name") or sess.get("name") or "Candidate"
+        cand_email = sess.get("candidate_email") or ""
+        job_title = sess.get("job_title") or sess.get("target_position") or "Software Engineer"
+        score = round(float(sess.get("total_score") or 88))
+        rec = str(sess.get("final_recommendation") or ("STRONG_HIRE" if score >= 90 else "HIRE" if score >= 80 else "LEAN_HIRE")).upper().replace("_", " ")
+        summary = sess.get("summary") or "Technical screening evaluation successfully recorded."
 
         if request.args.get("format") == "json":
             return jsonify({
@@ -2968,11 +3098,18 @@ def export_report_pdf(session_id):
 
         now_str = datetime.now(timezone.utc).strftime('%b %d, %Y')
         short_id = session_id[:8].upper()
+        import html as html_lib
+        safe_name = html_lib.escape(str(cand_name))
+        safe_email = html_lib.escape(str(cand_email))
+        safe_title = html_lib.escape(str(job_title))
+        safe_rec = html_lib.escape(str(rec))
+        safe_summary = html_lib.escape(str(summary))
+
         html = f"""<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Progeni Atlas Dossier - {cand_name}</title>
+  <title>Progeni Atlas Dossier - {safe_name}</title>
   <style>
     @page {{ size: A4 portrait; margin: 12mm; }}
     body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #fff; color: #0f172a; margin: 0; padding: 24px; }}
@@ -3020,13 +3157,13 @@ def export_report_pdf(session_id):
 
   <div class="card">
     <div>
-      <h1 class="name">{cand_name}</h1>
-      <p class="meta">{cand_email} &bull; {job_title}</p>
+      <h1 class="name">{safe_name}</h1>
+      <p class="meta">{safe_email} &bull; {safe_title}</p>
       <p class="meta" style="margin-top: 4px;">Assessment Status: Completed &bull; Multi-Modal Verified</p>
     </div>
     <div class="score-box">
       <div class="score-num">{score}%</div>
-      <div class="badge">{rec}</div>
+      <div class="badge">{safe_rec}</div>
     </div>
   </div>
 
@@ -3060,7 +3197,7 @@ def export_report_pdf(session_id):
 
   <div class="section-title">Executive AI Evaluation Summary</div>
   <div class="summary-box">
-    {summary}
+    {safe_summary}
   </div>
 
   <div class="footer">

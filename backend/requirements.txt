@@ -10,8 +10,6 @@ pymongo==4.18.2
 certifi>=2024.7.4
 qdrant-client>=1.7.0
 redis>=5.0.0
-sqlalchemy>=2.0.0
-psycopg2-binary>=2.9.0
 
 # Security, Auth & JWT
 argon2-cffi>=23.1.0
@@ -42,10 +40,5 @@ pydantic>=2.10.0
 pydantic-settings>=2.7.0
 email-validator>=2.2.0
 
-# FastAPI / Uvicorn compatibility
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
-
 # Utilities
 PyYAML>=6.0.0
-slowapi>=0.1.9

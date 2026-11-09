@@ -9,8 +9,15 @@ import io
 import re
 from typing import Any
 
-import docx
-import fitz
+try:
+    import docx
+except ImportError:
+    docx = None
+
+try:
+    import fitz
+except ImportError:
+    fitz = None
 
 from app.config import settings
 
@@ -169,6 +176,8 @@ SKILL_ALIASES: dict[str, str] = {
 # ---------------------------------------------------------------- 1. File Extraction
 def _extract_pdf_lines(data: bytes) -> list[str]:
     """Extract page text using PyMuPDF (fitz), ignoring empty pages."""
+    if fitz is None:
+        raise ParseError("PyMuPDF (fitz) is required to parse PDF resumes")
     try:
         doc = fitz.open(stream=data, filetype="pdf")
     except Exception as exc:
@@ -197,6 +206,8 @@ def _extract_pdf_lines(data: bytes) -> list[str]:
 
 def _extract_docx_lines(data: bytes) -> list[str]:
     """Extract paragraph and table text using python-docx, preserving ordering."""
+    if docx is None:
+        raise ParseError("python-docx is required to parse DOCX resumes")
     try:
         doc = docx.Document(io.BytesIO(data))
     except Exception as exc:

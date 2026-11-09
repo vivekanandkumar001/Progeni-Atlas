@@ -59,11 +59,14 @@ export class SpeechTranscriptAccumulator {
     return this.snapshot();
   }
 
-  /** Commit all hypotheses (finals and any pending interim words) when recognition ends/restarts so no spoken words are lost. */
+  /** Commit finalized hypotheses when recognition ends/restarts so no confirmed words are lost. */
   endRecognition(): TranscriptSnapshot {
-    const words = this.results.map((result) => (result.text || '').trim()).filter(Boolean);
-    if (words.length > 0) {
-      this.answerBase = join(this.answerBase, ...words);
+    const finals = this.results
+      .filter((result) => result.isFinal)
+      .map((result) => (result.text || '').trim())
+      .filter(Boolean);
+    if (finals.length > 0) {
+      this.answerBase = join(this.answerBase, ...finals);
     }
     this.results = [];
     return this.snapshot();

@@ -60,23 +60,73 @@ interface WalletTransaction {
  createdAt: string;
 }
 
-const RECHARGE_PACKS = [
- { credits: 500, inr: 500, minutes: 250, badge: 'Starter', popular: false },
- { credits: 2000, inr: 2000, minutes: 1000, badge: 'Most Popular', popular: true },
- { credits: 5000, inr: 5000, minutes: 2500, badge: 'Enterprise Scale', popular: false },
+interface RecruiterPack {
+  credits: number;
+  inr: number;
+  minutes: number;
+  badge: string;
+  popular: boolean;
+}
+
+const DEFAULT_RECRUITER_PACKS: RecruiterPack[] = [
+  { credits: 500, inr: 499, minutes: 250, badge: 'Starter Pack', popular: false },
+  { credits: 1000, inr: 999, minutes: 500, badge: 'Growth Scale', popular: true },
+  { credits: 2500, inr: 1999, minutes: 1250, badge: 'Enterprise Scale', popular: false },
 ];
 
 export default function RecruiterBillingPage() {
- const [wallet, setWallet] = useState<WalletData | null>(null);
- const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
- const [loading, setLoading] = useState(true);
- const [rechargeModalOpen, setRechargeModalOpen] = useState(false);
- const [selectedPack, setSelectedPack] = useState<number>(2000);
- const [customAmount, setCustomAmount] = useState<string>('');
- const [recharging, setRecharging] = useState(false);
- const [message, setMessage] = useState<{ text: string; type: 'success'|'error'} | null>(null);
- const [upiModalOpen, setUpiModalOpen] = useState(false);
- const [activeUpiOrder, setActiveUpiOrder] = useState<MayankUpiOrderResponse | null>(null);
+  const [rechargePacks, setRechargePacks] = useState<RecruiterPack[]>(DEFAULT_RECRUITER_PACKS);
+  const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [rechargeModalOpen, setRechargeModalOpen] = useState(false);
+  const [selectedPack, setSelectedPack] = useState<number>(1000);
+  const [customAmount, setCustomAmount] = useState<string>('');
+  const [recharging, setRecharging] = useState(false);
+  const [message, setMessage] = useState<{ text: string; type: 'success'|'error'} | null>(null);
+  const [upiModalOpen, setUpiModalOpen] = useState(false);
+  const [activeUpiOrder, setActiveUpiOrder] = useState<MayankUpiOrderResponse | null>(null);
+
+  // Dynamically load packages set by Admin from Super Admin Panel
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDynamicPacks() {
+      try {
+        const res = await fetch('/api/packages');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.packages)) {
+          const recPkgs = data.packages.filter(
+            (p: any) => (p.target_audience === 'organization' || p.target_audience === 'both') && Number(p.price || 0) > 0
+          );
+          if (recPkgs.length > 0 && isMounted) {
+            const mapped: RecruiterPack[] = recPkgs.map((pkg: any) => {
+              const price = Number(pkg.price ?? pkg.monthlyPrice ?? 500);
+              const cr = Number(pkg.credits || (pkg.included_interviews ? pkg.included_interviews * 25 : price));
+              return {
+                credits: cr,
+                inr: price,
+                minutes: Number(pkg.interview_duration_limit_minutes ? (cr / 2) : 250),
+                badge: pkg.name || 'Recruiter Pack',
+                popular: Boolean(pkg.popular || pkg.tier === 'growth'),
+              };
+            });
+            setRechargePacks(mapped);
+            if (mapped.length > 0) {
+              const popularOrMid = mapped.find((m) => m.popular) || mapped[Math.floor(mapped.length / 2)];
+              setSelectedPack(popularOrMid.credits);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[RecruiterBilling] Using fallback packs:', err);
+      }
+    }
+    void loadDynamicPacks();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
  const loadWallet = useCallback(async () => {
  try {
@@ -118,7 +168,7 @@ export default function RecruiterBillingPage() {
  ...rawWallet,
  availableCredits: realAvailable,
  promotionalCredits: 0,
- ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 2.0,
+ ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 0.5,
  // Only show trial banner if there is actual remaining allowance > 0 and user is within trial
  demoQuota: (rawWallet.demoQuota && rawWallet.demoQuota.remaining > 0 && rawWallet.demoQuota.completed > 0)
  ? rawWallet.demoQuota
@@ -283,7 +333,7 @@ export default function RecruiterBillingPage() {
             <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 text-blue-600 shrink-0" />
               <span>
-                ≈ <strong className="text-slate-800 font-semibold">{Math.floor((wallet?.availableCredits ?? 0) / (wallet?.ratePerMinuteCredits || 2))} mins</strong> screening time
+                ≈ <strong className="text-slate-800 font-semibold">{Math.floor((wallet?.availableCredits ?? 0) / (wallet?.ratePerMinuteCredits || 0.5))} mins</strong> screening time
               </span>
             </div>
           </div>
@@ -337,13 +387,13 @@ export default function RecruiterBillingPage() {
               </div>
               <div className="mt-3 flex items-baseline gap-1.5">
                 <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-blue-600">
-                  {(wallet?.ratePerMinuteCredits ?? 2.0).toFixed(2)}
+                  {(wallet?.ratePerMinuteCredits ?? 0.5).toFixed(2)}
                 </span>
                 <span className="text-xs font-semibold text-slate-500">Credits / min</span>
               </div>
             </div>
             <p className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
-              ₹2.00 per minute with server ceiling-to-whole-minute rounding.
+              ₹0.50 per minute (1 Rupee = 2 Minutes) with server ceiling-to-whole-minute rounding.
             </p>
           </div>
         </div>
@@ -495,7 +545,7 @@ export default function RecruiterBillingPage() {
               </label>
 
               <div className="grid gap-3 sm:grid-cols-3">
-                {RECHARGE_PACKS.map((pack) => (
+                {rechargePacks.map((pack) => (
                   <div
                     key={pack.credits}
                     onClick={() => {

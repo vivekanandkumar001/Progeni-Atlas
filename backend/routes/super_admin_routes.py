@@ -1029,94 +1029,10 @@ def super_admin_packages():
             new_pkg.pop("_id", None)
             return jsonify({"success": True, "package": new_pkg}), 201
 
-        packages = list(db.packages.find({})) if db is not None else []
+        packages = list(db.packages.find({}).sort("price", 1)) if db is not None else []
         if not packages:
-            packages = [
-                {
-                    "id": "pkg-starter",
-                    "package_id": "pkg-starter",
-                    "name": "Starter Practice",
-                    "tier": "starter",
-                    "target_audience": "individual",
-                    "billing_period": "monthly",
-                    "price": 0,
-                    "monthlyPrice": 0,
-                    "annualPrice": 0,
-                    "included_interviews": 5,
-                    "interviewsIncluded": 5,
-                    "included_recruiter_seats": 0,
-                    "seatsIncluded": 0,
-                    "included_candidate_seats": 1,
-                    "interview_duration_limit_minutes": 30,
-                    "version": 1,
-                    "status": "published",
-                    "active": True,
-                    "description": "Ideal for job applicants preparing for technical video interviews and AI screening."
-                },
-                {
-                    "id": "pkg-candidate-pro",
-                    "package_id": "pkg-candidate-pro",
-                    "name": "Candidate Pro",
-                    "tier": "pro",
-                    "target_audience": "individual",
-                    "billing_period": "monthly",
-                    "price": 999,
-                    "monthlyPrice": 999,
-                    "annualPrice": 9990,
-                    "included_interviews": 100,
-                    "interviewsIncluded": 100,
-                    "included_recruiter_seats": 1,
-                    "seatsIncluded": 1,
-                    "included_candidate_seats": 1,
-                    "interview_duration_limit_minutes": 45,
-                    "version": 1,
-                    "status": "published",
-                    "active": True,
-                    "description": "Unlimited personalized interview practice tailored to your exact target job listings."
-                },
-                {
-                    "id": "pkg-growth",
-                    "package_id": "pkg-growth",
-                    "name": "Hiring Team Growth",
-                    "tier": "growth",
-                    "target_audience": "organization",
-                    "billing_period": "monthly",
-                    "price": 8999,
-                    "monthlyPrice": 8999,
-                    "annualPrice": 89990,
-                    "included_interviews": 50,
-                    "interviewsIncluded": 50,
-                    "included_recruiter_seats": 3,
-                    "seatsIncluded": 3,
-                    "included_candidate_seats": 50,
-                    "interview_duration_limit_minutes": 45,
-                    "version": 1,
-                    "status": "published",
-                    "active": True,
-                    "description": "For fast-moving startups and agencies interviewing up to 50 active engineering candidates/mo."
-                },
-                {
-                    "id": "pkg-enterprise",
-                    "package_id": "pkg-enterprise",
-                    "name": "Enterprise Scale",
-                    "tier": "enterprise",
-                    "target_audience": "organization",
-                    "billing_period": "yearly",
-                    "price": 24999,
-                    "monthlyPrice": 24999,
-                    "annualPrice": 249990,
-                    "included_interviews": 500,
-                    "interviewsIncluded": 500,
-                    "included_recruiter_seats": 20,
-                    "seatsIncluded": 20,
-                    "included_candidate_seats": 500,
-                    "interview_duration_limit_minutes": 60,
-                    "version": 1,
-                    "status": "published",
-                    "active": True,
-                    "description": "Unlimited volume, custom rubrics, and ATS synchronization for large engineering organizations."
-                }
-            ]
+            from core.db import CANONICAL_PACKAGES
+            packages = [dict(p) for p in CANONICAL_PACKAGES]
             if db is not None:
                 db.packages.insert_many([dict(p) for p in packages])
 
@@ -1262,7 +1178,16 @@ def get_public_packages():
     """Public endpoint to fetch active published packages for pricing cards and landing pages."""
     try:
         db = get_mongo_db()
-        packages = list(db.packages.find({"$or": [{"active": True}, {"status": "published"}]})) if db is not None else []
+        packages = []
+        if db is not None:
+            packages = list(db.packages.find({"$or": [{"active": True}, {"status": "published"}]}).sort("price", 1))
+            if not packages:
+                packages = list(db.packages.find({}).sort("price", 1))
+
+        if not packages:
+            from core.db import CANONICAL_PACKAGES
+            packages = [dict(p) for p in CANONICAL_PACKAGES]
+
         clean = []
         for p in packages:
             p.pop("_id", None)

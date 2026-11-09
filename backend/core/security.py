@@ -349,13 +349,7 @@ def require_super_admin(view):
         if not user and claims.get("email"):
             user = resolve_user(claims.get("email"))
         if not user:
-            user = {
-                "id": str(claims.get("sub", "super-admin-root")),
-                "email": claims.get("email", "superadmin@progeni.atlas"),
-                "full_name": claims.get("name", "Super Administrator"),
-                "role": "super_admin",
-                "status": "active"
-            }
+            return jsonify({"success": False, "error": "Administrator account not found in system or has been revoked."}), 401
 
         if str(user.get("status", "")).lower() not in ("active", "1", "true"):
             return jsonify({"success": False, "error": "Account is suspended"}), 403

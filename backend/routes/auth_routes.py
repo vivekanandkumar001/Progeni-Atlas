@@ -202,6 +202,28 @@ def verify_otp():
             return jsonify({"error": "Incorrect OTP code. Please check your email and try again."}), 400
 
         # OTP Verified Successfully!
+        if purpose == "FORGOT_PASSWORD":
+            # For password reset: create a tamper-proof reset token (valid for 15 mins)
+            # and delete the consumed OTP
+            db.email_otps.delete_many({"email": email, "purpose": purpose})
+            reset_exp = int(datetime.now(timezone.utc).timestamp()) + 900
+            reset_token = jwt.encode({
+                "sub": email,
+                "email": email,
+                "purpose": "password_reset",
+                "exp": reset_exp
+            }, SWAMI_SECRET_KEY, algorithm="HS256")
+            if isinstance(reset_token, bytes):
+                reset_token = reset_token.decode("utf-8")
+
+            return jsonify({
+                "success": True,
+                "message": "OTP verified successfully. You may now set your new password.",
+                "email": email,
+                "resetToken": reset_token,
+                "redirectUrl": f"/forgot-password?step=2&email={email}&token={reset_token}"
+            }), 200
+
         db.email_otps.delete_many({"email": email, "purpose": purpose})
 
         user_role = "candidate"
@@ -262,8 +284,9 @@ def verify_otp():
 
         resp = make_response(jsonify(resp_data), 200)
         if token:
-            resp.set_cookie("tp_session", token, max_age=7*24*3600, path="/", samesite="Lax", httponly=False)
-            resp.set_cookie("tp_role", user_role, max_age=7*24*3600, path="/", samesite="Lax", httponly=False)
+            is_prod = os.environ.get("APP_ENV", "development").strip().lower() in ("production", "prod")
+            resp.set_cookie("tp_session", token, max_age=7*24*3600, path="/", samesite="Lax", httponly=True, secure=is_prod)
+            resp.set_cookie("tp_role", user_role, max_age=7*24*3600, path="/", samesite="Lax", httponly=False, secure=is_prod)
         return resp
     except Exception as e:
         traceback.print_exc()
@@ -469,9 +492,10 @@ def login():
             "redirectUrl": target_dashboard
         }), 200)
 
-        # Set cookies for Next.js Edge middleware and SSR
-        resp.set_cookie("tp_session", token, max_age=7*24*3600, path="/", samesite="Lax", httponly=False)
-        resp.set_cookie("tp_role", user_role, max_age=7*24*3600, path="/", samesite="Lax", httponly=False)
+        # Set secure session cookies for SSR and authenticated requests
+        is_prod = os.environ.get("APP_ENV", "development").strip().lower() in ("production", "prod")
+        resp.set_cookie("tp_session", token, max_age=7*24*3600, path="/", samesite="Lax", httponly=True, secure=is_prod)
+        resp.set_cookie("tp_role", user_role, max_age=7*24*3600, path="/", samesite="Lax", httponly=False, secure=is_prod)
         return resp
     except Exception as e:
         traceback.print_exc()
@@ -505,15 +529,10 @@ def get_current_user():
             user = resolve_user(user_email)
 
         if not user:
-            role = str(claims.get("role") or "candidate").lower().strip()
-            user = {
-                "id": user_id or str(uuid.uuid4()),
-                "email": user_email or "",
-                "full_name": claims.get("name") or claims.get("fullName") or "User",
-                "role": role,
-                "status": "active",
-                "is_email_verified": True
-            }
+            return jsonify({"success": False, "error": "Account not found or has been revoked."}), 401
+
+        if str(user.get("status", "")).lower() not in ("active", "1", "true"):
+            return jsonify({"success": False, "error": "Account is suspended"}), 403
 
         role = str(user.get("role") or claims.get("role") or "candidate").lower().strip()
         uid = str(user.get("id") or user.get("_id") or user_id)
@@ -574,7 +593,37 @@ def refresh_token():
         if not user_id and not email:
             return jsonify({"error": "Malformed token identity."}), 401
 
-        exp_timestamp = int(datetime.now(timezone.utc).timestamp()) + 7 * 24 * 3600
+        now_utc = datetime.now(timezone.utc)
+        now_ts = now_utc.timestamp()
+        exp = payload.get("exp")
+        # Enforce maximum refresh window: token expired more than 30 days ago cannot be refreshed
+        if exp is not None:
+            try:
+                if (now_ts - float(exp)) > (30 * 86400):
+                    return jsonify({"error": "Session expired beyond renewal window. Please log in again."}), 401
+            except (ValueError, TypeError):
+                pass
+
+        # Authoritatively verify user still exists and is active in MongoDB
+        db = get_mongo_db()
+        user = None
+        if db is not None:
+            if user_id:
+                user = resolve_user(user_id)
+            if not user and email:
+                user = db.users.find_one({"email": email.strip().lower()})
+
+        if not user:
+            return jsonify({"error": "Account not found or has been revoked."}), 401
+
+        if str(user.get("status", "")).lower() not in ("active", "1", "true"):
+            return jsonify({"error": "Account is suspended."}), 403
+
+        role = str(user.get("role") or role).lower().strip()
+        user_id = str(user.get("id") or user.get("_id") or user_id)
+        email = user.get("email") or email
+
+        exp_timestamp = int(now_ts) + 7 * 24 * 3600
         new_payload = {
             "sub": user_id,
             "email": email,
@@ -588,8 +637,9 @@ def refresh_token():
             new_token = new_token.decode("utf-8")
 
         resp = make_response(jsonify({"success": True, "token": new_token}), 200)
-        resp.set_cookie("tp_session", new_token, max_age=7*24*3600, path="/", samesite="Lax", httponly=False)
-        resp.set_cookie("tp_role", role, max_age=7*24*3600, path="/", samesite="Lax", httponly=False)
+        is_prod = os.environ.get("APP_ENV", "development").strip().lower() in ("production", "prod")
+        resp.set_cookie("tp_session", new_token, max_age=7*24*3600, path="/", samesite="Lax", httponly=True, secure=is_prod)
+        resp.set_cookie("tp_role", role, max_age=7*24*3600, path="/", samesite="Lax", httponly=False, secure=is_prod)
         return resp
     except Exception as e:
         return jsonify({"error": f"Token refresh failed: {str(e)}"}), 500
@@ -638,7 +688,7 @@ def forgot_password():
             "success": True,
             "email": email,
             "expiresInSec": OTP_TTL_SEC,
-            "redirectUrl": f"/verify-otp?email={email}&purpose=FORGOT_PASSWORD"
+            "redirectUrl": f"/forgot-password?step=2&email={email}"
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -646,39 +696,59 @@ def forgot_password():
 
 @auth_bp.route("/api/auth/reset-password", methods=["POST"])
 def reset_password():
-    """Complete Password Reset after OTP verification via MongoDB."""
+    """Complete Password Reset after OTP or resetToken verification via MongoDB."""
     try:
         data = request.get_json(silent=True, force=True) or {}
         email = data.get("email", "").strip().lower()
         otp_code = data.get("otp", "").strip()
+        reset_token = (data.get("resetToken") or data.get("reset_token") or "").strip()
         new_password = data.get("newPassword", "")
 
-        if not email or not otp_code or not new_password:
-            return jsonify({"error": "Email, OTP code, and new password are required."}), 400
-        if not OTP_RE.match(otp_code):
-            return jsonify({"error": "OTP code must be exactly 6 digits."}), 400
+        if not email or not new_password:
+            return jsonify({"error": "Email and new password are required."}), 400
+        if not otp_code and not reset_token:
+            return jsonify({"error": "Either a valid 6-digit OTP code or reset token is required."}), 400
 
         db = get_mongo_db()
-
-        # Verify OTP (same brute-force + expiry policy as /verify-otp)
-        record = db.email_otps.find_one({"email": email, "purpose": "FORGOT_PASSWORD"}, sort=[("created_at", -1)])
-
         now_utc = datetime.now(timezone.utc)
-        if not record or _as_aware_utc(record.get("expires_at")) < now_utc:
-            if record:
+        verified = False
+
+        # 1. Verify via cryptographic reset token (issued by /verify-otp)
+        if reset_token:
+            try:
+                claims = jwt.decode(reset_token, SWAMI_SECRET_KEY, algorithms=["HS256", JWT_ALGORITHM])
+                if str(claims.get("email", "")).lower() == email and claims.get("purpose") == "password_reset":
+                    verified = True
+            except Exception as token_err:
+                print(f"[OTP] Reset-token verification notice: {token_err}")
+                verified = False
+
+        # 2. Verify via raw OTP if submitted directly on the reset-password form
+        if not verified and otp_code:
+            if not OTP_RE.match(otp_code):
+                return jsonify({"error": "OTP code must be exactly 6 digits."}), 400
+
+            record = db.email_otps.find_one({"email": email, "purpose": "FORGOT_PASSWORD"}, sort=[("created_at", -1)])
+            if not record or _as_aware_utc(record.get("expires_at")) < now_utc:
+                if record:
+                    db.email_otps.delete_one({"_id": record["_id"]})
+                print(f"[OTP] Password-reset rejected (expired/missing) recipient={email}")
+                return jsonify({"error": "Invalid or expired OTP code. Please request a new code.",
+                                "expired": True}), 400
+
+            if (record.get("attempts_count") or 0) >= OTP_MAX_ATTEMPTS:
                 db.email_otps.delete_one({"_id": record["_id"]})
-            print(f"[OTP] Password-reset rejected (expired/missing) recipient={email}")
-            return jsonify({"error": "Invalid or expired OTP code. Please request a new code.",
-                            "expired": True}), 400
+                return jsonify({"error": "Too many invalid attempts. Please request a new code."}), 429
 
-        if (record.get("attempts_count") or 0) >= OTP_MAX_ATTEMPTS:
-            db.email_otps.delete_one({"_id": record["_id"]})
-            return jsonify({"error": "Too many invalid attempts. Please request a new code."}), 429
+            if not check_otp_hash(otp_code, record["otp_hash"]):
+                db.email_otps.update_one({"_id": record["_id"]}, {"$inc": {"attempts_count": 1}})
+                print(f"[OTP] Password-reset rejected (incorrect) recipient={email}")
+                return jsonify({"error": "Incorrect OTP code."}), 400
 
-        if not check_otp_hash(otp_code, record["otp_hash"]):
-            db.email_otps.update_one({"_id": record["_id"]}, {"$inc": {"attempts_count": 1}})
-            print(f"[OTP] Password-reset rejected (incorrect) recipient={email}")
-            return jsonify({"error": "Incorrect OTP code."}), 400
+            verified = True
+
+        if not verified:
+            return jsonify({"error": "Invalid or expired verification. Please request a new code."}), 400
 
         is_strong, pass_err = validate_password_strength(new_password)
         if not is_strong:

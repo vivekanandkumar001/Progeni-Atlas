@@ -205,6 +205,14 @@ def submit_aptitude_answer(session_id):
         if not doc:
             return jsonify({"error": "Session not found"}), 404
 
+        # Enforce candidate ownership guard
+        claims, _ = _authenticate_request()
+        if claims and claims.get("sub"):
+            caller_id = str(claims.get("sub"))
+            cand_id = str(doc.get("candidateId") or "")
+            if cand_id and cand_id != "cand-anonymous" and cand_id != caller_id and str(claims.get("role", "")).lower() not in ("admin", "super_admin"):
+                return jsonify({"error": "Unauthorized: Session does not belong to your account"}), 403
+
         if doc.get("status") != "in_progress":
             return jsonify({"error": "Test session is already closed", "status": doc.get("status")}), 400
 
@@ -445,6 +453,14 @@ def submit_aptitude_session(session_id):
         if not doc:
             return jsonify({"error": "Session not found"}), 404
 
+        # Enforce candidate ownership guard
+        claims, _ = _authenticate_request()
+        if claims and claims.get("sub"):
+            caller_id = str(claims.get("sub"))
+            cand_id = str(doc.get("candidateId") or "")
+            if cand_id and cand_id != "cand-anonymous" and cand_id != caller_id and str(claims.get("role", "")).lower() not in ("admin", "super_admin"):
+                return jsonify({"error": "Unauthorized: Session does not belong to your account"}), 403
+
         scorecard = _finalize_aptitude_scoring(doc, db)
         return jsonify({
             "success": True,
@@ -467,6 +483,14 @@ def get_aptitude_session_report(session_id):
         doc = db.aptitude_sessions.find_one({"sessionId": session_id})
         if not doc:
             return jsonify({"error": "Session not found"}), 404
+
+        # Enforce candidate ownership guard
+        claims, _ = _authenticate_request()
+        if claims and claims.get("sub"):
+            caller_id = str(claims.get("sub"))
+            cand_id = str(doc.get("candidateId") or "")
+            if cand_id and cand_id != "cand-anonymous" and cand_id != caller_id and str(claims.get("role", "")).lower() not in ("admin", "super_admin"):
+                return jsonify({"error": "Unauthorized: Session does not belong to your account"}), 403
 
         scorecard = doc.get("scorecard")
         if not scorecard and doc.get("status") == "completed":

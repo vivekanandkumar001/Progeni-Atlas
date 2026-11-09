@@ -91,7 +91,7 @@ function getSharedAnalyser(): AnalyserNode | null {
 
 /** Clamp interviewer playback rate to a safe, natural range. */
 export const clampPlaybackRate = (rate: number): number =>
-  Math.min(2, Math.max(0.5, Number.isFinite(rate) ? rate : 1.0));
+  Math.min(2, Math.max(0.5, Number.isFinite(rate) ? rate : 1.25));
 
 export const safeHash = (text: string): string => {
   let hash = 0;
@@ -410,14 +410,10 @@ export function useInterviewerSpeech({
             URL.revokeObjectURL(currentObjectUrlRef.current);
             currentObjectUrlRef.current = null;
           }
-          // Never use robotic speechSynthesis! Play pre-buffered studio human phrase instead.
-          if (playInMemoryBuffer('thinking_bridge', dialogueId)) {
-            return;
-          }
           restoreMicrophoneTrack();
           failedDialogueKeysRef.current.add(dialogueId);
           activeDialogueIdRef.current = null;
-          setPlaybackState('IDLE');
+          setPlaybackState('FAILED');
           onSpeechError?.(dialogueId, new Error('Audio stream error'));
         };
 
@@ -437,15 +433,9 @@ export function useInterviewerSpeech({
           return;
         }
 
-        // Never fall back to robotic SpeechSynthesis!
-        // Play human studio thinking bridge if available
-        if (playInMemoryBuffer('thinking_bridge', dialogueId)) {
-          return;
-        }
-
         activeDialogueIdRef.current = null;
         failedDialogueKeysRef.current.add(dialogueId);
-        setPlaybackState('IDLE');
+        setPlaybackState('FAILED');
         onSpeechError?.(dialogueId, err);
       }
     },

@@ -26,22 +26,20 @@ from core.interview_params import generate_dynamic_interview_parameters
 recruiter_bp = Blueprint("recruiter_bp", __name__)
 
 @recruiter_bp.route("/api/recruiter/profile", methods=["GET"])
+@require_auth
 def get_recruiter_profile():
     """Fetch recruiter personal details, organization branding, team invites & quota from MongoDB."""
     try:
         user = get_current_recruiter()
-        db = get_mongo_db()
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authorization required"}), 403
 
-        email = (user and user.get("email")) or request.args.get("email", "").strip().lower()
-        if not user and email and db is not None:
-            try:
-                user = db.users.find_one({"email": email})
-            except Exception:
-                user = None
+        db = get_mongo_db()
+        email = user.get("email", "").strip().lower()
 
         org_data = None
         team_members = []
-        if user and user.get("org_id") and db is not None:
+        if user.get("org_id") and db is not None:
             try:
                 org_data = db.organizations.find_one({"id": str(user["org_id"])})
             except Exception:
@@ -143,12 +141,16 @@ def get_recruiter_profile():
 
 
 @recruiter_bp.route("/api/recruiter/profile", methods=["PUT"])
+@require_auth
 def update_recruiter_profile():
     """Update recruiter personal details and organization branding in MongoDB."""
     try:
         user = get_current_recruiter()
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authorization required"}), 403
+
         data = request.get_json(silent=True) or {}
-        email = (user and user.get("email")) or data.get("email", "").strip().lower()
+        email = user.get("email", "").strip().lower()
 
         full_name = data.get("fullName", "").strip()
         phone = data.get("phone", "").strip()
@@ -176,10 +178,8 @@ def update_recruiter_profile():
             if department: user_updates["department"] = department
             if linkedin_url: user_updates["linkedin_url"] = linkedin_url
 
-            target_filter = None
-            if user and "_id" in user:
-                target_filter = {"_id": user["_id"]}
-            elif email:
+            target_filter = {"_id": user["_id"]} if "_id" in user else {"id": user.get("id")}
+            if not target_filter:
                 target_filter = {"email": email}
 
             if target_filter:
@@ -583,9 +583,7 @@ def recruiter_jobs():
                     if org_id:
                         or_conditions.append({"org_id": org_id})
                     query = {"$or": or_conditions}
-                docs = list(db.job_profiles.find(query).sort("created_at", -1))
-                if not docs and db is not None:
-                    docs = list(db.job_profiles.find({}).sort("created_at", -1))
+                docs = list(db.job_profiles.find(query).sort("created_at", -1)) if query else []
                 for d in docs:
                     jid = str(d.get("id") or d.get("_id"))
                     jobs.append({
@@ -2552,9 +2550,23 @@ def dispatch_candidate_dossier_webhook():
 
 
 @recruiter_bp.route("/api/recruiter/dossiers/<candidate_id>/pdf", methods=["GET"])
+@require_auth
 def download_candidate_dossier_pdf(candidate_id):
     """Generate and return a verified server-side ReportLab PDF candidate dossier scorecard."""
     try:
+        user = getattr(g, "user", None)
+        if not user:
+            claims, _ = _authenticate_request()
+            if not claims:
+                return jsonify({"error": "Authentication required"}), 401
+            user = resolve_user(claims.get("sub"))
+        if not user:
+            return jsonify({"error": "Authentication required"}), 401
+
+        role = str(user.get("role", "")).lower()
+        user_id = str(user.get("id") or user.get("_id"))
+        if role not in ("recruiter", "admin", "hr", "super_admin") and user_id != str(candidate_id):
+            return jsonify({"error": "Unauthorized: Recruiter or Administrator access required"}), 403
         import io
         from reportlab.lib.pagesizes import letter
         from reportlab.lib import colors

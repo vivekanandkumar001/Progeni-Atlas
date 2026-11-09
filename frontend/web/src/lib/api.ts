@@ -80,6 +80,8 @@ export function getRefreshToken(): string | null { return null; }
 
 /** Stores user display data and sets session cookies for Edge middleware. */
 export function persistSession(accessToken?: string, _refreshToken?: string, user?: Record<string, unknown>): void {
+  // Purge any stale cache from a previous session to prevent cross-user data leakage
+  invalidateApiCache();
   if (typeof window !== 'undefined') {
     if (user) {
       try {
@@ -93,7 +95,6 @@ export function persistSession(accessToken?: string, _refreshToken?: string, use
     const token = accessToken || (user as any)?.token || (user as any)?.access_token;
     if (token) {
       try {
-        window.localStorage.setItem('tp_token', token);
         document.cookie = `tp_session=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
       } catch {}
     }
@@ -1145,11 +1146,15 @@ export async function speakInterviewText(
   sessionId: string,
   text: string,
   signal?: AbortSignal,
-  voice: "en" | "hinglish" | "default" | string = "default",
+  voice?: "en" | "hinglish" | "default" | string,
 ): Promise<Blob> {
+  const payload: { text: string; voice?: string } = { text };
+  if (voice && voice !== "default") {
+    payload.voice = voice;
+  }
   const res = await apiFetch(`/api/interview/${sessionId}/speak`, {
     method: 'POST',
-    body: JSON.stringify({ text, voice }),
+    body: JSON.stringify(payload),
     signal,
   });
 

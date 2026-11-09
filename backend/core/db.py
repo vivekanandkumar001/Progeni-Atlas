@@ -42,56 +42,337 @@ def get_mongo_db(db_name: str = None):
     name = db_name or MONGODB_DB_NAME
     return client[name]
 
+CANONICAL_PACKAGES = [
+    {
+        "id": "pkg-starter",
+        "package_id": "pkg-starter",
+        "name": "Free Starter",
+        "tier": "starter",
+        "target_audience": "individual",
+        "billing_period": "on_signup",
+        "price": 0,
+        "monthlyPrice": 0,
+        "annualPrice": 0,
+        "price_nanousd": 0,
+        "included_interviews": 1,
+        "interviewsIncluded": 1,
+        "credits": 10,
+        "included_recruiter_seats": 0,
+        "seatsIncluded": 0,
+        "included_candidate_seats": 1,
+        "interview_duration_limit_minutes": 20,
+        "version": 1,
+        "status": "published",
+        "active": True,
+        "popular": False,
+        "description": "Ideal for students and job seekers trying their first complimentary AI technical video interview.",
+        "features": [
+            "1 Full AI Technical Mock Interview (20 mins free)",
+            "Live Spoken Dialogue & Adaptive Follow-ups",
+            "Browser Code Execution (Python, C++, JS)",
+            "Instant Scorecard & Competency Report",
+            "No Credit Card Required",
+        ],
+    },
+    {
+        "id": "pkg-candidate-warmup",
+        "package_id": "pkg-candidate-warmup",
+        "name": "Warm-up Pack",
+        "tier": "starter",
+        "target_audience": "individual",
+        "billing_period": "one_time",
+        "price": 49,
+        "monthlyPrice": 49,
+        "annualPrice": 490,
+        "price_nanousd": 49000000000,
+        "included_interviews": 3,
+        "interviewsIncluded": 3,
+        "credits": 50,
+        "included_recruiter_seats": 0,
+        "seatsIncluded": 0,
+        "included_candidate_seats": 1,
+        "interview_duration_limit_minutes": 100,
+        "version": 1,
+        "status": "published",
+        "active": True,
+        "popular": False,
+        "description": "Quick pre-interview brush-up right before your actual technical round.",
+        "features": [
+            "50 AI Credits (100 mins practice)",
+            "3 Full In-Depth DSA or Behavioral Rounds",
+            "Turn-by-Turn Audio Transcripts",
+            "Code Efficiency & Complexity Analysis",
+            "Actionable Improvement Guidance",
+        ],
+    },
+    {
+        "id": "pkg-candidate-placement",
+        "package_id": "pkg-candidate-placement",
+        "name": "Placement Ready",
+        "tier": "pro",
+        "target_audience": "individual",
+        "billing_period": "one_time",
+        "price": 99,
+        "monthlyPrice": 99,
+        "annualPrice": 990,
+        "price_nanousd": 99000000000,
+        "included_interviews": 6,
+        "interviewsIncluded": 6,
+        "credits": 100,
+        "included_recruiter_seats": 0,
+        "seatsIncluded": 0,
+        "included_candidate_seats": 1,
+        "interview_duration_limit_minutes": 200,
+        "version": 1,
+        "status": "published",
+        "active": True,
+        "popular": True,
+        "description": "Most chosen by engineering students preparing for placements and product companies.",
+        "features": [
+            "100 AI Credits (200 mins practice)",
+            "6-7 Full Technical & Architecture Rounds",
+            "Resume Defense & Target JD Parsing",
+            "Company-Specific Question Sets (Google, TCS, Amazon)",
+            "Detailed Turn-by-Turn Telemetry & Audio Replays",
+        ],
+    },
+    {
+        "id": "pkg-candidate-pro",
+        "package_id": "pkg-candidate-pro",
+        "name": "Pro Mastery",
+        "tier": "pro",
+        "target_audience": "individual",
+        "billing_period": "one_time",
+        "price": 199,
+        "monthlyPrice": 199,
+        "annualPrice": 1990,
+        "price_nanousd": 199000000000,
+        "included_interviews": 13,
+        "interviewsIncluded": 13,
+        "credits": 200,
+        "included_recruiter_seats": 0,
+        "seatsIncluded": 0,
+        "included_candidate_seats": 1,
+        "interview_duration_limit_minutes": 400,
+        "version": 1,
+        "status": "published",
+        "active": True,
+        "popular": False,
+        "description": "Comprehensive preparation for high-stakes FAANG, startup, and campus hiring.",
+        "features": [
+            "200 AI Credits (400 mins practice)",
+            "13+ Full Technical, DSA & HR Mock Rounds",
+            "Full Multi-Modal Proctoring Simulation",
+            "Priority AI Voice & Video Response Latency",
+            "Lifetime Scorecard Dossier History",
+        ],
+    },
+    {
+        "id": "pkg-recruiter-trial",
+        "package_id": "pkg-recruiter-trial",
+        "name": "Recruiter Free Trial",
+        "tier": "starter",
+        "target_audience": "organization",
+        "billing_period": "on_signup",
+        "price": 0,
+        "monthlyPrice": 0,
+        "annualPrice": 0,
+        "price_nanousd": 0,
+        "included_interviews": 3,
+        "interviewsIncluded": 3,
+        "credits": 50,
+        "included_recruiter_seats": 1,
+        "seatsIncluded": 1,
+        "included_candidate_seats": 5,
+        "interview_duration_limit_minutes": 100,
+        "version": 1,
+        "status": "published",
+        "active": True,
+        "popular": False,
+        "description": "Free trial to test AI candidate screening with complimentary technical assessments.",
+        "features": [
+            "50 Screening Credits (100 mins)",
+            "Up to 3 Candidate Screening Sessions",
+            "Automated Candidate Dossiers & PDF Reports",
+            "Standard Role Rubric Templates",
+            "1 Team Member Seat",
+        ],
+    },
+    {
+        "id": "pkg-recruiter-starter",
+        "package_id": "pkg-recruiter-starter",
+        "name": "Starter Pack",
+        "tier": "starter",
+        "target_audience": "organization",
+        "billing_period": "one_time",
+        "price": 499,
+        "monthlyPrice": 499,
+        "annualPrice": 4990,
+        "price_nanousd": 499000000000,
+        "included_interviews": 30,
+        "interviewsIncluded": 30,
+        "credits": 500,
+        "included_recruiter_seats": 3,
+        "seatsIncluded": 3,
+        "included_candidate_seats": 30,
+        "interview_duration_limit_minutes": 1000,
+        "version": 1,
+        "status": "published",
+        "active": True,
+        "popular": False,
+        "description": "Screen candidates automatically with AI technical lead interviews.",
+        "features": [
+            "500 Screening Credits (1,000 mins)",
+            "Up to 30-35 Candidate Interview Sessions",
+            "Automated Candidate Dossiers & PDF Reports",
+            "Standard Role Rubric Templates",
+            "3 Team Member Seats",
+        ],
+    },
+    {
+        "id": "pkg-growth",
+        "package_id": "pkg-growth",
+        "name": "Growth Scale",
+        "tier": "growth",
+        "target_audience": "organization",
+        "billing_period": "one_time",
+        "price": 999,
+        "monthlyPrice": 999,
+        "annualPrice": 9990,
+        "price_nanousd": 999000000000,
+        "included_interviews": 65,
+        "interviewsIncluded": 65,
+        "credits": 1000,
+        "included_recruiter_seats": 5,
+        "seatsIncluded": 5,
+        "included_candidate_seats": 100,
+        "interview_duration_limit_minutes": 2000,
+        "version": 1,
+        "status": "published",
+        "active": True,
+        "popular": True,
+        "description": "For fast-growing hiring teams scaling their technical screening funnel.",
+        "features": [
+            "1,000 Screening Credits (2,000 mins)",
+            "65-70 Candidate Interview Sessions",
+            "Custom Role Rubric Templates & Weights",
+            "Full Video Proctoring Telemetry",
+            "Bulk CSV Candidate Scheduling",
+        ],
+    },
+    {
+        "id": "pkg-enterprise",
+        "package_id": "pkg-enterprise",
+        "name": "Enterprise Scale",
+        "tier": "enterprise",
+        "target_audience": "organization",
+        "billing_period": "one_time",
+        "price": 1999,
+        "monthlyPrice": 1999,
+        "annualPrice": 19990,
+        "price_nanousd": 1999000000000,
+        "included_interviews": 160,
+        "interviewsIncluded": 160,
+        "credits": 2500,
+        "included_recruiter_seats": 15,
+        "seatsIncluded": 15,
+        "included_candidate_seats": 500,
+        "interview_duration_limit_minutes": 5000,
+        "version": 1,
+        "status": "published",
+        "active": True,
+        "popular": False,
+        "description": "High-volume lateral hiring campaigns with custom ATS synchronization and compliance.",
+        "features": [
+            "2,500 Screening Credits (5,000 mins)",
+            "160+ Candidate Screenings",
+            "Dedicated AI Persona & Organization Branding",
+            "Priority Compute & Zero-Queue Capacity",
+            "Full Audit Trail & Compliance Export",
+        ],
+    },
+]
+
 def init_mongo_db():
-    """Ensure indexes exist for collections in MongoDB."""
+    """Ensure indexes exist for collections in MongoDB with resilient per-index error isolation."""
     try:
         db = get_mongo_db()
+        if db is None:
+            logger.warning("[MongoDB] Database connection unavailable during init_mongo_db.")
+            return False
+
+        def _safe_index(collection, keys, **kwargs):
+            try:
+                collection.create_index(keys, **kwargs)
+            except Exception as idx_err:
+                logger.warning(f"[MongoDB] Notice creating index {keys} on {collection.name}: {idx_err}")
+
+        # Clean up any potential duplicate emails before building unique index
+        try:
+            from collections import defaultdict
+            email_groups = defaultdict(list)
+            for doc in db.users.find({}, {"_id": 1, "email": 1, "is_email_verified": 1, "created_at": 1}):
+                em = (doc.get("email") or "").strip().lower()
+                if em:
+                    email_groups[em].append(doc)
+
+            for em, docs in email_groups.items():
+                if len(docs) > 1:
+                    # Keep verified user first, then earliest created account
+                    docs.sort(key=lambda d: (not bool(d.get("is_email_verified")), str(d.get("created_at") or "")))
+                    keep_doc = docs[0]
+                    for dup in docs[1:]:
+                        db.users.delete_one({"_id": dup["_id"]})
+                        logger.info(f"[MongoDB] Removed duplicate account record for: {em} (kept primary verified: {keep_doc['_id']})")
+        except Exception as dedup_err:
+            logger.warning(f"[MongoDB] Deduplication check note: {dedup_err}")
+
         # users
-        db.users.create_index("email", unique=True, sparse=True)
-        db.users.create_index("id", unique=True, sparse=True)
+        _safe_index(db.users, "email", unique=True, sparse=True)
+        _safe_index(db.users, "id", unique=True, sparse=True)
         # email_otps
-        db.email_otps.create_index([("email", pymongo.ASCENDING), ("purpose", pymongo.ASCENDING)])
-        db.email_otps.create_index("created_at")
+        _safe_index(db.email_otps, [("email", pymongo.ASCENDING), ("purpose", pymongo.ASCENDING)])
+        _safe_index(db.email_otps, "created_at")
         # companion_pairings
-        db.companion_pairings.create_index("token_hash", unique=True, sparse=True)
-        db.companion_pairings.create_index("session_id")
+        _safe_index(db.companion_pairings, "token_hash", unique=True, sparse=True)
+        _safe_index(db.companion_pairings, "session_id")
         # companion_rate_limits
-        db.companion_rate_limits.create_index("key", unique=True, sparse=True)
+        _safe_index(db.companion_rate_limits, "key", unique=True, sparse=True)
         # interview_sessions
-        db.interview_sessions.create_index("id", unique=True, sparse=True)
-        db.interview_sessions.create_index("candidate_id")
-        db.interview_sessions.create_index("candidate_email")
-        db.interview_sessions.create_index("recruiter_id")
-        db.interview_sessions.create_index("recruiter_email")
+        _safe_index(db.interview_sessions, "id", unique=True, sparse=True)
+        _safe_index(db.interview_sessions, "candidate_id")
+        _safe_index(db.interview_sessions, "candidate_email")
+        _safe_index(db.interview_sessions, "recruiter_id")
+        _safe_index(db.interview_sessions, "recruiter_email")
         # interview_invitations
-        db.interview_invitations.create_index("id", unique=True, sparse=True)
-        db.interview_invitations.create_index("session_id")
-        db.interview_invitations.create_index("candidate_id")
-        db.interview_invitations.create_index("candidate_email")
+        _safe_index(db.interview_invitations, "id", unique=True, sparse=True)
+        _safe_index(db.interview_invitations, "session_id")
+        _safe_index(db.interview_invitations, "candidate_id")
+        _safe_index(db.interview_invitations, "candidate_email")
         # candidate_notifications
-        db.candidate_notifications.create_index("candidate_id")
-        db.candidate_notifications.create_index("candidate_email")
-        db.candidate_notifications.create_index("created_at")
+        _safe_index(db.candidate_notifications, "candidate_id")
+        _safe_index(db.candidate_notifications, "candidate_email")
+        _safe_index(db.candidate_notifications, "created_at")
         # recruiter_notifications
-        db.recruiter_notifications.create_index("recruiter_id")
-        db.recruiter_notifications.create_index("recruiter_email")
-        db.recruiter_notifications.create_index("created_at")
+        _safe_index(db.recruiter_notifications, "recruiter_id")
+        _safe_index(db.recruiter_notifications, "recruiter_email")
+        _safe_index(db.recruiter_notifications, "created_at")
         # organizations
-        db.organizations.create_index("id", unique=True, sparse=True)
-        db.organizations.create_index("slug", unique=True, sparse=True)
+        _safe_index(db.organizations, "id", unique=True, sparse=True)
+        _safe_index(db.organizations, "slug", unique=True, sparse=True)
         # audit_logs
-        db.audit_logs.create_index("created_at")
-        db.audit_logs.create_index("action")
+        _safe_index(db.audit_logs, "created_at")
+        _safe_index(db.audit_logs, "action")
 
         # Seed default platform super_admin user if not already present
         admin_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "admin@progeni.live").strip().lower()
         if admin_email:
             existing_admin = db.users.find_one({"email": admin_email})
             import uuid
-            import hashlib
             from datetime import datetime, timezone
-            default_pwd = os.environ.get("ADMIN_DEFAULT_PASSWORD", "Admin@123456")
-            pwd_hash = hashlib.sha256(default_pwd.encode("utf-8")).hexdigest()
+            from core.security import hash_password
+            default_pwd = os.environ.get("SUPER_ADMIN_PASSWORD") or os.environ.get("ADMIN_DEFAULT_PASSWORD", "ProgeniAtlas@1234")
+            pwd_hash = hash_password(default_pwd)
             now_utc = datetime.now(timezone.utc)
             if not existing_admin:
                 db.users.insert_one({
@@ -118,105 +399,8 @@ def init_mongo_db():
                 )
                 logger.info(f"[MongoDB] Ensured default super_admin account: {admin_email}")
 
-        # Seed / Sync 4 Canonical Packages matching industry standards
-        canonical_packages = [
-            {
-                "id": "pkg-starter",
-                "package_id": "pkg-starter",
-                "name": "Starter Practice",
-                "tier": "starter",
-                "target_audience": "individual",
-                "billing_period": "monthly",
-                "price": 0,
-                "monthlyPrice": 0,
-                "annualPrice": 0,
-                "price_nanousd": 0,
-                "included_interviews": 2,
-                "interviewsIncluded": 2,
-                "included_recruiter_seats": 0,
-                "seatsIncluded": 0,
-                "included_candidate_seats": 1,
-                "interview_duration_limit_minutes": 20,
-                "version": 1,
-                "status": "published",
-                "active": True,
-                "description": "Ideal for students and job seekers trying their first 2 complimentary AI technical video interviews.",
-                "created_at": now_utc.isoformat(),
-                "published_at": now_utc.isoformat()
-            },
-            {
-                "id": "pkg-candidate-pro",
-                "package_id": "pkg-candidate-pro",
-                "name": "Candidate Pro",
-                "tier": "pro",
-                "target_audience": "individual",
-                "billing_period": "monthly",
-                "price": 999,
-                "monthlyPrice": 999,
-                "annualPrice": 9590,
-                "price_nanousd": 999000000000,
-                "included_interviews": 20,
-                "interviewsIncluded": 20,
-                "included_recruiter_seats": 1,
-                "seatsIncluded": 1,
-                "included_candidate_seats": 1,
-                "interview_duration_limit_minutes": 45,
-                "version": 1,
-                "status": "published",
-                "active": True,
-                "description": "Comprehensive interview preparation tailored to target job listings with in-depth evaluation dossiers.",
-                "created_at": now_utc.isoformat(),
-                "published_at": now_utc.isoformat()
-            },
-            {
-                "id": "pkg-growth",
-                "package_id": "pkg-growth",
-                "name": "Hiring Team Growth",
-                "tier": "growth",
-                "target_audience": "organization",
-                "billing_period": "monthly",
-                "price": 8999,
-                "monthlyPrice": 8999,
-                "annualPrice": 83990,
-                "price_nanousd": 8999000000000,
-                "included_interviews": 50,
-                "interviewsIncluded": 50,
-                "included_recruiter_seats": 3,
-                "seatsIncluded": 3,
-                "included_candidate_seats": 50,
-                "interview_duration_limit_minutes": 45,
-                "version": 1,
-                "status": "published",
-                "active": True,
-                "description": "For fast-moving hiring teams and agencies interviewing and screening up to 50 active engineering candidates/mo.",
-                "created_at": now_utc.isoformat(),
-                "published_at": now_utc.isoformat()
-            },
-            {
-                "id": "pkg-enterprise",
-                "package_id": "pkg-enterprise",
-                "name": "Enterprise Scale",
-                "tier": "enterprise",
-                "target_audience": "organization",
-                "billing_period": "yearly",
-                "price": 24999,
-                "monthlyPrice": 24999,
-                "annualPrice": 249990,
-                "price_nanousd": 24999000000000,
-                "included_interviews": 500,
-                "interviewsIncluded": 500,
-                "included_recruiter_seats": 20,
-                "seatsIncluded": 20,
-                "included_candidate_seats": 500,
-                "interview_duration_limit_minutes": 60,
-                "version": 1,
-                "status": "published",
-                "active": True,
-                "description": "High-volume campus placements and large enterprise hiring with custom rubrics and ATS integration.",
-                "created_at": now_utc.isoformat(),
-                "published_at": now_utc.isoformat()
-            }
-        ]
+        # Seed / Sync Canonical Packages matching industry standards
+        canonical_packages = CANONICAL_PACKAGES
 
         # Clean out obsolete dummy packages
         db.packages.delete_many({"name": {"$in": ["Starter Placement", "Growth Enterprise", "Global Enterprise Tier"]}})

@@ -85,19 +85,29 @@ interface TransactionSummary {
   count: number;
 }
 
-const CANDIDATE_PACKS = [
-  { packName: 'pack_49', credits: 30, inr: 49, minutes: 15, badge: 'Warm-up Pack' },
-  { packName: 'pack_99', credits: 70, inr: 99, minutes: 35, badge: 'Placement Ready', popular: true },
-  { packName: 'pack_199', credits: 150, inr: 199, minutes: 75, badge: 'Pro Mastery' },
+interface CandidatePack {
+  packName: string;
+  credits: number;
+  inr: number;
+  minutes: number;
+  badge: string;
+  popular?: boolean;
+}
+
+const DEFAULT_CANDIDATE_PACKS: CandidatePack[] = [
+  { packName: 'pack_49', credits: 50, inr: 49, minutes: 100, badge: 'Warm-up Pack' },
+  { packName: 'pack_99', credits: 100, inr: 99, minutes: 200, badge: 'Placement Ready', popular: true },
+  { packName: 'pack_199', credits: 200, inr: 199, minutes: 400, badge: 'Pro Mastery' },
 ];
 
 export default function CandidateWalletPage() {
+  const [candidatePacks, setCandidatePacks] = useState<CandidatePack[]>(DEFAULT_CANDIDATE_PACKS);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [rechargeModalOpen, setRechargeModalOpen] = useState(false);
-  const [selectedPack, setSelectedPack] = useState<number>(70);
+  const [selectedPack, setSelectedPack] = useState<number>(100);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
   const [recharging, setRecharging] = useState(false);
@@ -111,6 +121,48 @@ export default function CandidateWalletPage() {
   const [activeTab, setActiveTab] = useState<'ALL' | 'OUT' | 'IN' | 'DEMO'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTx, setSelectedTx] = useState<WalletTransaction | null>(null);
+
+  // Load published packages dynamically from Admin Panel API
+  useEffect(() => {
+    let isMounted = true;
+    async function loadPacks() {
+      try {
+        const res = await fetch('/api/packages');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.packages)) {
+          const cand = data.packages.filter(
+            (p: any) => (p.target_audience === 'individual' || p.target_audience === 'both') && Number(p.price || 0) > 0
+          );
+          if (cand.length > 0 && isMounted) {
+            const mapped: CandidatePack[] = cand.map((pkg: any) => {
+              const price = Number(pkg.price ?? pkg.monthlyPrice ?? 99);
+              const cr = Number(pkg.credits || (pkg.included_interviews ? pkg.included_interviews * 20 : price));
+              return {
+                packName: pkg.id || pkg.package_id || `pack_${price}`,
+                credits: cr,
+                inr: price,
+                minutes: Number(pkg.interview_duration_limit_minutes || Math.round(cr * 2)),
+                badge: pkg.name || 'Practice Pack',
+                popular: Boolean(pkg.popular || pkg.tier === 'pro'),
+              };
+            });
+            setCandidatePacks(mapped);
+            if (mapped.length > 0) {
+              const popularOrMid = mapped.find((m) => m.popular) || mapped[Math.floor(mapped.length / 2)];
+              setSelectedPack(popularOrMid.credits);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[CandidateWallet] Using fallback candidate packs:', e);
+      }
+    }
+    void loadPacks();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const loadWallet = useCallback(async () => {
     try {
@@ -155,7 +207,7 @@ export default function CandidateWalletPage() {
             ...rawWallet,
             availableCredits: realAvailable,
             promotionalCredits: 0,
-            ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 2.0,
+            ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 0.5,
             demoQuota: (rawWallet.demoQuota && rawWallet.demoQuota.remaining > 0 && rawWallet.demoQuota.completed > 0)
               ? rawWallet.demoQuota
               : {
@@ -197,7 +249,7 @@ export default function CandidateWalletPage() {
   }, [loadWallet]);
 
   const handleRecharge = async () => {
-    const selectedObj = CANDIDATE_PACKS.find((p) => p.credits === selectedPack);
+    const selectedObj = candidatePacks.find((p) => p.credits === selectedPack) || candidatePacks[0];
     const amountCredits = customAmount ? parseFloat(customAmount) : (selectedObj?.credits || 70);
     const amountInr = customAmount ? parseFloat(customAmount) : (selectedObj?.inr || 99);
     if (!amountCredits || amountCredits <= 0) {
@@ -839,7 +891,7 @@ export default function CandidateWalletPage() {
               </label>
 
               <div className="grid gap-3 sm:grid-cols-3">
-                {CANDIDATE_PACKS.map((pack) => (
+                {candidatePacks.map((pack) => (
                   <div
                     key={pack.credits}
                     onClick={() => {

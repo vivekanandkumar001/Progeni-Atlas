@@ -16,7 +16,7 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, send_from_directory
 from dotenv import load_dotenv
 
 # Load environment configuration
@@ -48,6 +48,8 @@ if os.environ.get("TRUST_PROXY_HEADERS", "false").lower() in ("true", "1", "t"):
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # 3. Dynamic CORS Configuration & Enterprise Security Headers
+from urllib.parse import urlparse
+
 def _get_allowed_cors_origins() -> list[str]:
     raw = os.environ.get(
         "CORS_ORIGINS",
@@ -61,12 +63,26 @@ def _get_allowed_cors_origins() -> list[str]:
 
 _ALLOWED_CORS_ORIGINS = _get_allowed_cors_origins()
 
+def _is_origin_allowed(origin: str | None) -> bool:
+    if not origin:
+        return False
+    if origin in _ALLOWED_CORS_ORIGINS:
+        return True
+    try:
+        parsed = urlparse(origin)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme == "https" and (host == "progeni.live" or host.endswith(".progeni.live")):
+            return True
+    except Exception:
+        pass
+    return False
+
 @app.before_request
 def handle_preflight():
     if request.method == "OPTIONS":
         origin = request.headers.get("Origin")
         res = make_response("", 204)
-        if origin and (origin in _ALLOWED_CORS_ORIGINS or origin.endswith(".progeni.live")):
+        if _is_origin_allowed(origin):
             res.headers["Access-Control-Allow-Origin"] = origin
             res.headers["Access-Control-Allow-Credentials"] = "true"
             res.headers.add("Vary", "Origin")
@@ -78,7 +94,7 @@ def handle_preflight():
 @app.after_request
 def after_request(response):
     origin = request.headers.get("Origin")
-    if origin and (origin in _ALLOWED_CORS_ORIGINS or origin.endswith(".progeni.live")):
+    if _is_origin_allowed(origin):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers.add("Vary", "Origin")
@@ -126,7 +142,12 @@ except ImportError:
 
 init_companion_blueprint(app)
 
-# 7. Global Application Error Handlers
+# 7. Static Asset & Upload Serving
+@app.route("/uploads/<path:filename>", methods=["GET"])
+def serve_uploads(filename):
+    return send_from_directory(UPLOAD_DIR, filename)
+
+# 8. Global Application Error Handlers
 @app.errorhandler(404)
 def handle_not_found(e):
     return jsonify({"error": "Resource not found", "status": 404}), 404

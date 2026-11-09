@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -16,152 +16,310 @@ import {
   ArrowRight,
 } from 'lucide-react';
 
+interface PlanCard {
+  name: string;
+  badge: string;
+  price: string;
+  credits: string;
+  period: string;
+  description: string;
+  popular: boolean;
+  buttonText: string;
+  buttonHref: string;
+  features: string[];
+  notIncluded?: string[];
+}
+
+const DEFAULT_CANDIDATE_PLANS: PlanCard[] = [
+  {
+    name: 'Free Starter',
+    badge: 'INSTANT TRIAL',
+    price: '₹0',
+    credits: '1 Mock Trial',
+    period: 'Free registration trial',
+    description: 'Ideal for trying out the AI interviewer with full video, audio and code execution.',
+    popular: false,
+    buttonText: 'Start Free Mock',
+    buttonHref: '/register',
+    features: [
+      '1 Full AI Technical Mock Interview',
+      'Live Spoken Dialogue & Adaptive Follow-ups',
+      'Browser Code Execution (Python, C++, JS)',
+      'Instant Scorecard & Competency Report',
+      'No Credit Card Required',
+    ],
+    notIncluded: [
+      'Resume Defense Round',
+      'Company Specific Question Banks',
+    ],
+  },
+  {
+    name: 'Warm-up Pack',
+    badge: 'FOR QUICK PRACTICE',
+    price: '₹49',
+    credits: '50 Credits',
+    period: 'one-time pack',
+    description: 'Quick pre-interview brush-up right before your actual technical round.',
+    popular: false,
+    buttonText: 'Buy Pack (₹49)',
+    buttonHref: '/candidate/wallet',
+    features: [
+      '50 AI Credits (100 mins practice)',
+      '3 Full In-Depth DSA or Behavioral Rounds',
+      'Turn-by-Turn Audio Transcripts',
+      'Code Efficiency & Complexity Analysis',
+      'Actionable Improvement Guidance',
+    ],
+    notIncluded: [
+      'Company Specific Question Banks',
+    ],
+  },
+  {
+    name: 'Placement Ready',
+    badge: 'MOST POPULAR FOR CAMPUS',
+    price: '₹99',
+    credits: '100 Credits',
+    period: 'one-time pack (Save 30%)',
+    description: 'Most chosen by engineering students preparing for placements and product companies.',
+    popular: true,
+    buttonText: 'Get 100 Credits (₹99)',
+    buttonHref: '/candidate/wallet',
+    features: [
+      '100 AI Credits (200 mins practice)',
+      '6-7 Full Technical & Architecture Rounds',
+      'Resume Defense & Target JD Parsing',
+      'Company-Specific Question Sets (Google, TCS, Amazon)',
+      'Detailed Turn-by-Turn Telemetry & Audio Replays',
+    ],
+    notIncluded: [],
+  },
+  {
+    name: 'Pro Mastery',
+    badge: 'BEST VALUE',
+    price: '₹199',
+    credits: '200 Credits',
+    period: 'one-time pack',
+    description: 'Comprehensive preparation for high-stakes FAANG, startup, and campus hiring.',
+    popular: false,
+    buttonText: 'Get 200 Credits (₹199)',
+    buttonHref: '/candidate/wallet',
+    features: [
+      '200 AI Credits (400 mins practice)',
+      '13+ Full Technical, DSA & HR Mock Rounds',
+      'Full Multi-Modal Proctoring Simulation',
+      'Priority AI Voice & Video Response Latency',
+      'Lifetime Scorecard Dossier History',
+    ],
+    notIncluded: [],
+  },
+];
+
+const DEFAULT_RECRUITER_PLANS: PlanCard[] = [
+  {
+    name: 'Recruiter Trial',
+    badge: 'FREE TRIAL',
+    price: '₹0',
+    credits: '50 Credits',
+    period: 'free trial on signup',
+    description: 'Test automated AI technical screening with complimentary candidate assessments.',
+    popular: false,
+    buttonText: 'Start Recruiter Trial',
+    buttonHref: '/register',
+    features: [
+      '50 Screening Credits (100 mins)',
+      'Up to 3 Candidate Screening Sessions',
+      'Automated Candidate Dossiers & PDF Reports',
+      'Standard Role Rubric Templates',
+      '1 Team Member Seat',
+    ],
+    notIncluded: ['Custom ATS Sync'],
+  },
+  {
+    name: 'Starter Pack',
+    badge: 'FOR STARTUPS',
+    price: '₹499',
+    credits: '500 Credits',
+    period: 'one-time pack',
+    description: 'Screen candidates automatically with AI technical lead interviews.',
+    popular: false,
+    buttonText: 'Buy Pack (₹499)',
+    buttonHref: '/recruiter/billing',
+    features: [
+      '500 Screening Credits (1,000 mins)',
+      'Up to 30-35 Candidate Interview Sessions',
+      'Automated Candidate Dossiers & PDF Reports',
+      'Standard Role Rubric Templates',
+      '3 Team Member Seats',
+    ],
+    notIncluded: ['Custom ATS Sync'],
+  },
+  {
+    name: 'Growth Scale',
+    badge: 'MOST POPULAR',
+    price: '₹999',
+    credits: '1,000 Credits',
+    period: 'one-time pack',
+    description: 'For fast-growing hiring teams scaling their technical screening funnel.',
+    popular: true,
+    buttonText: 'Buy Pack (₹999)',
+    buttonHref: '/recruiter/billing',
+    features: [
+      '1,000 Screening Credits (2,000 mins)',
+      '65-70 Candidate Interview Sessions',
+      'Custom Role Rubric Templates & Weights',
+      'Full Video Proctoring Telemetry',
+      'Bulk CSV Candidate Scheduling',
+    ],
+    notIncluded: [],
+  },
+  {
+    name: 'Enterprise Scale',
+    badge: 'HIGH VOLUME',
+    price: '₹1,999',
+    credits: '2,500 Credits',
+    period: 'one-time pack',
+    description: 'High-volume hiring campaigns with custom ATS synchronization and compliance.',
+    popular: false,
+    buttonText: 'Buy Pack (₹1,999)',
+    buttonHref: '/recruiter/billing',
+    features: [
+      '2,500 Screening Credits (5,000 mins)',
+      '160+ Candidate Screenings',
+      'Dedicated AI Persona & Organization Branding',
+      'Priority Compute & Zero-Queue Capacity',
+      'Full Audit Trail & Compliance Export',
+    ],
+    notIncluded: [],
+  },
+];
+
 export default function PricingPage() {
   const [audience, setAudience] = useState<'candidate' | 'recruiter'>('candidate');
+  const [candidatePlans, setCandidatePlans] = useState<PlanCard[]>(DEFAULT_CANDIDATE_PLANS);
+  const [recruiterPlans, setRecruiterPlans] = useState<PlanCard[]>(DEFAULT_RECRUITER_PLANS);
 
-  const candidatePlans = [
-    {
-      name: 'Free Starter',
-      badge: 'INSTANT TRIAL',
-      price: '₹0',
-      credits: '1 Mock Trial',
-      period: 'Free registration trial',
-      description: 'Ideal for trying out the AI interviewer with full video, audio and code execution.',
-      popular: false,
-      buttonText: 'Start Free Mock',
-      buttonHref: '/register',
-      features: [
-        '1 Full AI Technical Mock Interview',
-        'Live Spoken Dialogue & Adaptive Follow-ups',
-        'Browser Code Execution (Python, C++, JS)',
-        'Instant Scorecard & Competency Report',
-        'No Credit Card Required',
-      ],
-      notIncluded: [
-        'Resume Defense Round',
-        'Company Specific Question Banks',
-      ],
-    },
-    {
-      name: 'Warm-up Pack',
-      badge: 'FOR QUICK PRACTICE',
-      price: '₹49',
-      credits: '30 Credits',
-      period: 'one-time pack',
-      description: 'Quick pre-interview brush-up right before your actual technical round.',
-      popular: false,
-      buttonText: 'Buy Pack (₹49)',
-      buttonHref: '/candidate/wallet',
-      features: [
-        '30 AI Credits (~15-20 mins practice)',
-        '1 Full In-Depth DSA or Behavioral Round',
-        'Turn-by-Turn Audio Transcripts',
-        'Code Efficiency & Complexity Analysis',
-        'Actionable Improvement Guidance',
-      ],
-      notIncluded: [
-        'Company Specific Question Banks',
-      ],
-    },
-    {
-      name: 'Placement Ready',
-      badge: 'MOST POPULAR FOR CAMPUS',
-      price: '₹99',
-      credits: '70 Credits',
-      period: 'one-time pack (Save 30%)',
-      description: 'Most chosen by engineering students preparing for placements and product companies.',
-      popular: true,
-      buttonText: 'Get 70 Credits (₹99)',
-      buttonHref: '/candidate/wallet',
-      features: [
-        '70 AI Credits (~35-40 mins practice)',
-        '2-3 Full Technical & Architecture Rounds',
-        'Resume Defense & Target JD Parsing',
-        'Company-Specific Question Sets (Google, TCS, Amazon)',
-        'Detailed Turn-by-Turn Telemetry & Audio Replays',
-      ],
-      notIncluded: [],
-    },
-    {
-      name: 'Pro Mastery',
-      badge: 'BEST VALUE',
-      price: '₹199',
-      credits: '150 Credits',
-      period: 'one-time pack',
-      description: 'Comprehensive preparation for high-stakes FAANG, startup, and campus hiring.',
-      popular: false,
-      buttonText: 'Get 150 Credits (₹199)',
-      buttonHref: '/candidate/wallet',
-      features: [
-        '150 AI Credits (~75-80 mins practice)',
-        '5+ Full Technical, DSA & HR Mock Rounds',
-        'Full Multi-Modal Proctoring Simulation',
-        'Priority AI Voice & Video Response Latency',
-        'Lifetime Scorecard Dossier History',
-      ],
-      notIncluded: [],
-    },
-  ];
+  useEffect(() => {
+    let isMounted = true;
+    async function loadPackages() {
+      try {
+        const res = await fetch('/api/packages');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.packages) && data.packages.length > 0) {
+          const allPkgs = data.packages;
 
-  const recruiterPlans = [
-    {
-      name: 'Starter Pack',
-      badge: 'FOR STARTUPS',
-      price: '₹500',
-      credits: '500 Credits',
-      period: '₹1.00 = 1 Credit',
-      description: 'Screen candidates automatically with AI technical lead interviews.',
-      popular: false,
-      buttonText: 'Buy 500 Credits (₹500)',
-      buttonHref: '/recruiter/billing',
-      features: [
-        '500 Screening Credits (~250 mins)',
-        'Up to 15-20 Candidate Interview Sessions',
-        'Automated Candidate Dossiers & PDF Reports',
-        'Standard Role Rubric Templates',
-        '3 Team Member Seats',
-      ],
-      notIncluded: ['Custom ATS Sync'],
-    },
-    {
-      name: 'Most Popular',
-      badge: 'GROWTH SCALE',
-      price: '₹2,000',
-      credits: '2,000 Credits',
-      period: '₹1.00 = 1 Credit',
-      description: 'For fast-growing hiring teams scaling their technical screening funnel.',
-      popular: true,
-      buttonText: 'Buy 2,000 Credits (₹2,000)',
-      buttonHref: '/recruiter/billing',
-      features: [
-        '2,000 Screening Credits (~1,000 mins)',
-        '40-60 Candidate Interview Sessions',
-        'Custom Role Rubric Templates & Weights',
-        'Full Video Proctoring Telemetry',
-        'Bulk CSV Candidate Scheduling',
-      ],
-      notIncluded: [],
-    },
-    {
-      name: 'Enterprise Scale',
-      badge: 'CAMPUS & LATERAL',
-      price: '₹5,000',
-      credits: '5,000 Credits',
-      period: '₹1.00 = 1 Credit',
-      description: 'High-volume hiring campaigns with custom ATS synchronization and compliance.',
-      popular: false,
-      buttonText: 'Buy 5,000 Credits (₹5,000)',
-      buttonHref: '/recruiter/billing',
-      features: [
-        '5,000 Screening Credits (~2,500 mins)',
-        '100+ Candidate Screenings',
-        'Dedicated AI Persona & Organization Branding',
-        'Priority Compute & Zero-Queue Capacity',
-        'Full Audit Trail & Compliance Export',
-      ],
-      notIncluded: [],
-    },
-  ];
+          // 1. Candidate plans from Super Admin
+          const candPkgs = allPkgs.filter(
+            (p: any) => p.target_audience === 'individual' || p.target_audience === 'both'
+          );
+          if (candPkgs.length > 0 && isMounted) {
+            const mappedCand: PlanCard[] = candPkgs.map((pkg: any) => {
+              const priceNum = Number(pkg.price ?? pkg.monthlyPrice ?? 0);
+              const priceStr = priceNum === 0 ? '₹0' : `₹${priceNum.toLocaleString('en-IN')}`;
+              const periodStr =
+                priceNum === 0
+                  ? 'Free trial'
+                  : pkg.billing_period === 'monthly'
+                  ? 'month'
+                  : pkg.billing_period === 'yearly'
+                  ? 'year'
+                  : 'one-time pack';
+
+              const creditsStr = pkg.credits
+                ? `${pkg.credits} Credits`
+                : `${pkg.included_interviews || 1} Mock Trial${(pkg.included_interviews || 1) > 1 ? 's' : ''}`;
+
+              const defaultFeats = [
+                `${pkg.included_interviews || 1} Full AI Technical Mock Round${(pkg.included_interviews || 1) > 1 ? 's' : ''}`,
+                'Live Spoken Dialogue & Adaptive Follow-ups',
+                'Browser Code Execution (Python, C++, JS)',
+                'Instant Performance Scorecard & Dossier',
+              ];
+
+              const isPopular = Boolean(
+                pkg.popular ||
+                pkg.tier === 'pro' ||
+                String(pkg.name || '').toLowerCase().includes('popular') ||
+                String(pkg.name || '').toLowerCase().includes('placement')
+              );
+
+              return {
+                name: pkg.name || 'Candidate Plan',
+                badge: priceNum === 0 ? 'INSTANT TRIAL' : isPopular ? 'MOST POPULAR' : 'PRACTICE PACK',
+                price: priceStr,
+                credits: creditsStr,
+                period: periodStr,
+                description: pkg.description || 'Targeted interview practice for engineering roles.',
+                popular: isPopular,
+                buttonText: priceNum === 0 ? 'Start Free Mock' : `Buy ${pkg.name} (${priceStr})`,
+                buttonHref: priceNum === 0 ? '/register' : '/candidate/wallet',
+                features: Array.isArray(pkg.features) && pkg.features.length > 0 ? pkg.features : defaultFeats,
+                notIncluded: [],
+              };
+            });
+            setCandidatePlans(mappedCand);
+          }
+
+          // 2. Recruiter plans from Super Admin
+          const recPkgs = allPkgs.filter(
+            (p: any) => p.target_audience === 'organization' || p.target_audience === 'both'
+          );
+          if (recPkgs.length > 0 && isMounted) {
+            const mappedRec: PlanCard[] = recPkgs.map((pkg: any) => {
+              const priceNum = Number(pkg.price ?? pkg.monthlyPrice ?? 0);
+              const priceStr = `₹${priceNum.toLocaleString('en-IN')}`;
+              const periodStr =
+                pkg.billing_period === 'monthly'
+                  ? 'month'
+                  : pkg.billing_period === 'yearly'
+                  ? 'year'
+                  : '₹1.00 = 1 Credit';
+
+              const creditsStr = pkg.credits
+                ? `${pkg.credits.toLocaleString('en-IN')} Credits`
+                : `${pkg.included_interviews || 20} Candidate Screenings`;
+
+              const defaultFeats = [
+                `${creditsStr} (~${Math.round((pkg.credits || 500) / 2)} mins)`,
+                `Up to ${pkg.included_interviews || 20} Candidate Interview Sessions`,
+                'Automated Candidate Dossiers & PDF Reports',
+                'Custom Role Rubric Templates & Weights',
+                `${pkg.included_recruiter_seats || 3} Team Member Seats`,
+              ];
+
+              const isPopular = Boolean(
+                pkg.popular ||
+                pkg.tier === 'growth' ||
+                String(pkg.name || '').toLowerCase().includes('popular') ||
+                String(pkg.name || '').toLowerCase().includes('growth')
+              );
+
+              return {
+                name: pkg.name || 'Recruiter Pack',
+                badge: isPopular ? 'GROWTH SCALE' : (pkg.tier === 'enterprise' ? 'ENTERPRISE' : 'FOR TEAMS'),
+                price: priceStr,
+                credits: creditsStr,
+                period: periodStr,
+                description: pkg.description || 'Automated AI technical screening for hiring teams.',
+                popular: isPopular,
+                buttonText: `Choose Plan (${priceStr})`,
+                buttonHref: '/recruiter/billing',
+                features: Array.isArray(pkg.features) && pkg.features.length > 0 ? pkg.features : defaultFeats,
+                notIncluded: [],
+              };
+            });
+            setRecruiterPlans(mappedRec);
+          }
+        }
+      } catch (err) {
+        console.warn('[PricingPage] Fallback to default pricing due to fetch error:', err);
+      }
+    }
+    void loadPackages();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const activePlans = audience === 'candidate' ? candidatePlans : recruiterPlans;
 

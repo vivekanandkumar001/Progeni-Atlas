@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     PORT: int = 5000
 
-    # --- database (PostgreSQL is the ONLY application database) ---
+    # --- database ---
     DATABASE_URL: str | None = None
 
     # --- auth ---
@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     # --- gemini (google ai studio - primary) ---
     GEMINI_API_KEY: str | None = None
     GEMINI_API: str | None = None
-    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
+    GEMINI_MODEL: str = "gemini-2.0-flash"
     GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
 
     @property
@@ -141,15 +141,6 @@ class Settings(BaseSettings):
     # --- rate limiting ---
     RATE_LIMIT_ENABLED: bool = True
 
-    @field_validator("DATABASE_URL")
-    @classmethod
-    def _strip_async_scheme(cls, v: str | None) -> str | None:
-        if v and v.startswith("postgresql+asyncpg://"):
-            return v.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
-        if v and v.startswith("postgres://"):
-            return v.replace("postgres://", "postgresql://", 1)
-        return v
-
     @model_validator(mode="after")
     def _require_otp_pepper(self) -> "Settings":
         """Fail fast at settings-load time if no OTP pepper source is configured.
@@ -188,7 +179,6 @@ settings = get_settings()
 def missing_required_secrets() -> list[str]:
     """Names of required env vars that are not set. Used by startup + /health."""
     required = {
-        "DATABASE_URL": settings.DATABASE_URL,
         "JWT_SECRET": settings.JWT_SECRET,
         "CLOUDINARY_CLOUD_NAME": settings.CLOUDINARY_CLOUD_NAME,
         "CLOUDINARY_API_KEY": settings.CLOUDINARY_API_KEY,
