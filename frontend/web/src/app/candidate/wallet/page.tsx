@@ -176,20 +176,7 @@ export default function CandidateWalletPage() {
           summary?: TransactionSummary;
         };
         if (txData.success && Array.isArray(txData.transactions)) {
-          // STRICT FILTER: Discard any fabricated welcome/bonus/promotional entries
-          validTransactions = txData.transactions.filter((tx) => {
-            const type = (tx.entryType || '').toLowerCase();
-            const ref = (tx.txRef || '').toUpperCase();
-            const reason = (tx.reason || '').toLowerCase();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const title = ((tx as any).title || '').toLowerCase();
-            if (type.includes('promotional') || type.includes('welcome')) return false;
-            if (ref.includes('WELCOME') || ref.includes('ATLCOM')) return false;
-            if (reason.includes('welcome') || reason.includes('bonus')) return false;
-            if (title.includes('welcome') || title.includes('bonus')) return false;
-            return true;
-          });
-          setTransactions(validTransactions);
+          setTransactions(txData.transactions);
         }
       }
 
@@ -198,39 +185,40 @@ export default function CandidateWalletPage() {
         const data = (await res.json()) as { success: boolean; wallet: WalletData };
         if (data.success && data.wallet) {
           const rawWallet = data.wallet;
-          const hasRealRecharge = validTransactions.some((t) => t.entryType === 'recharge_paid');
-          const realAvailable = hasRealRecharge
-            ? Math.max(0, (rawWallet.availableCredits ?? 0) - (rawWallet.promotionalCredits ?? 0) + (rawWallet.paidCredits ?? 0))
-            : (rawWallet.paidCredits ?? 0);
+          const realAvailable = Math.max(0, rawWallet.availableCredits ?? 0);
 
           setWallet({
             ...rawWallet,
             availableCredits: realAvailable,
-            promotionalCredits: 0,
+            promotionalCredits: rawWallet.promotionalCredits ?? 0,
+            paidCredits: rawWallet.paidCredits ?? 0,
             ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 0.5,
-            demoQuota: (rawWallet.demoQuota && rawWallet.demoQuota.remaining > 0 && rawWallet.demoQuota.completed > 0)
-              ? rawWallet.demoQuota
-              : {
-                  ...rawWallet.demoQuota,
-                  remaining: 0,
-                  totalAllowed: rawWallet.demoQuota?.totalAllowed || 0,
-                  completed: rawWallet.demoQuota?.completed || 0,
-                  maxDurationSeconds: 600,
-                },
+            demoQuota: rawWallet.demoQuota || {
+              remaining: 0,
+              totalAllowed: 0,
+              completed: 0,
+              maxDurationSeconds: 600,
+            },
           });
 
-          const realCredited = validTransactions
-            .filter((t) => t.category === 'IN' || t.entryType === 'recharge_paid')
-            .reduce((acc, t) => acc + (t.amountCredits || 0), 0);
-          const realDebited = validTransactions
-            .filter((t) => t.category === 'OUT' || t.entryType === 'service_debit')
-            .reduce((acc, t) => acc + Math.abs(t.amountCredits || 0), 0);
+          const allTxs = (await txRes?.clone().json().catch(() => ({})))?.transactions || [];
+          const realCredited = Array.isArray(allTxs)
+            ? allTxs
+                .filter((t: any) => t.category === 'IN' || t.amountCredits > 0)
+                .reduce((acc: number, t: any) => acc + (t.amountCredits || 0), 0)
+            : (rawWallet.paidCredits ?? 0) + (rawWallet.promotionalCredits ?? 0);
+
+          const realDebited = Array.isArray(allTxs)
+            ? allTxs
+                .filter((t: any) => t.category === 'OUT' || t.amountCredits < 0)
+                .reduce((acc: number, t: any) => acc + Math.abs(t.amountCredits || 0), 0)
+            : (rawWallet.consumedCredits ?? 0);
 
           setSummary({
             availableCredits: realAvailable,
-            totalCredited: realCredited,
-            totalDebited: realDebited,
-            count: validTransactions.length,
+            totalCredited: Math.max(realCredited, (rawWallet.paidCredits ?? 0) + (rawWallet.promotionalCredits ?? 0)),
+            totalDebited: Math.max(realDebited, rawWallet.consumedCredits ?? 0),
+            count: Array.isArray(allTxs) ? allTxs.length : 0,
           });
         }
       }

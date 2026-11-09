@@ -131,25 +131,11 @@ export default function RecruiterBillingPage() {
  const loadWallet = useCallback(async () => {
  try {
  setLoading(true);
- let validTransactions: WalletTransaction[] = [];
  const txRes = await apiFetch('/api/billing/wallet/transactions?limit=50');
  if (txRes.ok) {
  const txData = (await txRes.json()) as { success: boolean; transactions: WalletTransaction[] };
  if (txData.success && Array.isArray(txData.transactions)) {
- // STRICT FILTER: Discard any fabricated welcome/bonus/promotional entries
- validTransactions = txData.transactions.filter((tx) => {
- const type = (tx.entryType || '').toLowerCase();
- const ref = (tx.txRef || '').toUpperCase();
- const reason = (tx.reason || '').toLowerCase();
- // eslint-disable-next-line @typescript-eslint/no-explicit-any
- const title = ((tx as any).title || '').toLowerCase();
- if (type.includes('promotional') || type.includes('welcome')) return false;
- if (ref.includes('WELCOME') || ref.includes('ATLCOM')) return false;
- if (reason.includes('welcome') || reason.includes('bonus')) return false;
- if (title.includes('welcome') || title.includes('bonus')) return false;
- return true;
- });
- setTransactions(validTransactions);
+ setTransactions(txData.transactions);
  }
  }
 
@@ -158,25 +144,18 @@ export default function RecruiterBillingPage() {
  const data = (await res.json()) as { success: boolean; wallet: WalletData };
  if (data.success && data.wallet) {
  const rawWallet = data.wallet;
- const hasRealRecharge = validTransactions.some((t) => t.entryType === 'recharge_paid');
- // Only show credits if real verified recharge exists or real paid credits > 0
- const realAvailable = hasRealRecharge
- ? Math.max(0, (rawWallet.availableCredits ?? 0) - (rawWallet.promotionalCredits ?? 0) + (rawWallet.paidCredits ?? 0))
- : (rawWallet.paidCredits ?? 0);
+ const realAvailable = Math.max(0, rawWallet.availableCredits ?? 0);
 
  setWallet({
  ...rawWallet,
  availableCredits: realAvailable,
- promotionalCredits: 0,
+ promotionalCredits: rawWallet.promotionalCredits ?? 0,
+ paidCredits: rawWallet.paidCredits ?? 0,
  ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 0.5,
- // Only show trial banner if there is actual remaining allowance > 0 and user is within trial
- demoQuota: (rawWallet.demoQuota && rawWallet.demoQuota.remaining > 0 && rawWallet.demoQuota.completed > 0)
- ? rawWallet.demoQuota
- : {
- ...rawWallet.demoQuota,
+ demoQuota: rawWallet.demoQuota || {
  remaining: 0,
- totalAllowed: rawWallet.demoQuota?.totalAllowed || 0,
- completed: rawWallet.demoQuota?.completed || 0,
+ totalAllowed: 0,
+ completed: 0,
  maxDurationSeconds: 600,
  },
  });

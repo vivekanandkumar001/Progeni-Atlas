@@ -35,6 +35,7 @@ def get_billing_wallet():
         name = user.get("full_name") or user.get("name") or "User"
         role = (user.get("role", "candidate") or "candidate").upper()
         acc_type = "RECRUITER" if role in ("RECRUITER", "EMPLOYER", "ADMIN") else "CANDIDATE"
+        org_id = user.get("org_id") or user.get("orgId")
         
         db = get_mongo_db()
         wallet_doc = None
@@ -46,8 +47,8 @@ def get_billing_wallet():
         }
         if db is not None:
             da_query = [{"user_id": user_id}]
-            if user and user.get("org_id"):
-                da_query.append({"org_id": user.get("org_id")})
+            if org_id:
+                da_query.append({"org_id": org_id})
             da = db.demo_allowances.find_one({"$or": da_query})
             if da:
                 total_a = int(da.get("free_demos_total") or 2)
@@ -60,22 +61,32 @@ def get_billing_wallet():
                     "maxDurationSeconds": int(da.get("demo_duration_limit_seconds") or 600)
                 }
 
-            wallet_doc = db.wallets.find_one({"userId": user_id})
+            wallet_doc = db.wallets.find_one({"$or": [{"userId": user_id}, {"userId": str(user_id)}]})
+            if not wallet_doc and org_id:
+                wallet_doc = db.wallets.find_one({"$or": [{"orgId": str(org_id)}, {"orgId": org_id}]})
+
             if not wallet_doc:
                 now_str = datetime.now(timezone.utc).isoformat()
                 init_credits = 10.0 if acc_type == "CANDIDATE" else 0.0
+
+                # If org has a billing account with balance, inherit that
+                if org_id:
+                    org_acc = db.billing_accounts.find_one({"$or": [{"orgId": str(org_id)}, {"org_id": str(org_id)}, {"id": f"acc-{org_id}"}]})
+                    if org_acc:
+                        init_credits = max(0.0, float(org_acc.get("availableBalanceUsd") if org_acc.get("availableBalanceUsd") is not None else (float(org_acc.get("available_balance_nanousd", 0)) / 1_000_000_000.0)))
+
                 wallet_doc = {
                     "id": "wallet-" + (user_id[:8] if user_id else "user"),
                     "accountName": f"{name}'s Primary Wallet",
                     "accountType": acc_type,
-                    "orgId": user.get("org_id") if user else None,
+                    "orgId": org_id,
                     "userId": user_id,
                     "currency": "INR",
                     "ratePerMinuteCredits": 0.5,
                     "baseFeeCredits": 0.0,
                     "availableCredits": init_credits,
-                    "paidCredits": 0.0,
-                    "promotionalCredits": init_credits,
+                    "paidCredits": init_credits if org_id else 0.0,
+                    "promotionalCredits": init_credits if (acc_type == "CANDIDATE" and not org_id) else 0.0,
                     "consumedCredits": 0.0,
                     "reservedCredits": 0.0,
                     "lowBalanceThresholdCredits": 5.0,
@@ -86,6 +97,16 @@ def get_billing_wallet():
                     "updated_at": now_str
                 }
                 db.wallets.insert_one(wallet_doc)
+            elif org_id and float(wallet_doc.get("availableCredits", 0.0)) == 0.0:
+                # Sync balance from org billing account if wallet is currently 0
+                org_acc = db.billing_accounts.find_one({"$or": [{"orgId": str(org_id)}, {"org_id": str(org_id)}, {"id": f"acc-{org_id}"}]})
+                if org_acc:
+                    org_bal = max(0.0, float(org_acc.get("availableBalanceUsd") if org_acc.get("availableBalanceUsd") is not None else (float(org_acc.get("available_balance_nanousd", 0)) / 1_000_000_000.0)))
+                    if org_bal > 0:
+                        db.wallets.update_one({"_id": wallet_doc["_id"]}, {"$set": {"availableCredits": org_bal, "paidCredits": org_bal, "isLowBalance": False}})
+                        wallet_doc["availableCredits"] = org_bal
+                        wallet_doc["paidCredits"] = org_bal
+                        wallet_doc["isLowBalance"] = False
             else:
                 wallet_doc["demoQuota"] = demo_quota
                 # Ensure authoritative rate: 1 Rupee = 2 Minutes (0.5 credits/min)
@@ -221,9 +242,10 @@ def get_billing_wallet_transactions():
                         })
 
             # 3. Fetch all transactions and compute chronological running balances
-            raw_docs = list(db.wallet_transactions.find(
-                {"$or": [{"userId": user_id}, {"candidate_id": user_id}]}
-            ).sort("createdAt", 1))
+            tx_query_parts = [{"userId": user_id}, {"userId": str(user_id)}, {"candidate_id": user_id}]
+            if user and user.get("org_id"):
+                tx_query_parts.extend([{"orgId": user.get("org_id")}, {"orgId": str(user.get("org_id"))}])
+            raw_docs = list(db.wallet_transactions.find({"$or": tx_query_parts}).sort("createdAt", 1))
 
             running_balance = 0.0
             total_credited = 0.0
