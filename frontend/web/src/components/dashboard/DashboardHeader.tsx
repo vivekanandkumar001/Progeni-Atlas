@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  Brain
+  Brain,
+  FileText
 } from 'lucide-react';
 import { AppHeader } from '@/components/dashboard/AppHeader';
 import {
@@ -146,7 +147,9 @@ export const DashboardHeader: React.FC = () => {
 
   const navLinks = [
     { name: 'Jobs', href: '/candidate/dashboard', icon: Briefcase },
+    { name: 'Practice', href: '/candidate/practice', icon: Sparkles },
     { name: 'My Interviews', href: '/candidate/interviews', icon: Video },
+    { name: 'Reports', href: '/candidate/reports', icon: FileText },
     { name: 'Skills', href: '/candidate/skills', icon: Award },
   ];
 

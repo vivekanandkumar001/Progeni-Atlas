@@ -29,9 +29,11 @@ interface PracticeDrillsResponse {
 interface PracticeDrillBrowserProps {
   /** Drill id from `?drill=`, used to deep-link straight into a session. */
   initialDrillId?: string;
+  /** When true, omits the duplicate standalone header */
+  embedded?: boolean;
 }
 
-export function PracticeDrillBrowser({ initialDrillId }: PracticeDrillBrowserProps) {
+export function PracticeDrillBrowser({ initialDrillId, embedded = false }: PracticeDrillBrowserProps) {
   const router = useRouter();
 
   const [drills, setDrills] = useState<PracticeDrillItem[]>([]);
@@ -202,24 +204,26 @@ export function PracticeDrillBrowser({ initialDrillId }: PracticeDrillBrowserPro
   };
 
   return (
-    <div className="min-h-screen bg-canvas text-ink font-sans selection:bg-cyan-500 selection:text-slate-950 pb-16">
-      <header className="sticky top-0 z-50 h-16 shrink-0 bg-header border-b border-line px-4 sm:px-8 flex items-center justify-between backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <BrandLogo href="/candidate/dashboard" />
-          <span className="text-ink-faint hidden sm:inline">|</span>
-          <span className="hidden sm:inline text-xs font-mono text-accent-cyan">
-            Practice Drills &amp; Mock Lab
-          </span>
-        </div>
+    <div className={embedded ? 'text-ink font-sans selection:bg-cyan-500 selection:text-slate-950 pb-16' : 'min-h-screen bg-canvas text-ink font-sans selection:bg-cyan-500 selection:text-slate-950 pb-16'}>
+      {!embedded && (
+        <header className="sticky top-0 z-50 h-16 shrink-0 bg-header border-b border-line px-4 sm:px-8 flex items-center justify-between backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <BrandLogo href="/candidate/dashboard" />
+            <span className="text-ink-faint hidden sm:inline">|</span>
+            <span className="hidden sm:inline text-xs font-mono text-accent-cyan">
+              Practice Drills &amp; Mock Lab
+            </span>
+          </div>
 
-        <Link
-          href="/candidate/dashboard"
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-surface hover:bg-surface-2 border border-line text-ink text-xs font-medium transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Candidate Dashboard</span>
-        </Link>
-      </header>
+          <Link
+            href="/candidate/dashboard"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-surface hover:bg-surface-2 border border-line text-ink text-xs font-medium transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Candidate Dashboard</span>
+          </Link>
+        </header>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Zero Wallet Balance Alert */}

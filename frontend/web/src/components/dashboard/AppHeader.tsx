@@ -148,9 +148,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <BrandLogo href={brandHref} badge={brandBadge} />
 
             {/* Modern Segmented Navigation Bar */}
-            <nav className="hidden lg:flex items-center p-1 rounded-xl bg-slate-100/80 border border-slate-200/80 shadow-xs">
+            <nav className="hidden md:flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-surface-2 border border-slate-200/80 dark:border-line shadow-xs">
               {navLinks.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || (item.href !== '/candidate/dashboard' && item.href !== '/recruiter/dashboard' && pathname.startsWith(item.href));
                 const Icon = item.icon;
                 return (
                   <Link
@@ -158,11 +158,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     href={item.href}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 whitespace-nowrap ${
                       isActive
-                        ? 'bg-white text-blue-600 shadow-xs border border-slate-200/60 font-bold'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
+                        ? 'bg-white dark:bg-surface text-blue-600 dark:text-accent-cyan shadow-xs border border-slate-200/80 dark:border-line/60 font-bold'
+                        : 'text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink hover:bg-white/60 dark:hover:bg-surface/50 border border-transparent'
                     }`}
                   >
-                    {Icon && <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-600' : 'text-slate-500'}`} />}
+                    {Icon && <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-600 dark:text-accent-cyan' : 'text-slate-500 dark:text-ink-faint'}`} />}
                     <span>{item.name}</span>
                   </Link>
                 );
@@ -177,10 +177,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             {walletBadge && (
               <Link
                 href={walletBadge.href}
-                className="hidden lg:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100/70 border border-blue-200 text-xs font-bold text-blue-700 transition-all group shadow-xs cursor-pointer shrink-0"
+                className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50/90 hover:bg-blue-100/80 border border-blue-200 dark:border-blue-500/30 dark:bg-blue-950/30 text-xs font-bold text-blue-700 dark:text-accent-cyan transition-all group shadow-xs cursor-pointer shrink-0"
                 title="Available Interview Balance"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <Wallet className="w-3.5 h-3.5 text-accent-cyan group-hover:scale-110 transition-transform" />
                 <span>₹{Math.max(0, walletBadge.inr).toFixed(2)}</span>
                 <span className="hidden xl:inline text-[10px] text-ink-muted font-medium">({Math.max(0, walletBadge.credits)} cr)</span>
@@ -244,7 +244,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   {profileInitials}
                 </div>
 
-                <div className="hidden lg:flex flex-col text-left max-w-[120px] whitespace-nowrap">
+                <div className="hidden sm:flex flex-col text-left max-w-[140px] whitespace-nowrap">
                   <span className="truncate text-xs font-bold text-ink leading-tight">
                     {profileName}
                   </span>
@@ -323,7 +323,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle mobile menu"
               aria-expanded={mobileMenuOpen}
-              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface text-ink transition hover:bg-surface-2 lg:hidden shadow-xs"
+              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface text-ink transition hover:bg-surface-2 md:hidden shadow-xs"
             >
               {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
@@ -334,7 +334,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
       {/* ================= MOBILE DRAWER MENU ================= */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-line bg-surface/98 px-4 py-4 space-y-4 animate-fadeIn shadow-xl">
+        <div className="md:hidden border-t border-line bg-surface/98 px-4 py-4 space-y-4 animate-fadeIn shadow-xl">
           {/* Profile Card */}
           <Link
             href={profileHref}

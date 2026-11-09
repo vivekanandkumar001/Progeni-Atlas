@@ -814,12 +814,14 @@ def get_candidate_interviews():
             for s in cursor:
                 sess_id = str(s.get("id") or s.get("_id"))
                 status = s.get("status", "scheduled")
+                is_practice = bool((s.get("config") or {}).get("is_practice") or s.get("session_type") in ("mock", "practice"))
                 item = {
                     "sessionId": sess_id,
                     "roleTitle": s.get("job_title") or f"{skills[0] if skills else 'Full-Stack'} Systems Engineer",
-                    "companyName": s.get("company_name") or "Progeni Atlas Assessment Drive",
+                    "companyName": s.get("company_name") or ("Progeni Atlas Practice Drive" if is_practice else "Progeni Atlas Assessment Drive"),
                     "sessionType": s.get("session_type", "live"),
-                    "durationMinutes": s.get("duration_minutes", 45),
+                    "isPractice": is_practice,
+                    "durationMinutes": s.get("duration_minutes", 10 if is_practice else 45),
                     "status": status,
                 }
                 if status in ("completed", "evaluated"):
@@ -1779,5 +1781,87 @@ def finalize_practice_session():
         "turnsProcessed": len(turns),
         "stats": _build_practice_stats(sessions),
     }), 200
+
+
+@candidate_bp.route("/api/candidate/practice/history", methods=["GET"])
+@require_auth
+def get_candidate_practice_history():
+    """Retrieve all past practice sessions and drills with evaluation scores for the logged-in candidate."""
+    try:
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
+        user_id = str(user.get("id") or user.get("_id"))
+        
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": True, "attempts": [], "practice_interviews": [], "stats": {}}), 200
+
+        # 1. Fetch practice drills from practice_sessions collection
+        cursor = db.practice_sessions.find({
+            "$or": [{"userId": user_id}, {"userId": str(user_id)}, {"candidateId": user_id}, {"candidate_id": user_id}]
+        }).sort("completedAt", -1).limit(50)
+        
+        attempts = []
+        for doc in cursor:
+            completed_val = doc.get("completedAt")
+            if hasattr(completed_val, "isoformat"):
+                c_str = completed_val.isoformat()
+            else:
+                c_str = str(completed_val or "")
+            attempts.append({
+                "id": str(doc.get("_id") or doc.get("id")),
+                "drillId": doc.get("drillId"),
+                "drillTitle": doc.get("drillTitle") or "Technical Practice Drill",
+                "category": doc.get("category") or "TECHNICAL",
+                "difficulty": doc.get("difficulty") or "MEDIUM",
+                "score": doc.get("score") or 0,
+                "durationSeconds": doc.get("durationSeconds") or 0,
+                "turns": doc.get("turns") or [],
+                "completedAt": c_str
+            })
+        
+        # 2. Fetch practice mock interviews from interview_sessions
+        mock_cursor = db.interview_sessions.find({
+            "$or": [
+                {"candidate_id": user_id, "session_type": "mock"},
+                {"candidate_id": user_id, "config.is_practice": True},
+                {"userId": user_id, "session_type": "mock"},
+                {"userId": user_id, "config.is_practice": True}
+            ]
+        }).sort("created_at", -1).limit(20)
+        
+        practice_interviews = []
+        for m in mock_cursor:
+            m_id = str(m.get("id") or m.get("_id"))
+            score = m.get("total_score") or m.get("score")
+            practice_interviews.append({
+                "sessionId": m_id,
+                "roleTitle": m.get("role_title") or m.get("job_title") or "Technical Practice Interview",
+                "companyName": m.get("company_name") or "Progeni Atlas Practice Drive",
+                "status": m.get("status") or "scheduled",
+                "scheduledAt": m.get("scheduled_at") or m.get("created_at"),
+                "completedAt": m.get("completed_at") or m.get("ended_at"),
+                "score": round(float(score)) if score is not None else None,
+                "recommendation": m.get("final_recommendation"),
+                "reportUrl": f"/candidate/interview/{m_id}/report",
+                "lobbyUrl": f"/candidate/interview/{m_id}/lobby",
+                "durationMinutes": m.get("duration_minutes", 10)
+            })
+        
+        # 3. Calculate practice stats
+        sessions_list = _load_practice_sessions(user_id)
+        stats = _build_practice_stats(sessions_list)
+        
+        return jsonify({
+            "success": True,
+            "attempts": attempts,
+            "practice_interviews": practice_interviews,
+            "stats": stats
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 

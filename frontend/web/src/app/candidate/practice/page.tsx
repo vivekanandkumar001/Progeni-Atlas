@@ -1,10 +1,11 @@
+import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { PracticeInterviewSetup } from '@/components/practice/PracticeInterviewSetup';
+import { PracticeLabClient } from '@/components/practice/PracticeLabClient';
 
 export const metadata: Metadata = {
-  title: 'Practice Interview | Progeni Atlas',
-  description: 'Start an AI-powered practice interview tailored to your target job and existing resume.',
+  title: 'AI Practice Suite | Progeni Atlas',
+  description: 'Practice live AI-powered technical interviews and interactive drills tailored to your target job and skills.',
 };
 
 export default function CandidatePracticePage() {
@@ -20,7 +21,9 @@ export default function CandidatePracticePage() {
 
       {/* Main Container */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        <PracticeInterviewSetup />
+        <Suspense fallback={<div className="p-12 text-center text-xs text-ink-muted">Loading Practice Suite...</div>}>
+          <PracticeLabClient />
+        </Suspense>
       </main>
     </div>
   );

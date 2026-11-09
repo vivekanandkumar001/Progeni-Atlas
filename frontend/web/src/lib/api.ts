@@ -332,6 +332,55 @@ export interface InterviewSession {
   companyName?: string | null;
   /** Present only when a real report/scorecard exists for the session. */
   reportUrl?: string | null;
+  isPractice?: boolean;
+}
+
+export interface PracticeHistoryItem {
+  id: string;
+  drillId?: string;
+  drillTitle: string;
+  category: string;
+  difficulty: string;
+  score: number;
+  durationSeconds: number;
+  completedAt: string;
+  turns?: Array<{
+    turnIndex: number;
+    question: string;
+    answer?: string;
+    scores?: {
+      relevance?: number;
+      depth?: number;
+      correctness?: number;
+    };
+    feedback?: string;
+  }>;
+}
+
+export interface PracticeInterviewItem {
+  sessionId: string;
+  roleTitle: string;
+  companyName: string;
+  status: string;
+  scheduledAt?: string;
+  completedAt?: string;
+  score?: number | null;
+  recommendation?: string | null;
+  reportUrl?: string;
+  lobbyUrl?: string;
+  durationMinutes: number;
+}
+
+export interface PracticeHistoryData {
+  attempts: PracticeHistoryItem[];
+  practice_interviews: PracticeInterviewItem[];
+  stats: {
+    totalDrillsCompleted: number;
+    totalPracticeMinutes: number;
+    averageScore: number;
+    readinessPercentage: number;
+    categoryBreakdown?: Record<string, number>;
+  };
 }
 
 export interface InterviewInvitation {
@@ -755,20 +804,50 @@ export function fetchCandidateDashboard(): Promise<CandidateDashboard | null> {
 }
 
 export async function fetchCandidateInterviews(): Promise<InterviewSession[] | null> {
-  const data = await apiJson<any[]>('/api/candidate/interviews');
-  if (!Array.isArray(data)) return null;
-  return data.map((item) => {
+  const data = await apiJson<any>('/api/candidate/interviews');
+  if (!data) return null;
+  const list = Array.isArray(data) ? data : [...(data.upcoming || []), ...(data.completed || [])];
+  if (!Array.isArray(list)) return null;
+  return list.map((item) => {
     const id = item.id || item.sessionId || item.session_id || '';
     return {
       ...item,
       id,
       sessionId: item.sessionId || id,
-      scheduled_at: item.scheduled_at || item.scheduledTime || new Date().toISOString(),
+      scheduled_at: item.scheduled_at || item.scheduledTime || item.scheduledAt || new Date().toISOString(),
       duration_minutes: item.duration_minutes ?? item.durationMinutes ?? 45,
       total_score: item.total_score ?? item.score ?? null,
       final_recommendation: item.final_recommendation ?? item.recommendation ?? null,
+      reportUrl: item.reportUrl || (item.status === 'completed' ? `/candidate/interview/${id}/report` : null),
+      isPractice: Boolean(item.isPractice || item.sessionType === 'mock' || item.is_practice),
     } as InterviewSession;
   });
+}
+
+export async function fetchCandidatePracticeHistory(): Promise<PracticeHistoryData | null> {
+  const data = await apiJson<any>('/api/candidate/practice/history');
+  if (!data || !data.success) {
+    return {
+      attempts: [],
+      practice_interviews: [],
+      stats: {
+        totalDrillsCompleted: 0,
+        totalPracticeMinutes: 0,
+        averageScore: 0,
+        readinessPercentage: 0,
+      },
+    };
+  }
+  return {
+    attempts: Array.isArray(data.attempts) ? data.attempts : [],
+    practice_interviews: Array.isArray(data.practice_interviews) ? data.practice_interviews : [],
+    stats: data.stats || {
+      totalDrillsCompleted: 0,
+      totalPracticeMinutes: 0,
+      averageScore: 0,
+      readinessPercentage: 0,
+    },
+  };
 }
 
 export function fetchCandidateSkillInsights(): Promise<CandidateSkillInsights | null> {
