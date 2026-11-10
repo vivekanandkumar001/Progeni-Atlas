@@ -3,7 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next/standalone",
   "installCommand": "npm ci",
-  "aliasDomains": ["atlas.progeni.live"],
   "env": {
     "NEXT_PUBLIC_API_URL": "https://api.atlas.progeni.live"
   }
