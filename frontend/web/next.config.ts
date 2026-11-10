@@ -120,14 +120,31 @@ const nextConfig: NextConfig = {
       { source: '/super-admin/billing-audit', destination: '/super-admin/billing?tab=ledger', permanent: false },
     ];
   },
-  /* Proxy all /api/* requests to the Flask backend (after checking local App Router API routes) */
+  /* Proxy all requests on api subdomains (or /api/* on main domain) to the Flask backend */
   async rewrites() {
     const defaultBackend = process.env.NODE_ENV === 'production'
-      ? 'https://api.progeni.live'
+      ? 'https://api-atlas.progeni.live'
       : 'http://127.0.0.1:5000';
     const flaskBase = (process.env.NEXT_PUBLIC_API_URL?.split(',')[0] || '').replace(/\/+$/, '') || defaultBackend;
     return {
-      beforeFiles: [],
+      beforeFiles: [
+        // Dedicated API subdomain routing: all traffic on api-atlas.* or api.* routes purely to backend API
+        {
+          has: [{ type: 'host', value: 'api-atlas.progeni.live' }],
+          source: '/:path*',
+          destination: `${flaskBase}/:path*`,
+        },
+        {
+          has: [{ type: 'host', value: 'api.atlas.progeni.live' }],
+          source: '/:path*',
+          destination: `${flaskBase}/:path*`,
+        },
+        {
+          has: [{ type: 'host', value: 'api.progeni.live' }],
+          source: '/:path*',
+          destination: `${flaskBase}/:path*`,
+        },
+      ],
       afterFiles: [],
       fallback: [
         {
