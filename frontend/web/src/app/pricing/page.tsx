@@ -20,6 +20,7 @@ interface PlanCard {
   name: string;
   badge: string;
   price: string;
+  priceNum: number;
   credits: string;
   period: string;
   description: string;
@@ -35,6 +36,7 @@ const DEFAULT_CANDIDATE_PLANS: PlanCard[] = [
     name: 'Free Starter',
     badge: 'INSTANT TRIAL',
     price: '₹0',
+    priceNum: 0,
     credits: '1 Mock Trial',
     period: 'Free registration trial',
     description: 'Ideal for trying out the AI interviewer with full video, audio and code execution.',
@@ -57,6 +59,7 @@ const DEFAULT_CANDIDATE_PLANS: PlanCard[] = [
     name: 'Warm-up Pack',
     badge: 'FOR QUICK PRACTICE',
     price: '₹49',
+    priceNum: 49,
     credits: '50 Credits',
     period: 'one-time pack',
     description: 'Quick pre-interview brush-up right before your actual technical round.',
@@ -76,8 +79,9 @@ const DEFAULT_CANDIDATE_PLANS: PlanCard[] = [
   },
   {
     name: 'Placement Ready',
-    badge: 'MOST POPULAR FOR CAMPUS',
+    badge: 'CAMPUS FAVORITE',
     price: '₹99',
+    priceNum: 99,
     credits: '100 Credits',
     period: 'one-time pack (Save 30%)',
     description: 'Most chosen by engineering students preparing for placements and product companies.',
@@ -97,6 +101,7 @@ const DEFAULT_CANDIDATE_PLANS: PlanCard[] = [
     name: 'Pro Mastery',
     badge: 'BEST VALUE',
     price: '₹199',
+    priceNum: 199,
     credits: '200 Credits',
     period: 'one-time pack',
     description: 'Comprehensive preparation for high-stakes FAANG, startup, and campus hiring.',
@@ -119,6 +124,7 @@ const DEFAULT_RECRUITER_PLANS: PlanCard[] = [
     name: 'Recruiter Trial',
     badge: 'FREE TRIAL',
     price: '₹0',
+    priceNum: 0,
     credits: '50 Credits',
     period: 'free trial on signup',
     description: 'Test automated AI technical screening with complimentary candidate assessments.',
@@ -138,6 +144,7 @@ const DEFAULT_RECRUITER_PLANS: PlanCard[] = [
     name: 'Starter Pack',
     badge: 'FOR STARTUPS',
     price: '₹499',
+    priceNum: 499,
     credits: '500 Credits',
     period: 'one-time pack',
     description: 'Screen candidates automatically with AI technical lead interviews.',
@@ -155,8 +162,9 @@ const DEFAULT_RECRUITER_PLANS: PlanCard[] = [
   },
   {
     name: 'Growth Scale',
-    badge: 'MOST POPULAR',
+    badge: 'BEST FOR SCALING',
     price: '₹999',
+    priceNum: 999,
     credits: '1,000 Credits',
     period: 'one-time pack',
     description: 'For fast-growing hiring teams scaling their technical screening funnel.',
@@ -176,6 +184,7 @@ const DEFAULT_RECRUITER_PLANS: PlanCard[] = [
     name: 'Enterprise Scale',
     badge: 'HIGH VOLUME',
     price: '₹1,999',
+    priceNum: 1999,
     credits: '2,500 Credits',
     period: 'one-time pack',
     description: 'High-volume hiring campaigns with custom ATS synchronization and compliance.',
@@ -238,15 +247,15 @@ export default function PricingPage() {
 
               const isPopular = Boolean(
                 pkg.popular ||
-                pkg.tier === 'pro' ||
                 String(pkg.name || '').toLowerCase().includes('popular') ||
                 String(pkg.name || '').toLowerCase().includes('placement')
               );
 
               return {
                 name: pkg.name || 'Candidate Plan',
-                badge: priceNum === 0 ? 'INSTANT TRIAL' : isPopular ? 'MOST POPULAR' : 'PRACTICE PACK',
+                badge: priceNum === 0 ? 'INSTANT TRIAL' : isPopular ? 'TOP PICK' : 'PRACTICE PACK',
                 price: priceStr,
+                priceNum,
                 credits: creditsStr,
                 period: periodStr,
                 description: pkg.description || 'Targeted interview practice for engineering roles.',
@@ -289,7 +298,6 @@ export default function PricingPage() {
 
               const isPopular = Boolean(
                 pkg.popular ||
-                pkg.tier === 'growth' ||
                 String(pkg.name || '').toLowerCase().includes('popular') ||
                 String(pkg.name || '').toLowerCase().includes('growth')
               );
@@ -298,6 +306,7 @@ export default function PricingPage() {
                 name: pkg.name || 'Recruiter Pack',
                 badge: isPopular ? 'GROWTH SCALE' : (pkg.tier === 'enterprise' ? 'ENTERPRISE' : 'FOR TEAMS'),
                 price: priceStr,
+                priceNum,
                 credits: creditsStr,
                 period: periodStr,
                 description: pkg.description || 'Automated AI technical screening for hiring teams.',
@@ -323,6 +332,25 @@ export default function PricingPage() {
 
   const activePlans = audience === 'candidate' ? candidatePlans : recruiterPlans;
 
+  // Cheapest paid candidate pack — keeps the tab label and hero copy in sync
+  // with whatever prices are actually set in Super Admin (no hard-coded ₹49).
+  const minCandidatePrice = Math.min(
+    ...candidatePlans.map((p) => p.priceNum).filter((n) => n > 0)
+  );
+  const hasPaidCandidatePack = Number.isFinite(minCandidatePrice) && minCandidatePrice > 0;
+  const candidateTabLabel = hasPaidCandidatePack
+    ? `Candidate Practice Packs · from ₹${minCandidatePrice.toLocaleString('en-IN')}`
+    : 'Candidate Practice Packs';
+
+  // Card count decides the grid so 1-2 packs don't stretch full-width and
+  // 4 packs always sit in one clean row on desktop.
+  const gridClassesFor = (count: number): string => {
+    if (count <= 1) return 'grid-cols-1 max-w-md mx-auto';
+    if (count === 2) return 'grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto';
+    if (count === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+  };
+
   return (
     <main className="min-h-screen bg-canvas text-ink flex flex-col selection:bg-cyan-500/20">
       <Navbar />
@@ -346,7 +374,7 @@ export default function PricingPage() {
           </h1>
 
           <p className="max-w-2xl mx-auto text-sm sm:text-base text-ink-muted">
-            Start completely free with 10 credits. When you&apos;re ready to level up, choose simple one-time credit packs starting at just ₹49.
+            Start completely free with 10 credits. When you&apos;re ready to level up, choose simple one-time credit packs{hasPaidCandidatePack ? ` starting at just ₹${minCandidatePrice.toLocaleString('en-IN')}` : ''}.
           </p>
 
           {/* Candidate vs Recruiter Tab Switcher */}
@@ -362,7 +390,7 @@ export default function PricingPage() {
                 }`}
               >
                 <Sparkles className="w-4 h-4 text-cyan-400" />
-                <span>Candidate Practice Packs (₹49 - ₹199)</span>
+                <span>{candidateTabLabel}</span>
               </button>
               <button
                 type="button"
@@ -384,7 +412,7 @@ export default function PricingPage() {
       {/* Pricing Cards Grid */}
       <section className="py-16 bg-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`grid grid-cols-1 md:grid-cols-2 ${audience === 'candidate' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6`}>
+          <div className={`grid gap-6 ${gridClassesFor(activePlans.length)}`}>
             {activePlans.map((plan, i) => (
               <div
                 key={i}

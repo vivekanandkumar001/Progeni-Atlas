@@ -90,6 +90,7 @@ const pricing = [
     popular: false,
     cta: 'Start Free Trial',
     href: '/register',
+    periodLabel: '',
   },
   {
     name: 'Warm-up Pack',
@@ -105,6 +106,7 @@ const pricing = [
     popular: false,
     cta: 'Get 50 Credits',
     href: '/candidate/wallet',
+    periodLabel: 'one-time',
   },
   {
     name: 'Placement Ready',
@@ -120,6 +122,7 @@ const pricing = [
     popular: true,
     cta: 'Get 100 Credits (Save 30%)',
     href: '/candidate/wallet',
+    periodLabel: 'one-time',
   },
   {
     name: 'Pro Mastery',
@@ -135,6 +138,7 @@ const pricing = [
     popular: false,
     cta: 'Get 200 Credits',
     href: '/candidate/wallet',
+    periodLabel: 'one-time',
   },
 ];
 
@@ -170,6 +174,7 @@ export default function Home() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [activeCodeTab, setActiveCodeTab] = useState<'python' | 'cpp' | 'ts'>('python');
   const [timerSeconds, setTimerSeconds] = useState(462); // 07:42
+  const [activePricing, setActivePricing] = useState(pricing);
 
   useEffect(() => {
     try {
@@ -190,6 +195,72 @@ export default function Home() {
     } catch {}
     setCheckingAuth(false);
   }, [router]);
+
+  // Keep homepage pricing in sync with packages managed in Super Admin.
+  // Falls back to the static `pricing` list above if the API is unreachable.
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/packages');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data?.success || !Array.isArray(data.packages) || data.packages.length === 0) return;
+
+        const candidatePkgs = data.packages.filter(
+          (p: any) => p.target_audience === 'individual' || p.target_audience === 'both'
+        );
+        if (candidatePkgs.length === 0) return;
+
+        const mapped = candidatePkgs.map((pkg: any) => {
+          const priceNum = Number(pkg.price ?? pkg.monthlyPrice ?? 0);
+          const creditsNum = Number(pkg.credits) || 0;
+          const rounds = Number(pkg.included_interviews) || 1;
+          const nameLower = String(pkg.name || '').toLowerCase();
+          const isPopular = Boolean(
+            pkg.popular || nameLower.includes('popular') || nameLower.includes('placement')
+          );
+
+          return {
+            name: pkg.name || 'Practice Plan',
+            price: priceNum === 0 ? '₹0' : `₹${priceNum.toLocaleString('en-IN')}`,
+            credits: creditsNum > 0
+              ? `${creditsNum.toLocaleString('en-IN')} Credits`
+              : `${rounds} Mock Round${rounds > 1 ? 's' : ''}`,
+            note: pkg.description || (priceNum === 0 ? 'Free full technical screening round' : 'AI mock interview practice pack'),
+            items: Array.isArray(pkg.features) && pkg.features.length > 0
+              ? pkg.features
+              : [
+                  `${rounds} Full AI Technical Mock Round${rounds > 1 ? 's' : ''}`,
+                  'Live Coding & Spoken Voice Analysis',
+                  'Instant Scorecard & Feedback',
+                ],
+            popular: isPopular,
+            cta: priceNum === 0
+              ? 'Start Free Trial'
+              : creditsNum > 0
+                ? `Get ${creditsNum.toLocaleString('en-IN')} Credits`
+                : `Buy Pack (₹${priceNum.toLocaleString('en-IN')})`,
+            href: priceNum === 0 ? '/register' : '/candidate/wallet',
+            periodLabel: priceNum === 0
+              ? ''
+              : pkg.billing_period === 'monthly'
+                ? '/ month'
+                : pkg.billing_period === 'yearly'
+                  ? '/ year'
+                  : 'one-time',
+          };
+        });
+
+        if (isMounted) setActivePricing(mapped);
+      } catch (err) {
+        console.warn('[HomePage] Using fallback pricing due to fetch error:', err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -749,8 +820,18 @@ export default function Home() {
             <p className="mt-4 text-sm text-ink-muted">Choose the plan tailored to your interview volume.</p>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {pricing.map((plan) => (
+          <div
+            className={`mt-10 grid gap-5 ${
+              activePricing.length <= 1
+                ? 'max-w-md mx-auto'
+                : activePricing.length === 2
+                  ? 'sm:grid-cols-2 max-w-3xl mx-auto'
+                  : activePricing.length === 3
+                    ? 'sm:grid-cols-2 lg:grid-cols-3'
+                    : 'md:grid-cols-2 lg:grid-cols-4'
+            }`}
+          >
+            {activePricing.map((plan) => (
               <div
                 key={plan.name}
                 className={`card-lift-hover relative rounded-2xl border p-6 flex flex-col justify-between ${

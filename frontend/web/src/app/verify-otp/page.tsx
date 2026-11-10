@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, ArrowRight, RefreshCw, KeyRound, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { apiFetch, persistSession } from '@/lib/api';
+import { takePendingResume } from '@/lib/pending-resume';
 import { AuthCard, buttonClass, inputClass } from '@/components/ui';
 import { RESEND_CODE } from '@/constants/ui_strings';
 
@@ -165,6 +166,26 @@ function VerifyOtpContent() {
         if (token || data.user) {
           persistSession(token, undefined, data.user || {});
         }
+
+        // Signup can happen before the resume endpoint is reachable (it needs
+        // an authenticated session). Attach the file that was stashed in
+        // IndexedDB now that verification has minted the session.
+        try {
+          const pendingResume = await takePendingResume(email);
+          if (pendingResume) {
+            setSuccessMsg('Email verified. Attaching your resume…');
+            const resumeData = new FormData();
+            resumeData.append('file', pendingResume);
+            await apiFetch('/api/candidate/resume', {
+              method: 'POST',
+              body: resumeData,
+            });
+          }
+        } catch (resumeErr) {
+          // Verification already succeeded; a lost resume must not block the
+          // account. The candidate can re-upload it from their profile.
+          console.warn('[Verify OTP] Pending resume sync notice:', resumeErr);
+        }
       }
 
       setSuccessMsg('Email verified successfully! Redirecting...');
@@ -303,7 +324,7 @@ function VerifyOtpContent() {
                 onChange={(e) => handleChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
                 disabled={isExpired || countdown <= 0}
-                className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold font-mono bg-inset border border-line rounded-xl text-accent-cyan focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 transition-all shadow-inner disabled:opacity-40"
+                className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold font-mono bg-inset border border-line rounded-xl text-accent-cyan focus:outline-none focus:border-accent-cyan transition-all shadow-inner disabled:opacity-40"
               />
             ))}
           </div>

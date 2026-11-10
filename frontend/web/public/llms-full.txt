@@ -60,5 +60,5 @@ Progeni Atlas (https://atlas.progeni.live) is an enterprise autonomous technical
 - Production Host: https://atlas.progeni.live
 - Organization: Progeni Atlas
 - Merchant & Billing: Progeni Atlas (UPI: progeniatlas@ptaxis)
-- Source Repository: https://github.com/vivekanandkumar001/talentpulse-AI
+- Source Repository: https://github.com/vivekanandkumar001/Progeni-Atlas
 

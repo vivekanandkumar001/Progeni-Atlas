@@ -37,10 +37,13 @@ type NewPackageForm = {
   target_audience: 'individual' | 'organization' | 'both';
   billing_period: 'monthly' | 'yearly' | 'lifetime';
   price: string;
+  credits: string;
   included_interviews: string;
   included_recruiter_seats: string;
   included_candidate_seats: string;
   interview_duration_limit_minutes: string;
+  popular: boolean;
+  features: string;
   notes: string;
 };
 
@@ -50,10 +53,13 @@ const DEFAULT_PACKAGE_FORM: NewPackageForm = {
   target_audience: 'organization',
   billing_period: 'monthly',
   price: '999',
+  credits: '0',
   included_interviews: '25',
   included_recruiter_seats: '3',
   included_candidate_seats: '50',
   interview_duration_limit_minutes: '30',
+  popular: false,
+  features: '',
   notes: '',
 };
 
@@ -151,10 +157,13 @@ export default function SuperAdminPackagesPage() {
       target_audience: (pkg.target_audience || 'organization') as 'individual' | 'organization' | 'both',
       billing_period: (pkg.billing_period || 'monthly') as 'monthly' | 'yearly' | 'lifetime',
       price: String(pInr),
+      credits: String(pkg.credits ?? 0),
       included_interviews: String(pkg.included_interviews ?? pkg.interviewsIncluded ?? 25),
       included_recruiter_seats: String(pkg.included_recruiter_seats ?? pkg.seatsIncluded ?? 3),
       included_candidate_seats: String(pkg.included_candidate_seats ?? 50),
       interview_duration_limit_minutes: String(pkg.interview_duration_limit_minutes ?? 30),
+      popular: Boolean(pkg.popular),
+      features: Array.isArray(pkg.features) ? pkg.features.join('\n') : '',
       notes: pkg.notes || '',
     });
     setEditModalOpen(true);
@@ -185,10 +194,13 @@ export default function SuperAdminPackagesPage() {
           target_audience: editPackageForm.target_audience,
           billing_period: editPackageForm.billing_period,
           price: priceNum,
+          credits: parseInt(editPackageForm.credits, 10) || 0,
           included_interviews: parseInt(editPackageForm.included_interviews, 10) || 0,
           included_recruiter_seats: parseInt(editPackageForm.included_recruiter_seats, 10) || 0,
           included_candidate_seats: parseInt(editPackageForm.included_candidate_seats, 10) || 0,
           interview_duration_limit_minutes: parseInt(editPackageForm.interview_duration_limit_minutes, 10) || 30,
+          popular: editPackageForm.popular,
+          features: editPackageForm.features.split('\n').map((f) => f.trim()).filter(Boolean),
           notes: editPackageForm.notes.trim(),
         }),
       });
@@ -248,10 +260,13 @@ export default function SuperAdminPackagesPage() {
           target_audience: packageForm.target_audience,
           billing_period: packageForm.billing_period,
           price: priceNum,
+          credits: parseInt(packageForm.credits, 10) || 0,
           included_interviews: parseInt(packageForm.included_interviews, 10) || 0,
           included_recruiter_seats: parseInt(packageForm.included_recruiter_seats, 10) || 0,
           included_candidate_seats: parseInt(packageForm.included_candidate_seats, 10) || 0,
           interview_duration_limit_minutes: parseInt(packageForm.interview_duration_limit_minutes, 10) || 30,
+          popular: packageForm.popular,
+          features: packageForm.features.split('\n').map((f) => f.trim()).filter(Boolean),
           notes: packageForm.notes.trim(),
         }),
       });
@@ -602,6 +617,33 @@ export default function SuperAdminPackagesPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-ink-muted mb-1">
+                    AI Credits
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editPackageForm.credits}
+                    onChange={(e) => setEditPackageForm({ ...editPackageForm, credits: e.target.value })}
+                    className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink outline-none focus:border-cyan-500/50 font-mono"
+                  />
+                  <p className="mt-1 text-[10px] text-ink-faint">Shown as “N Credits” on the pricing card (0 = use interview count)</p>
+                </div>
+                <div className="flex items-end pb-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-ink-muted cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editPackageForm.popular}
+                      onChange={(e) => setEditPackageForm({ ...editPackageForm, popular: e.target.checked })}
+                      className="h-4 w-4 rounded border-line accent-cyan-500 cursor-pointer"
+                    />
+                    Mark as Most Popular
+                  </label>
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-ink-muted mb-1">
@@ -640,6 +682,32 @@ export default function SuperAdminPackagesPage() {
                     className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink outline-none font-mono"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1">
+                  Features (one per line)
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder={'e.g. 100 AI Credits (200 mins practice)\n6-7 Full Technical Rounds\nResume Defense Round'}
+                  value={editPackageForm.features}
+                  onChange={(e) => setEditPackageForm({ ...editPackageForm, features: e.target.value })}
+                  className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink outline-none focus:border-cyan-500/50"
+                />
+                <p className="mt-1 text-[10px] text-ink-faint">Bullet list on the pricing card. Leave empty to use defaults.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1">
+                  Notes (internal)
+                </label>
+                <textarea
+                  rows={2}
+                  value={editPackageForm.notes}
+                  onChange={(e) => setEditPackageForm({ ...editPackageForm, notes: e.target.value })}
+                  className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink outline-none focus:border-cyan-500/50"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
@@ -781,6 +849,33 @@ export default function SuperAdminPackagesPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-ink-muted mb-1">
+                    AI Credits
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={packageForm.credits}
+                    onChange={(e) => setPackageForm({ ...packageForm, credits: e.target.value })}
+                    className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink outline-none focus:border-cyan-500/50 font-mono"
+                  />
+                  <p className="mt-1 text-[10px] text-ink-faint">Shown as “N Credits” on the pricing card (0 = use interview count)</p>
+                </div>
+                <div className="flex items-end pb-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-ink-muted cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={packageForm.popular}
+                      onChange={(e) => setPackageForm({ ...packageForm, popular: e.target.checked })}
+                      className="h-4 w-4 rounded border-line accent-cyan-500 cursor-pointer"
+                    />
+                    Mark as Most Popular
+                  </label>
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-ink-muted mb-1">
@@ -819,6 +914,32 @@ export default function SuperAdminPackagesPage() {
                     className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink outline-none font-mono"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1">
+                  Features (one per line)
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder={'e.g. 100 AI Credits (200 mins practice)\n6-7 Full Technical Rounds\nResume Defense Round'}
+                  value={packageForm.features}
+                  onChange={(e) => setPackageForm({ ...packageForm, features: e.target.value })}
+                  className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink outline-none focus:border-cyan-500/50"
+                />
+                <p className="mt-1 text-[10px] text-ink-faint">Bullet list on the pricing card. Leave empty to use defaults.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1">
+                  Notes (internal)
+                </label>
+                <textarea
+                  rows={2}
+                  value={packageForm.notes}
+                  onChange={(e) => setPackageForm({ ...packageForm, notes: e.target.value })}
+                  className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink outline-none focus:border-cyan-500/50"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">

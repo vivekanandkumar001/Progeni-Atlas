@@ -131,7 +131,6 @@ export const PricingSection: React.FC = () => {
 
               const isPopular = Boolean(
                 pkg.popular ||
-                pkg.tier === 'pro' ||
                 String(pkg.name || '').toLowerCase().includes('popular') ||
                 String(pkg.name || '').toLowerCase().includes('placement')
               );
@@ -162,6 +161,15 @@ export const PricingSection: React.FC = () => {
     };
   }, []);
 
+  // Card count decides the grid so 1-2 packs don't stretch full-width and
+  // 4 packs always sit in one clean row on desktop.
+  const gridClassesFor = (count: number): string => {
+    if (count <= 1) return 'grid-cols-1 max-w-md mx-auto';
+    if (count === 2) return 'grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto';
+    if (count === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+  };
+
   return (
     <section id="pricing" className="w-full py-16 px-6 bg-surface-deep relative z-10 scroll-mt-20 border-t border-line">
       <div className="max-w-6xl mx-auto">
@@ -177,7 +185,7 @@ export const PricingSection: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className={`grid gap-6 ${gridClassesFor(plans.length)}`}>
           {plans.map((plan, index) => (
             <motion.div
               key={plan.id || index}

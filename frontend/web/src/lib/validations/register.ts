@@ -1,8 +1,11 @@
 import { z } from "zod";
+import {
+  getPhoneValidationMessage,
+  isValidPhoneNumber,
+} from "./phone";
 
 const nameRegex = /^[A-Z][a-z]*(?: [A-Z][a-z]*)*$/;
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,32}$/;
-const phoneRegex = /^[6-9]\d{9}$/;
 
 export const RegisterValidationSchema = z.object({
   fullName: z
@@ -33,13 +36,14 @@ export const RegisterValidationSchema = z.object({
   year: z
     .string()
     .trim()
-    .min(1, "Please select your academic year"),
+    .min(1, "Please select your education / experience status"),
+
+  phoneCountry: z.string().trim().min(1, "Please select your country code"),
 
   phone: z
     .string()
     .trim()
-    .min(1, "Please enter your phone number")
-    .regex(phoneRegex, "Please enter a valid 10-digit mobile number"),
+    .min(1, "Please enter your phone number"),
 
   password: z
     .string()
@@ -57,9 +61,18 @@ export const RegisterValidationSchema = z.object({
 
   resume: z
     .custom<File>((val) => val instanceof File, "Please upload your resume (PDF or DOCX)")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File size must be 5MB or less")
+    .refine(
+      (file) => !(file instanceof File) || file.size > 0,
+      "The selected resume file is empty"
+    )
+    .refine(
+      (file) => !(file instanceof File) || file.size <= 5 * 1024 * 1024,
+      "File size must be 5MB or less"
+    )
     .refine(
       (file) =>
+        !(file instanceof File) ||
+        /\.(pdf|docx)$/i.test(file.name) ||
         [
           "application/pdf",
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -70,12 +83,73 @@ export const RegisterValidationSchema = z.object({
   agreeTerms: z.boolean().refine((val) => val === true, {
     message: "You must accept the terms and conditions to proceed",
   }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
+})
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .superRefine((data, ctx) => {
+    if (!isValidPhoneNumber(data.phoneCountry, data.phone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["phone"],
+        message: getPhoneValidationMessage(data.phoneCountry),
+      });
+    }
+  });
 
 export type RegisterFormData = z.infer<typeof RegisterValidationSchema>;
+
+/**
+ * zod only runs object-level refinements when every base field parses, so a
+ * single invalid field (say a missing resume) would hide the password-match
+ * and country-aware phone errors until everything else was fixed. This
+ * companion schema uses permissive fields, so its refinements always run, and
+ * `withCrossFieldChecks` merges anything it finds into the main resolver's
+ * result — one submit then reveals every problem at once.
+ */
+const CrossFieldSchema = z.object({
+  phoneCountry: z.string(),
+  phone: z.string(),
+  password: z.string(),
+  confirmPassword: z.string(),
+})
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .superRefine((data, ctx) => {
+    if (data.phone && !isValidPhoneNumber(data.phoneCountry, data.phone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["phone"],
+        message: getPhoneValidationMessage(data.phoneCountry),
+      });
+    }
+  });
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export function withCrossFieldChecks<TResolver extends (...args: any[]) => any>(
+  baseResolver: TResolver
+): TResolver {
+  return (async (values: unknown, context: unknown, options: unknown) => {
+    const result = await baseResolver(values, context, options);
+    const errors = (result as { errors?: Record<string, unknown> } | undefined)?.errors;
+    if (errors) {
+      const cross = CrossFieldSchema.safeParse(values ?? {});
+      if (!cross.success) {
+        for (const issue of cross.error.issues) {
+          const key = String(issue.path?.[0] ?? "");
+          if (key && !errors[key]) {
+            errors[key] = { type: "validation", message: issue.message };
+          }
+        }
+      }
+    }
+    return result;
+  }) as unknown as TResolver;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export const RecruiterRegisterSchema = z.object({
   fullName: z
@@ -107,11 +181,12 @@ export const RecruiterRegisterSchema = z.object({
     .string()
     .min(1, "Please select your company size"),
 
+  phoneCountry: z.string().trim().min(1, "Please select your country code"),
+
   phone: z
     .string()
     .trim()
-    .min(1, "Please enter your phone number")
-    .regex(phoneRegex, "Please enter a valid 10-digit phone number"),
+    .min(1, "Please enter your phone number"),
 
   password: z
     .string()
@@ -127,10 +202,20 @@ export const RecruiterRegisterSchema = z.object({
   agreeTerms: z.boolean().refine((val) => val === true, {
     message: "You must accept the enterprise terms to proceed",
   }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
+})
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .superRefine((data, ctx) => {
+    if (!isValidPhoneNumber(data.phoneCountry, data.phone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["phone"],
+        message: getPhoneValidationMessage(data.phoneCountry),
+      });
+    }
+  });
 
 export type RecruiterFormData = z.infer<typeof RecruiterRegisterSchema>;
 
@@ -151,6 +236,21 @@ export const getCourseYears = (course: string): string[] => {
     return `${year}${suffix} Year`;
   });
 };
+
+/**
+ * Options shown under "Graduated / Experience" in the education status dropdown.
+ * Kept separate from academic years so the UI can group them clearly and the
+ * dashboard can tell a current student apart from a graduate.
+ */
+export const EXPERIENCE_STATUS_OPTIONS = [
+  'Fresher (0 years)',
+  '1-2 Years Experience',
+  '2+ Years Experience',
+] as const;
+
+export function isAcademicYearValue(course: string, value: string): boolean {
+  return getCourseYears(course).includes(value);
+}
 
 export const isFreeEmailDomain = (email: string): boolean => {
   const freeDomains = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "aol.com", "icloud.com"];

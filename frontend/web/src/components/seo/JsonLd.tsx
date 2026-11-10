@@ -27,7 +27,7 @@ export function JsonLd() {
     description:
       'Enterprise-grade autonomous AI technical interview and skills assessment platform conducting real-time two-way voice interviews, live coding assessments, and anti-cheat proctoring.',
     sameAs: [
-      'https://github.com/vivekanandkumar001/talentpulse-AI',
+      'https://github.com/vivekanandkumar001/Progeni-Atlas',
       'https://atlas.progeni.live',
     ],
     contactPoint: [

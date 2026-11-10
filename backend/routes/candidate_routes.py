@@ -48,7 +48,9 @@ def get_candidate_dashboard_data():
         user_name = user.get("full_name") or user.get("name") or "Candidate"
         course = user.get("course") or user.get("degree") or "B.Tech"
         branch = user.get("branch") or "Computer Science"
-        year = user.get("academic_year") or "Senior"
+        # Graduates have no academic year; fall back to their education status
+        # (e.g. "Fresher (0 years)") instead of a misleading "Senior".
+        year = user.get("academic_year") or user.get("education_status") or "Senior"
         academic_tag = f"{course} {branch} • {year}"
 
         user_id = str(user.get("id") or user.get("_id"))
@@ -220,8 +222,10 @@ def get_candidate_profile():
             "email": user.get("email") or "",
             "course": user.get("course") or "",
             "branch": user.get("branch") or "",
-            "academicYear": user.get("academic_year") or "",
-            "academic_year": user.get("academic_year") or "",
+            "academicYear": user.get("academic_year") or user.get("education_status") or "",
+            "academic_year": user.get("academic_year") or user.get("education_status") or "",
+            "education_status": user.get("education_status") or "",
+            "years_experience": user.get("years_experience"),
             "collegeName": user.get("college_name") or "",
             "college_name": user.get("college_name") or "",
             "bio": user.get("bio") or "",
@@ -260,6 +264,8 @@ def update_candidate_profile():
             ("course", data.get("course")),
             ("branch", data.get("branch")),
             ("academic_year", data.get("academicYear")),
+            ("education_status", data.get("educationStatus")),
+            ("years_experience", data.get("yearsExperience")),
             ("college_name", data.get("collegeName")),
             ("bio", data.get("bio")),
             ("github_url", data.get("githubUrl")),

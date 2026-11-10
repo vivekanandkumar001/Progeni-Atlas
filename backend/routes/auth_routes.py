@@ -61,7 +61,35 @@ def register():
         # Security Guard: Only candidate and recruiter roles can be publicly registered.
         # Administrative roles (admin, super_admin) must be granted by platform administrators.
         role = requested_role if requested_role in ("candidate", "recruiter") else "candidate"
-        phone = data.get("phone", "").strip()
+        phone = str(data.get("phone") or "").strip()
+
+        def _optional_text(key):
+            value = data.get(key)
+            return value.strip() if isinstance(value, str) and value.strip() else None
+
+        def _optional_number(key):
+            value = data.get(key)
+            if value is None or value == "":
+                return None
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        # Profile fields collected by the signup form. Previously the register
+        # endpoint dropped course/branch/year/company details, so candidates and
+        # recruiters had to re-enter everything after verification.
+        profile_updates = {
+            "course": _optional_text("course"),
+            "branch": _optional_text("branch"),
+            "academic_year": _optional_text("academic_year"),
+            "education_status": _optional_text("education_status"),
+            "years_experience": _optional_number("years_experience"),
+            "headline": _optional_text("headline"),
+            "org_name": _optional_text("org_name"),
+            "designation": _optional_text("designation"),
+            "company_size": _optional_text("company_size"),
+        }
 
         if not email or not password or not full_name:
             return jsonify({"error": "Full name, email, and password are required."}), 400
@@ -88,15 +116,19 @@ def register():
                 # Account was registered previously but NOT verified yet.
                 # Update credentials & info, then proceed to issue a fresh OTP.
                 user_id = str(existing_user.get("id") or existing_user["_id"])
+                update_fields = {
+                    "password_hash": pwd_hash,
+                    "full_name": full_name,
+                    "role": role,
+                    "phone": phone or existing_user.get("phone"),
+                    "updated_at": now_utc,
+                }
+                update_fields.update({
+                    key: value for key, value in profile_updates.items() if value is not None
+                })
                 db.users.update_one(
                     {"_id": existing_user["_id"]},
-                    {"$set": {
-                        "password_hash": pwd_hash,
-                        "full_name": full_name,
-                        "role": role,
-                        "phone": phone or existing_user.get("phone"),
-                        "updated_at": now_utc,
-                    }}
+                    {"$set": update_fields}
                 )
         else:
             # 2. Insert User into MongoDB
@@ -110,6 +142,7 @@ def register():
                 "status": "active",
                 "is_email_verified": False,
                 "phone": phone or None,
+                **profile_updates,
                 "created_at": now_utc,
                 "updated_at": now_utc,
             })

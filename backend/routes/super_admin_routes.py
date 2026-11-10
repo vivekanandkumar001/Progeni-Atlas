@@ -999,6 +999,12 @@ def super_admin_packages():
             pkg_id = f"pkg-{uuid.uuid4().hex[:8]}"
             price_val = float(data.get("price") or data.get("monthlyPrice") or 999)
             target_aud = str(data.get("target_audience") or "organization").lower().strip()
+            raw_feats = data.get("features")
+            features_val = (
+                [str(f).strip() for f in raw_feats if str(f).strip()]
+                if isinstance(raw_feats, list)
+                else []
+            )
             new_pkg = {
                 "id": pkg_id,
                 "package_id": pkg_id,
@@ -1017,6 +1023,9 @@ def super_admin_packages():
                 "included_candidate_seats": int(data.get("included_candidate_seats") or 50),
                 "interview_duration_limit_minutes": int(data.get("interview_duration_limit_minutes") or 30),
                 "notes": (data.get("notes") or "").strip(),
+                "credits": int(float(data.get("credits") or 0)),
+                "popular": bool(data.get("popular", False)),
+                "features": features_val,
                 "tier": data.get("tier") or ("pro" if target_aud == "individual" else "growth"),
                 "version": 1,
                 "status": "published",
@@ -1095,6 +1104,15 @@ def super_admin_package_edit(package_id):
             update_fields["interview_duration_limit_minutes"] = int(data["interview_duration_limit_minutes"])
         if "notes" in data:
             update_fields["notes"] = str(data["notes"]).strip()
+        if "credits" in data:
+            try:
+                update_fields["credits"] = int(float(data.get("credits") or 0))
+            except (TypeError, ValueError):
+                update_fields["credits"] = 0
+        if "popular" in data:
+            update_fields["popular"] = bool(data.get("popular"))
+        if "features" in data and isinstance(data.get("features"), list):
+            update_fields["features"] = [str(f).strip() for f in data["features"] if str(f).strip()]
         if "status" in data:
             st = str(data["status"]).lower().strip()
             update_fields["status"] = st

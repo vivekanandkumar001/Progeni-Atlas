@@ -19,7 +19,6 @@ import {
   ArrowRight,
   ArrowLeft,
   Loader2,
-  Phone,
   GraduationCap,
   BookOpen,
   Calendar,
@@ -27,6 +26,7 @@ import {
   Briefcase,
   Users,
   Check,
+  ChevronDown,
 } from 'lucide-react';
 import {
   RegisterValidationSchema,
@@ -34,7 +34,18 @@ import {
   RecruiterRegisterSchema,
   RecruiterFormData,
   getCourseYears,
+  EXPERIENCE_STATUS_OPTIONS,
+  isAcademicYearValue,
+  withCrossFieldChecks,
 } from '@/lib/validations/register';
+import {
+  PHONE_COUNTRIES,
+  DEFAULT_PHONE_COUNTRY,
+  getPhoneCountry,
+  normalizeNationalNumber,
+  toBackendPhone,
+} from '@/lib/validations/phone';
+import { savePendingResume } from '@/lib/pending-resume';
 import { Navbar } from '@/components/Navbar';
 import { useCandidateProfileData } from '@/lib/hooks/useCandidateProfileData';
 import { AuthCard, buttonClass, inputClass } from '@/components/ui';
@@ -44,16 +55,25 @@ import { AuthCard, buttonClass, inputClass } from '@/components/ui';
 const sanitizeName = (val: string) =>
   val.replace(/^\s+/, '').replace(/\s+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 const sanitizeEmail = (val: string) => val.replace(/\s/g, '').toLowerCase();
-const sanitizePhone = (val: string) => val.replace(/\D/g, '').slice(0, 10);
+const sanitizePhone = (val: string, maxLength?: number) => {
+  const digits = normalizeNationalNumber(val);
+  return typeof maxLength === 'number' ? digits.slice(0, maxLength) : digits;
+};
 
 const getPasswordStrength = (pass: string) => {
-  if (!pass) return { score: 0, label: '', color: '' };
+  if (!pass) return null;
+
   let score = 0;
   if (pass.length >= 8) score += 1;
   if (/[A-Z]/.test(pass) && /[a-z]/.test(pass) && /[0-9]/.test(pass)) score += 1;
-  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pass)) score += 1;
+  if (pass.length >= 10 && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pass)) score += 1;
 
-  if (score === 1) return { score: 1, label: 'Weak', color: 'bg-red-500' };
+  // Anything short of a real 8-character password is weak, even if it happens
+  // to contain a symbol. The old version could label a 4-character password
+  // "Strong" because no check matched.
+  if (pass.length < 8 || score <= 1) {
+    return { score: 1, label: 'Weak', color: 'bg-red-500' };
+  }
   if (score === 2) return { score: 2, label: 'Medium', color: 'bg-yellow-500' };
   return { score: 3, label: 'Strong', color: 'bg-[#10b981]' };
 };
@@ -67,13 +87,19 @@ interface FormLabelProps {
   label: string;
   required?: boolean;
   icon?: React.ReactNode;
+  htmlFor?: string;
+  hint?: string;
 }
 
-export const FormLabel = ({ label, required = true, icon }: FormLabelProps) => (
-  <label className="inline-flex items-center gap-1.5 text-sm font-medium text-ink mb-1.5">
+export const FormLabel = ({ label, required = true, icon, htmlFor, hint }: FormLabelProps) => (
+  <label
+    htmlFor={htmlFor}
+    className="inline-flex flex-wrap items-center gap-1.5 text-sm font-medium text-ink mb-1.5"
+  >
     {icon && <span className="text-accent-cyan shrink-0">{icon}</span>}
     <span>{label}</span>
-    {required && <span className="text-accent-rose font-bold">*</span>}
+    {required && <span className="text-accent-rose font-bold" aria-hidden="true">*</span>}
+    {hint && <span className="text-[11px] font-normal text-ink-muted">({hint})</span>}
   </label>
 );
 
@@ -83,44 +109,93 @@ interface FormFieldProps {
   icon?: React.ReactNode;
   error?: string;
   isSubmitted?: boolean;
+  htmlFor?: string;
+  hint?: string;
   children: React.ReactNode;
 }
 
-const FormField = ({ label, required = true, icon, error, isSubmitted, children }: FormFieldProps) => (
+const FormField = ({ label, required = true, icon, error, isSubmitted, htmlFor, hint, children }: FormFieldProps) => (
   <div>
-    <FormLabel label={label} required={required} icon={icon} />
+    <FormLabel label={label} required={required} icon={icon} htmlFor={htmlFor} hint={hint} />
     {children}
     {isSubmitted && error && (
-      <p className="text-xs text-accent-rose mt-1 block leading-tight animate-fadeIn">{error}</p>
+      <p id={htmlFor ? `${htmlFor}-error` : undefined} role="alert" className="text-xs text-accent-rose mt-0.5 block leading-tight animate-fadeIn">
+        {error}
+      </p>
     )}
   </div>
 );
 
 interface PhoneFieldProps {
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (value: string) => void;
+  country: string;
+  onCountryChange: (iso: string) => void;
   error?: string;
   isSubmitted?: boolean;
   isRecruiter?: boolean;
 }
 
-const PhoneField = ({ value, onChange, error, isSubmitted, isRecruiter = false }: PhoneFieldProps) => {
+const PhoneField = ({
+  value,
+  onChange,
+  country,
+  onCountryChange,
+  error,
+  isSubmitted,
+  isRecruiter = false,
+}: PhoneFieldProps) => {
+  const selected = getPhoneCountry(country);
   const accent = isRecruiter ? 'text-accent-indigo' : 'text-accent-cyan';
+  const inputId = isRecruiter ? 'recruiter-phone' : 'candidate-phone';
+  const hasError = Boolean(isSubmitted && error);
+
   return (
-    <FormField label="Phone Number" required error={error} isSubmitted={isSubmitted}>
-      <div className="relative flex items-center">
-        <span className={`px-3 py-2.5 bg-surface border border-r-0 border-line rounded-l-lg text-xs font-mono font-semibold ${accent} flex items-center space-x-1`}>
-          <Phone className={`w-3 h-3 mr-1 ${accent}`} />
-          +91
-        </span>
-        <input
-          value={value}
-          onChange={onChange}
-          type="tel"
-          maxLength={10}
-          placeholder="Please enter 10-digit mobile number"
-          className={`${getInputClasses(Boolean(isSubmitted && error), isRecruiter)} rounded-l-none rounded-r-lg`}
-        />
+    <FormField
+      label="Mobile Number"
+      required
+      error={error}
+      isSubmitted={isSubmitted}
+      htmlFor={inputId}
+      hint={`${selected.name} · ${selected.nationalLength ?? '6-15'} digits`}
+    >
+      <div className="flex items-stretch">
+        <div className="relative shrink-0">
+          <select
+            aria-label="Country calling code"
+            value={selected.iso}
+            onChange={(e) => onCountryChange(e.target.value)}
+            className={`h-full appearance-none rounded-l-lg border border-r-0 border-line bg-surface py-2.5 pl-2.5 pr-6 text-xs font-mono font-semibold text-ink cursor-pointer focus:outline-none ${isRecruiter ? 'focus:border-accent-indigo' : 'focus:border-accent-cyan'}`}
+          >
+            {PHONE_COUNTRIES.map((option) => (
+              <option key={option.iso} value={option.iso} title={option.name}>
+                {option.flag} {option.dial}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            aria-hidden="true"
+            className={`pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${accent}`}
+          />
+        </div>
+        <div className="relative min-w-0 flex-1">
+          <input
+            id={inputId}
+            name="phone"
+            value={value}
+            onChange={(e) =>
+              onChange(sanitizePhone(e.target.value, selected.nationalLength ?? 15))
+            }
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel-national"
+            maxLength={selected.nationalLength ?? 15}
+            placeholder={selected.example}
+            aria-invalid={hasError}
+            aria-describedby={hasError && error ? `${inputId}-error` : undefined}
+            className={`${getInputClasses(hasError, isRecruiter)} rounded-l-none rounded-r-lg`}
+          />
+        </div>
       </div>
     </FormField>
   );
@@ -138,6 +213,7 @@ interface PasswordFieldProps {
   passwordValue?: string;
   confirmPasswordValue?: string;
   isConfirm?: boolean;
+  fieldId: string;
 }
 
 const PasswordField = ({
@@ -152,6 +228,7 @@ const PasswordField = ({
   passwordValue = '',
   confirmPasswordValue = '',
   isConfirm = false,
+  fieldId,
 }: PasswordFieldProps) => {
   const hasError = Boolean(isSubmitted && error);
   const strength = !isConfirm && passwordValue ? getPasswordStrength(passwordValue) : null;
@@ -159,12 +236,18 @@ const PasswordField = ({
   const passwordsMismatch = isConfirm && confirmPasswordValue.length > 0 && passwordValue !== confirmPasswordValue;
 
   return (
-    <FormField label={label} required error={error} isSubmitted={isSubmitted}>
+    <FormField label={label} required error={error} isSubmitted={isSubmitted} htmlFor={fieldId}>
       <div className="relative">
         <input
           {...registration}
+          id={fieldId}
           type={showPassword ? 'text' : 'password'}
           placeholder={placeholder}
+          autoComplete="new-password"
+          autoCapitalize="none"
+          spellCheck={false}
+          aria-invalid={hasError}
+          aria-describedby={hasError && error ? `${fieldId}-error` : undefined}
           className={`${getInputClasses(hasError, isRecruiter)} pr-10`}
         />
         <button
@@ -187,13 +270,13 @@ const PasswordField = ({
       </div>
 
       {strength && (
-        <div className="mt-2 space-y-1">
-          <div className="flex space-x-1.5 h-1">
+        <div className="mt-1.5 flex items-center gap-2">
+          <div className="flex space-x-1.5 h-1 flex-1">
             <div className={`h-full flex-1 rounded ${strength.score >= 1 ? strength.color : 'bg-surface-2'}`} />
             <div className={`h-full flex-1 rounded ${strength.score >= 2 ? strength.color : 'bg-surface-2'}`} />
             <div className={`h-full flex-1 rounded ${strength.score >= 3 ? strength.color : 'bg-surface-2'}`} />
           </div>
-          <span className="text-[11px] font-mono text-ink-muted block">
+          <span className="text-[10px] font-mono text-ink-muted shrink-0">
             Strength: <span className="font-semibold text-ink">{strength.label}</span>
           </span>
         </div>
@@ -226,6 +309,7 @@ interface PasswordPairProps {
   showConfirmPass: boolean;
   setShowConfirmPass: React.Dispatch<React.SetStateAction<boolean>>;
   isRecruiter?: boolean;
+  idPrefix: string;
 }
 
 const PasswordGroup = ({
@@ -239,6 +323,7 @@ const PasswordGroup = ({
   showConfirmPass,
   setShowConfirmPass,
   isRecruiter = false,
+  idPrefix,
 }: PasswordPairProps) => (
   <>
     <PasswordField
@@ -251,6 +336,7 @@ const PasswordGroup = ({
       registration={register('password')}
       passwordValue={passwordValue}
       isRecruiter={isRecruiter}
+      fieldId={`${idPrefix}-password`}
     />
     <PasswordField
       label="Confirm Password"
@@ -264,6 +350,7 @@ const PasswordGroup = ({
       confirmPasswordValue={confirmPasswordValue}
       isConfirm
       isRecruiter={isRecruiter}
+      fieldId={`${idPrefix}-confirm-password`}
     />
   </>
 );
@@ -307,11 +394,11 @@ interface SubmitSectionProps {
   error?: string;
   isSubmitted: boolean;
   termsText: string;
-  isFilled: boolean;
   isSubmitting: boolean;
   loadingText: string;
   submitText: string;
   isRecruiter?: boolean;
+  idPrefix: string;
 }
 
 const SubmitSection = ({
@@ -319,17 +406,20 @@ const SubmitSection = ({
   error,
   isSubmitted,
   termsText,
-  isFilled,
   isSubmitting,
   loadingText,
   submitText,
   isRecruiter = false,
+  idPrefix,
 }: SubmitSectionProps) => (
-  <div className="md:col-span-2 space-y-4 pt-2">
-    <label className="flex items-start space-x-2 cursor-pointer">
+  <div className="md:col-span-2 space-y-3 pt-2">
+    <label htmlFor={`${idPrefix}-terms`} className="flex items-start space-x-2 cursor-pointer">
       <input
         {...register('agreeTerms')}
+        id={`${idPrefix}-terms`}
         type="checkbox"
+        aria-invalid={Boolean(isSubmitted && error)}
+        aria-describedby={isSubmitted && error ? `${idPrefix}-terms-error` : undefined}
         className={`mt-1 rounded bg-inset border-line ${isRecruiter ? 'text-indigo-500' : 'text-accent-cyan'} focus:ring-0`}
       />
       <span className="text-xs text-ink-muted leading-normal font-normal">
@@ -337,17 +427,15 @@ const SubmitSection = ({
       </span>
     </label>
     {isSubmitted && error && (
-      <p className="text-xs text-accent-rose mt-1 block animate-fadeIn">{error}</p>
+      <p id={`${idPrefix}-terms-error`} role="alert" className="text-xs text-accent-rose mt-0.5 block animate-fadeIn">
+        {error}
+      </p>
     )}
 
     <button
       type="submit"
-      disabled={!isFilled || isSubmitting}
-      className={
-        isFilled
-          ? buttonClass('primary', 'lg', 'pill', 'w-full')
-          : buttonClass('secondary', 'lg', 'pill', 'w-full cursor-not-allowed opacity-50 pointer-events-none')
-      }
+      disabled={isSubmitting}
+      className={buttonClass('primary', 'lg', 'pill', 'w-full disabled:cursor-not-allowed disabled:opacity-60')}
     >
       {isSubmitting ? (
         <>
@@ -411,6 +499,7 @@ export default function RegisterPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [parsedSkills, setParsedSkills] = useState<string[]>([]);
+  const [resumeError, setResumeError] = useState<string>('');
   const [isDragOver, setIsDragOver] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [globalErrorMsg, setGlobalErrorMsg] = useState<string>('');
@@ -465,9 +554,13 @@ export default function RegisterPage() {
 
   // Forms
   const candidateForm = useForm<RegisterFormData>({
-    resolver: zodResolver(RegisterValidationSchema),
+    resolver: withCrossFieldChecks(zodResolver(RegisterValidationSchema)),
     mode: 'onSubmit',
     reValidateMode: 'onChange',
+    // focusFirstError() below handles focus; RHF's own focus only knows about
+    // fields wired through register(), so it would jump to the password input
+    // and override the first (name/email) field.
+    shouldFocusError: false,
     defaultValues: {
       fullName: profile?.fullName || '',
       course: profile?.course || 'B.Tech',
@@ -475,6 +568,7 @@ export default function RegisterPage() {
       year: profile?.academicYear || '1st Year',
       email: profile?.email || '',
       phone: profile?.phone || '',
+      phoneCountry: DEFAULT_PHONE_COUNTRY,
       password: '',
       confirmPassword: '',
       agreeTerms: false,
@@ -482,9 +576,10 @@ export default function RegisterPage() {
   });
 
   const recruiterForm = useForm<RecruiterFormData>({
-    resolver: zodResolver(RecruiterRegisterSchema),
+    resolver: withCrossFieldChecks(zodResolver(RecruiterRegisterSchema)),
     mode: 'onSubmit',
     reValidateMode: 'onChange',
+    shouldFocusError: false,
     defaultValues: {
       fullName: profile?.fullName || '',
       workEmail: profile?.email || '',
@@ -492,6 +587,7 @@ export default function RegisterPage() {
       designation: '',
       teamSize: '11-50 Employees',
       phone: profile?.phone || '',
+      phoneCountry: DEFAULT_PHONE_COUNTRY,
       password: '',
       confirmPassword: '',
       agreeTerms: false,
@@ -501,37 +597,78 @@ export default function RegisterPage() {
   const candVals = candidateForm.watch();
   const recVals = recruiterForm.watch();
 
-  const isCandidateFilled = Boolean(
-    candVals.fullName?.trim() &&
-    candVals.email?.trim() &&
-    candVals.course &&
-    candVals.branch &&
-    candVals.year &&
-    candVals.phone?.trim() &&
-    candVals.password &&
-    candVals.confirmPassword &&
-    candVals.resume &&
-    candVals.agreeTerms === true
-  );
+  const candidateCourse = candVals.course || 'B.Tech';
+  const availableYears = getCourseYears(candidateCourse);
+  const selectedEducationStatus = candVals.year || '';
 
-  const isRecruiterFilled = Boolean(
-    recVals.fullName?.trim() &&
-    recVals.workEmail?.trim() &&
-    recVals.companyName?.trim() &&
-    recVals.designation?.trim() &&
-    recVals.teamSize &&
-    recVals.phone?.trim() &&
-    recVals.password &&
-    recVals.confirmPassword &&
-    recVals.agreeTerms === true
-  );
+  // Focuses the first field that fails validation so the user is never left
+  // staring at a dead submit button with an error off-screen.
+  const focusFirstError = (errors: Record<string, unknown>) => {
+    const order = [
+      'fullName',
+      'email',
+      'workEmail',
+      'companyName',
+      'designation',
+      'course',
+      'branch',
+      'year',
+      'teamSize',
+      'phone',
+      'password',
+      'confirmPassword',
+      'resume',
+      'agreeTerms',
+    ];
+    const firstKey = order.find((key) => Boolean(errors[key])) ?? Object.keys(errors)[0];
+    if (!firstKey) return;
 
-  const availableYears = getCourseYears(candVals.course || 'B.Tech');
+    const idByField: Record<string, string> = {
+      fullName: 'candidate-full-name',
+      email: 'candidate-email',
+      workEmail: 'recruiter-work-email',
+      companyName: 'recruiter-company',
+      designation: 'recruiter-designation',
+      course: 'candidate-course',
+      branch: 'candidate-branch',
+      year: 'candidate-education-status',
+      teamSize: 'recruiter-team-size',
+      phone: selectedRole === 'recruiter' ? 'recruiter-phone' : 'candidate-phone',
+      password: selectedRole === 'recruiter' ? 'recruiter-password' : 'candidate-password',
+      confirmPassword:
+        selectedRole === 'recruiter'
+          ? 'recruiter-confirm-password'
+          : 'candidate-confirm-password',
+      resume: 'candidate-resume',
+      agreeTerms:
+        selectedRole === 'recruiter' ? 'recruiter-terms' : 'candidate-terms',
+    };
+    const element = document.getElementById(idByField[firstKey] ?? firstKey);
+    element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    (element as HTMLElement | null)?.focus({ preventScroll: true });
+  };
 
   // File handlers
   const parseSelectedResume = async (file: File) => {
+    setResumeError('');
+
+    if (!/\.(pdf|docx)$/i.test(file.name)) {
+      setResumeError('Only PDF and DOCX resumes are supported.');
+      return;
+    }
+    if (file.size === 0) {
+      setResumeError('That resume file is empty. Please choose another file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setResumeError('Resume must be 5MB or smaller.');
+      return;
+    }
+
     setSelectedFile(file);
-    candidateForm.setValue('resume', file);
+    // Revalidate like the other fields, otherwise a previously shown
+    // "Please upload your resume" error stays on screen after the fix.
+    candidateForm.setValue('resume', file, { shouldValidate: candidateForm.formState.isSubmitted });
     setIsParsingResume(true);
     setParsedSkills([]);
     try {
@@ -571,7 +708,10 @@ export default function RegisterPage() {
   const removeFile = () => {
     setSelectedFile(null);
     setParsedSkills([]);
-    candidateForm.setValue('resume', undefined as any);
+    setResumeError('');
+    candidateForm.setValue('resume', undefined as any, { shouldValidate: candidateForm.formState.isSubmitted });
+    const input = document.getElementById('candidate-resume') as HTMLInputElement | null;
+    if (input) input.value = '';
   };
 
   // Submit Helper
@@ -603,23 +743,19 @@ export default function RegisterPage() {
         throw new Error(typeof errorDetail === 'string' ? errorDetail : 'Registration failed.');
       }
 
-      // Synchronize candidate resume to active MongoDB account
-      if (resumeFile && payload.email) {
-        try {
-          const rData = new FormData();
-          rData.append('file', resumeFile);
-          rData.append('email', String(payload.email));
-          await apiFetch('/api/candidate/resume', {
-            method: 'POST',
-            body: rData,
-          });
-        } catch (uploadErr) {
-          console.warn('[Register] Resume sync notice:', uploadErr);
-        }
-      }
-
       const otpUrl = typeof result?.redirectUrl === 'string' ? result.redirectUrl : null;
       if (otpUrl) {
+        // The resume endpoint requires an authenticated session, which only
+        // exists after OTP verification. Keep the File in IndexedDB and attach
+        // it on the verify-otp page once the account is confirmed.
+        if (resumeFile && payload.email) {
+          try {
+            await savePendingResume(String(payload.email), resumeFile);
+          } catch (storageErr) {
+            console.warn('[Register] Could not stash the resume for later upload:', storageErr);
+          }
+        }
+
         if (typeof window !== 'undefined') {
           window.location.assign(otpUrl);
         } else {
@@ -630,6 +766,16 @@ export default function RegisterPage() {
 
       if (result?.access_token) {
         persistSession(result.access_token, result.refresh_token, result.user || {});
+
+        if (resumeFile) {
+          try {
+            const rData = new FormData();
+            rData.append('file', resumeFile);
+            await apiFetch('/api/candidate/resume', { method: 'POST', body: rData });
+          } catch (uploadErr) {
+            console.warn('[Register] Resume sync notice:', uploadErr);
+          }
+        }
       }
 
       router.push(successPath);
@@ -640,24 +786,37 @@ export default function RegisterPage() {
     }
   };
 
-  const onSubmitCandidate = (data: RegisterFormData) =>
-    handleAuthSubmit(
+  const onSubmitCandidate = (data: RegisterFormData) => {
+    const isStudent = isAcademicYearValue(data.course, data.year);
+    const yearsExperience = data.year === 'Fresher (0 years)'
+      ? 0
+      : data.year === '1-2 Years Experience'
+        ? 1
+        : data.year === '2+ Years Experience'
+          ? 2
+          : null;
+
+    return handleAuthSubmit(
       {
         full_name: data.fullName,
         fullName: data.fullName,
         email: data.email.trim().toLowerCase(),
         password: data.password,
         role: 'candidate',
-        phone: data.phone || null,
+        phone: toBackendPhone(data.phoneCountry, data.phone) || null,
+        phone_country: data.phoneCountry,
         course: data.course || null,
         branch: data.branch || null,
-        academic_year: data.year || null,
+        academic_year: isStudent ? data.year : null,
+        education_status: data.year || null,
+        years_experience: yearsExperience,
         year: data.year || null,
         headline: `${data.course || 'B.Tech'} • ${data.branch || 'Engineering'} (${data.year || 'Student'})`,
       },
       '/candidate/dashboard',
       selectedFile
     );
+  };
 
   const onSubmitRecruiter = (data: RecruiterFormData) =>
     handleAuthSubmit(
@@ -673,7 +832,8 @@ export default function RegisterPage() {
         designation: data.designation,
         teamSize: data.teamSize,
         company_size: data.teamSize,
-        phone: data.phone || null,
+        phone: toBackendPhone(data.phoneCountry, data.phone) || null,
+        phone_country: data.phoneCountry,
         headline: `${data.designation || 'Recruiter'} at ${data.companyName}`,
       },
       '/recruiter/dashboard'
@@ -783,7 +943,7 @@ export default function RegisterPage() {
                       <form
                         action="#"
                         method="POST"
-                        onSubmit={candidateForm.handleSubmit(onSubmitCandidate)}
+                        onSubmit={candidateForm.handleSubmit(onSubmitCandidate, (errors) => focusFirstError(errors as Record<string, unknown>))}
                         className="space-y-4"
                         noValidate
                       >
@@ -793,12 +953,19 @@ export default function RegisterPage() {
                             label="Full Name"
                             error={candidateForm.formState.errors.fullName?.message}
                             isSubmitted={candidateForm.formState.isSubmitted}
+                            htmlFor="candidate-full-name"
                           >
                             <input
+                              id="candidate-full-name"
+                              name="fullName"
                               value={candVals.fullName || ''}
-                              onChange={(e) => candidateForm.setValue('fullName', sanitizeName(e.target.value))}
+                              onChange={(e) => candidateForm.setValue('fullName', sanitizeName(e.target.value), { shouldValidate: candidateForm.formState.isSubmitted })}
                               type="text"
+                              autoComplete="name"
+                              autoCapitalize="words"
                               placeholder="Please enter your full name"
+                              aria-invalid={Boolean(candidateForm.formState.isSubmitted && candidateForm.formState.errors.fullName)}
+                              aria-describedby={candidateForm.formState.isSubmitted && candidateForm.formState.errors.fullName ? 'candidate-full-name-error' : undefined}
                               className={getInputClasses(Boolean(candidateForm.formState.isSubmitted && candidateForm.formState.errors.fullName))}
                             />
                           </FormField>
@@ -808,12 +975,21 @@ export default function RegisterPage() {
                             label="Email Address"
                             error={candidateForm.formState.errors.email?.message}
                             isSubmitted={candidateForm.formState.isSubmitted}
+                            htmlFor="candidate-email"
                           >
                             <input
+                              id="candidate-email"
+                              name="email"
                               value={candVals.email || ''}
-                              onChange={(e) => candidateForm.setValue('email', sanitizeEmail(e.target.value))}
+                              onChange={(e) => candidateForm.setValue('email', sanitizeEmail(e.target.value), { shouldValidate: candidateForm.formState.isSubmitted })}
                               type="email"
+                              inputMode="email"
+                              autoComplete="email"
+                              autoCapitalize="none"
+                              spellCheck={false}
                               placeholder="Please enter your email address"
+                              aria-invalid={Boolean(candidateForm.formState.isSubmitted && candidateForm.formState.errors.email)}
+                              aria-describedby={candidateForm.formState.isSubmitted && candidateForm.formState.errors.email ? 'candidate-email-error' : undefined}
                               className={getInputClasses(Boolean(candidateForm.formState.isSubmitted && candidateForm.formState.errors.email))}
                             />
                           </FormField>
@@ -824,15 +1000,20 @@ export default function RegisterPage() {
                             icon={<GraduationCap className="w-4 h-4 text-accent-cyan" />}
                             error={candidateForm.formState.errors.course?.message}
                             isSubmitted={candidateForm.formState.isSubmitted}
+                            htmlFor="candidate-course"
                           >
                             <select
-                              value={candVals.course || 'B.Tech'}
+                              id="candidate-course"
+                              name="course"
+                              value={candidateCourse}
                               onChange={(e) => {
                                 const newCourse = e.target.value;
-                                candidateForm.setValue('course', newCourse);
+                                candidateForm.setValue('course', newCourse, { shouldValidate: candidateForm.formState.isSubmitted });
                                 const newYears = getCourseYears(newCourse);
-                                if (!newYears.includes(candVals.year || '')) {
-                                  candidateForm.setValue('year', newYears[0]);
+                                // Only reset when the current value is a study year
+                                // that no longer exists in the newly selected course.
+                                if (isAcademicYearValue(candidateCourse, selectedEducationStatus) && !newYears.includes(selectedEducationStatus)) {
+                                  candidateForm.setValue('year', newYears[0], { shouldValidate: candidateForm.formState.isSubmitted });
                                 }
                               }}
                               className={getInputClasses(Boolean(candidateForm.formState.isSubmitted && candidateForm.formState.errors.course))}
@@ -849,10 +1030,13 @@ export default function RegisterPage() {
                             icon={<BookOpen className="w-4 h-4 text-accent-emerald" />}
                             error={candidateForm.formState.errors.branch?.message}
                             isSubmitted={candidateForm.formState.isSubmitted}
+                            htmlFor="candidate-branch"
                           >
                             <select
+                              id="candidate-branch"
+                              name="branch"
                               value={candVals.branch}
-                              onChange={(e) => candidateForm.setValue('branch', e.target.value)}
+                              onChange={(e) => candidateForm.setValue('branch', e.target.value, { shouldValidate: candidateForm.formState.isSubmitted })}
                               className={getInputClasses(Boolean(candidateForm.formState.isSubmitted && candidateForm.formState.errors.branch))}
                             >
                               {BRANCH_OPTIONS.map((opt) => (
@@ -861,28 +1045,48 @@ export default function RegisterPage() {
                             </select>
                           </FormField>
 
-                          {/* Academic Year */}
+                          {/* Education / Experience status */}
                           <FormField
-                            label="Academic Year"
+                            label="Education / Experience"
                             icon={<Calendar className="w-4 h-4 text-accent-cyan" />}
                             error={candidateForm.formState.errors.year?.message}
                             isSubmitted={candidateForm.formState.isSubmitted}
+                            htmlFor="candidate-education-status"
                           >
                             <select
-                              value={candVals.year || '1st Year'}
-                              onChange={(e) => candidateForm.setValue('year', e.target.value)}
+                              id="candidate-education-status"
+                              name="year"
+                              value={selectedEducationStatus || availableYears[0]}
+                              onChange={(e) => candidateForm.setValue('year', e.target.value, { shouldValidate: candidateForm.formState.isSubmitted })}
                               className={getInputClasses(Boolean(candidateForm.formState.isSubmitted && candidateForm.formState.errors.year))}
                             >
-                              {availableYears.map((opt) => (
-                                <option key={opt} value={opt}>{opt}</option>
-                              ))}
+                              <optgroup label="Currently studying">
+                                {availableYears.map((opt) => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </optgroup>
+                              <optgroup label="Graduated / Experience">
+                                {EXPERIENCE_STATUS_OPTIONS.map((opt) => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </optgroup>
                             </select>
                           </FormField>
 
                           {/* Phone */}
                           <PhoneField
                             value={candVals.phone || ''}
-                            onChange={(e) => candidateForm.setValue('phone', sanitizePhone(e.target.value))}
+                            onChange={(value) => candidateForm.setValue('phone', value, { shouldValidate: candidateForm.formState.isSubmitted })}
+                            country={candVals.phoneCountry || DEFAULT_PHONE_COUNTRY}
+                            onCountryChange={(iso) => {
+                              const nextCountry = getPhoneCountry(iso);
+                              candidateForm.setValue('phoneCountry', iso);
+                              candidateForm.setValue(
+                                'phone',
+                                sanitizePhone(candVals.phone || '', nextCountry.nationalLength ?? 15),
+                                { shouldValidate: candidateForm.formState.isSubmitted }
+                              );
+                            }}
                             error={candidateForm.formState.errors.phone?.message}
                             isSubmitted={candidateForm.formState.isSubmitted}
                           />
@@ -898,11 +1102,17 @@ export default function RegisterPage() {
                             setShowPass={setShowPass}
                             showConfirmPass={showConfirmPass}
                             setShowConfirmPass={setShowConfirmPass}
+                            idPrefix="candidate"
                           />
 
                           {/* Resume Upload */}
                           <div className="md:col-span-2">
-                            <FormLabel label="Upload Resume (PDF / DOCX - Max 5MB)" required />
+                            <FormLabel
+                              label="Upload Resume"
+                              hint="PDF / DOCX · max 5MB"
+                              htmlFor="candidate-resume"
+                              required
+                            />
                             {selectedFile ? (
                               <div className="space-y-2">
                                 <div className="flex items-center justify-between p-3 rounded-lg bg-inset border border-[#38bdf8]/50 text-xs shadow-[0_0_10px_rgba(56,189,248,0.2)]">
@@ -959,11 +1169,12 @@ export default function RegisterPage() {
                               </div>
                             ) : (
                               <label
+                                htmlFor="candidate-resume"
                                 onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
                                 onDragLeave={() => setIsDragOver(false)}
                                 onDrop={handleFileDrop}
                                 className={`flex flex-col items-center justify-center p-4 rounded-lg bg-inset border-2 border-dashed transition-all cursor-pointer text-center ${
-                                  candidateForm.formState.isSubmitted && candidateForm.formState.errors.resume
+                                  (candidateForm.formState.isSubmitted && candidateForm.formState.errors.resume) || resumeError
                                     ? 'border-rose-500/80 bg-rose-950/10'
                                     : isDragOver
                                     ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_18px_rgba(34,211,238,0.4)]'
@@ -975,11 +1186,23 @@ export default function RegisterPage() {
                                 <span className="text-[10px] text-ink-muted mt-1">
                                   Your resume helps our AI ask relevant questions based on your actual projects and coursework.
                                 </span>
-                                <input type="file" accept=".pdf,.docx,.doc" onChange={handleFileChange} className="hidden" />
+                                <input
+                                  id="candidate-resume"
+                                  name="resume"
+                                  type="file"
+                                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                  onChange={handleFileChange}
+                                  className="sr-only"
+                                />
                               </label>
                             )}
-                            {candidateForm.formState.isSubmitted && candidateForm.formState.errors.resume && (
-                              <p className="text-xs text-accent-rose mt-1 block font-semibold animate-fadeIn">
+                            {resumeError && (
+                              <p role="alert" className="text-xs text-accent-rose mt-1 block font-semibold animate-fadeIn">
+                                {resumeError}
+                              </p>
+                            )}
+                            {!resumeError && candidateForm.formState.isSubmitted && candidateForm.formState.errors.resume && (
+                              <p role="alert" className="text-xs text-accent-rose mt-1 block font-semibold animate-fadeIn">
                                 {candidateForm.formState.errors.resume.message as string}
                               </p>
                             )}
@@ -991,10 +1214,10 @@ export default function RegisterPage() {
                             error={candidateForm.formState.errors.agreeTerms?.message}
                             isSubmitted={candidateForm.formState.isSubmitted}
                             termsText="I agree to the Candidate Terms of Service and Privacy Policy."
-                            isFilled={isCandidateFilled}
                             isSubmitting={isSubmitting}
                             loadingText="Creating profile..."
                             submitText="Complete Registration & Launch Interview →"
+                            idPrefix="candidate"
                           />
                         </div>
                       </form>
@@ -1021,7 +1244,7 @@ export default function RegisterPage() {
                       <form
                         action="#"
                         method="POST"
-                        onSubmit={recruiterForm.handleSubmit(onSubmitRecruiter)}
+                        onSubmit={recruiterForm.handleSubmit(onSubmitRecruiter, (errors) => focusFirstError(errors as Record<string, unknown>))}
                         className="space-y-4"
                         noValidate
                       >
@@ -1031,12 +1254,19 @@ export default function RegisterPage() {
                             label="Full Name"
                             error={recruiterForm.formState.errors.fullName?.message}
                             isSubmitted={recruiterForm.formState.isSubmitted}
+                            htmlFor="recruiter-full-name"
                           >
                             <input
+                              id="recruiter-full-name"
+                              name="fullName"
                               value={recVals.fullName || ''}
-                              onChange={(e) => recruiterForm.setValue('fullName', sanitizeName(e.target.value))}
+                              onChange={(e) => recruiterForm.setValue('fullName', sanitizeName(e.target.value), { shouldValidate: recruiterForm.formState.isSubmitted })}
                               type="text"
+                              autoComplete="name"
+                              autoCapitalize="words"
                               placeholder="Please enter your full name"
+                              aria-invalid={Boolean(recruiterForm.formState.isSubmitted && recruiterForm.formState.errors.fullName)}
+                              aria-describedby={recruiterForm.formState.isSubmitted && recruiterForm.formState.errors.fullName ? 'recruiter-full-name-error' : undefined}
                               className={getInputClasses(Boolean(recruiterForm.formState.isSubmitted && recruiterForm.formState.errors.fullName), true)}
                             />
                           </FormField>
@@ -1046,12 +1276,21 @@ export default function RegisterPage() {
                             label="Work Email Address"
                             error={recruiterForm.formState.errors.workEmail?.message}
                             isSubmitted={recruiterForm.formState.isSubmitted}
+                            htmlFor="recruiter-work-email"
                           >
                             <input
+                              id="recruiter-work-email"
+                              name="workEmail"
                               value={recVals.workEmail || ''}
-                              onChange={(e) => recruiterForm.setValue('workEmail', sanitizeEmail(e.target.value))}
+                              onChange={(e) => recruiterForm.setValue('workEmail', sanitizeEmail(e.target.value), { shouldValidate: recruiterForm.formState.isSubmitted })}
                               type="email"
+                              inputMode="email"
+                              autoComplete="email"
+                              autoCapitalize="none"
+                              spellCheck={false}
                               placeholder="Please enter your work email address"
+                              aria-invalid={Boolean(recruiterForm.formState.isSubmitted && recruiterForm.formState.errors.workEmail)}
+                              aria-describedby={recruiterForm.formState.isSubmitted && recruiterForm.formState.errors.workEmail ? 'recruiter-work-email-error' : undefined}
                               className={getInputClasses(Boolean(recruiterForm.formState.isSubmitted && recruiterForm.formState.errors.workEmail), true)}
                             />
                           </FormField>
@@ -1062,10 +1301,13 @@ export default function RegisterPage() {
                             icon={<Building2 className="w-4 h-4 text-accent-indigo" />}
                             error={recruiterForm.formState.errors.companyName?.message}
                             isSubmitted={recruiterForm.formState.isSubmitted}
+                            htmlFor="recruiter-company"
                           >
                             <input
                               {...recruiterForm.register('companyName')}
+                              id="recruiter-company"
                               type="text"
+                              autoComplete="organization"
                               placeholder="Please enter your company name"
                               className={getInputClasses(Boolean(recruiterForm.formState.isSubmitted && recruiterForm.formState.errors.companyName), true)}
                             />
@@ -1077,10 +1319,13 @@ export default function RegisterPage() {
                             icon={<Briefcase className="w-4 h-4 text-accent-indigo" />}
                             error={recruiterForm.formState.errors.designation?.message}
                             isSubmitted={recruiterForm.formState.isSubmitted}
+                            htmlFor="recruiter-designation"
                           >
                             <input
                               {...recruiterForm.register('designation')}
+                              id="recruiter-designation"
                               type="text"
+                              autoComplete="organization-title"
                               placeholder="Please enter your job title"
                               className={getInputClasses(Boolean(recruiterForm.formState.isSubmitted && recruiterForm.formState.errors.designation), true)}
                             />
@@ -1092,10 +1337,13 @@ export default function RegisterPage() {
                             icon={<Users className="w-4 h-4 text-accent-indigo" />}
                             error={recruiterForm.formState.errors.teamSize?.message}
                             isSubmitted={recruiterForm.formState.isSubmitted}
+                            htmlFor="recruiter-team-size"
                           >
                             <select
+                              id="recruiter-team-size"
+                              name="teamSize"
                               value={recVals.teamSize || '11-50 Employees'}
-                              onChange={(e) => recruiterForm.setValue('teamSize', e.target.value)}
+                              onChange={(e) => recruiterForm.setValue('teamSize', e.target.value, { shouldValidate: recruiterForm.formState.isSubmitted })}
                               className={getInputClasses(Boolean(recruiterForm.formState.isSubmitted && recruiterForm.formState.errors.teamSize), true)}
                             >
                               {TEAM_SIZE_OPTIONS.map((opt) => (
@@ -1107,7 +1355,17 @@ export default function RegisterPage() {
                           {/* Phone */}
                           <PhoneField
                             value={recVals.phone || ''}
-                            onChange={(e) => recruiterForm.setValue('phone', sanitizePhone(e.target.value))}
+                            onChange={(value) => recruiterForm.setValue('phone', value, { shouldValidate: recruiterForm.formState.isSubmitted })}
+                            country={recVals.phoneCountry || DEFAULT_PHONE_COUNTRY}
+                            onCountryChange={(iso) => {
+                              const nextCountry = getPhoneCountry(iso);
+                              recruiterForm.setValue('phoneCountry', iso);
+                              recruiterForm.setValue(
+                                'phone',
+                                sanitizePhone(recVals.phone || '', nextCountry.nationalLength ?? 15),
+                                { shouldValidate: recruiterForm.formState.isSubmitted }
+                              );
+                            }}
                             error={recruiterForm.formState.errors.phone?.message}
                             isSubmitted={recruiterForm.formState.isSubmitted}
                             isRecruiter
@@ -1125,6 +1383,7 @@ export default function RegisterPage() {
                             showConfirmPass={showConfirmPass}
                             setShowConfirmPass={setShowConfirmPass}
                             isRecruiter
+                            idPrefix="recruiter"
                           />
 
                           {/* Terms & Submit */}
@@ -1133,11 +1392,11 @@ export default function RegisterPage() {
                             error={recruiterForm.formState.errors.agreeTerms?.message}
                             isSubmitted={recruiterForm.formState.isSubmitted}
                             termsText="I agree to the Enterprise Services Agreement and Evaluation Terms."
-                            isFilled={isRecruiterFilled}
                             isSubmitting={isSubmitting}
                             loadingText="Setting up enterprise account..."
                             submitText="Complete Registration & Access Dashboard →"
                             isRecruiter
+                            idPrefix="recruiter"
                           />
                         </div>
                       </form>
