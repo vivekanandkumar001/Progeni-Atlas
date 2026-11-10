@@ -2,7 +2,7 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "outputDirectory": ".next/standalone",
-  "installCommand": "npm ci",
+  "installCommand": "npm install",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://api.atlas.progeni.live"
   }

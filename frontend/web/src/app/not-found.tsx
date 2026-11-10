@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Compass } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: '404 — Page Not Found',
@@ -17,13 +16,15 @@ export default function NotFound() {
     <main className="flex min-h-[70vh] w-full flex-1 items-center justify-center px-4 py-16">
       <div className="w-full max-w-lg rounded-2xl border border-line bg-surface p-8 text-center shadow-lg backdrop-blur-md sm:p-10">
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-accent-cyan/10">
-          <Compass className="h-8 w-8 text-accent-cyan" aria-hidden="true" />
+          <svg className="h-8 w-8 text-accent-cyan" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 15.59l2.11-3.16L8 5.59l2.11 3.16L12 15.59zM8 5.59l4.06-6L16 5.59l-4.06 6H8zM12 3l4 6h-8l4-6z" />
+          </svg>
         </div>
 
         <p className="font-mono text-xs font-bold uppercase tracking-widest text-accent-cyan">404</p>
         <h1 className="mt-2 text-xl font-bold text-ink sm:text-2xl">Page not found</h1>
         <p className="mt-3 text-sm leading-relaxed text-ink-muted">
-          The page you are looking for doesn&apos;t exist or may have been moved.
+          The page you are looking for doesn't exist or may have been moved.
         </p>
 
         <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">

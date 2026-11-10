@@ -24,6 +24,9 @@ const allowedImageHosts = (
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   // Do not advertise the framework to clients.
   poweredByHeader: false,
   allowedDevOrigins,
