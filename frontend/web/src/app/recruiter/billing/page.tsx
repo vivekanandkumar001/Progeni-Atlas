@@ -177,8 +177,8 @@ export default function RecruiterBillingPage() {
 
  const handleRecharge = async () => {
  const amount = customAmount ? parseFloat(customAmount) : selectedPack;
- if (!amount || amount <= 0) {
- setMessage({ text: 'Please enter a valid recharge amount.', type: 'error'});
+ if (!amount || amount < 1) {
+ setMessage({ text: 'Please enter a valid recharge amount (minimum ₹1).', type: 'error'});
  return;
  }
 
@@ -552,18 +552,42 @@ export default function RecruiterBillingPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Or Custom Amount (₹ / Credits)
-                </label>
-                <input
-                  type="number"
-                  min="10"
-                  step="10"
-                  placeholder="e.g. 1500"
-                  value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-sm font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/15 transition"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Or Enter Any Custom Amount (Minimum ₹1)
+                  </label>
+                  <span className="text-[11px] font-bold text-blue-600">₹1 = 1 Credit</span>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    placeholder="Enter any amount (even ₹1)"
+                    value={customAmount}
+                    onChange={(e) => setCustomAmount(e.target.value)}
+                    className="w-full pl-8 pr-3.5 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/15 transition"
+                  />
+                </div>
+                {/* Quick select chips */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[11px] text-slate-400">Quick select:</span>
+                  {[1, 10, 50, 100, 500, 1000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setCustomAmount(String(amt))}
+                      className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                        customAmount === String(amt)
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400'
+                      }`}
+                    >
+                      ₹{amt}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80 text-xs">

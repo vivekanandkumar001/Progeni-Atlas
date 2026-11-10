@@ -420,8 +420,15 @@ def create_wallet_order():
         phone = user.get("phone") or ""
 
         data = request.get_json(silent=True) or {}
-        amount_credits = float(data.get("amount_credits") or data.get("amount") or 70)
-        amount_inr = float(data.get("amount_inr") or data.get("inr") or data.get("amount") or amount_credits)
+        raw_credits = data.get("amount_credits") or data.get("credits") or data.get("amount")
+        raw_inr = data.get("amount_inr") or data.get("inr") or data.get("amount") or raw_credits
+
+        amount_credits = float(raw_credits) if raw_credits is not None else 70.0
+        amount_inr = float(raw_inr) if raw_inr is not None else amount_credits
+
+        if amount_inr < 1.0:
+            return jsonify({"success": False, "error": "Minimum recharge amount is ₹1.00"}), 400
+
         amount_inr_formatted = f"{amount_inr:.2f}"
 
         client_order_id = f"PA-ORD-{uuid.uuid4().hex[:10].upper()}"

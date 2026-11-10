@@ -95,6 +95,7 @@ interface CandidatePack {
 }
 
 const DEFAULT_CANDIDATE_PACKS: CandidatePack[] = [
+  { packName: 'pack_1', credits: 1, inr: 1, minutes: 2, badge: 'Trial Pack' },
   { packName: 'pack_49', credits: 50, inr: 49, minutes: 100, badge: 'Warm-up Pack' },
   { packName: 'pack_99', credits: 100, inr: 99, minutes: 200, badge: 'Placement Ready', popular: true },
   { packName: 'pack_199', credits: 200, inr: 199, minutes: 400, badge: 'Pro Mastery' },
@@ -257,8 +258,8 @@ export default function CandidateWalletPage() {
   }, [customAmount, selectedObj]);
 
   const handleRecharge = async () => {
-    if (!payableCredits || payableCredits <= 0 || !payableInr || payableInr <= 0) {
-      setMessage({ text: 'Please enter a valid amount greater than 0.', type: 'error' });
+    if (!payableCredits || payableCredits < 1 || !payableInr || payableInr < 1) {
+      setMessage({ text: 'Please enter a valid amount (minimum ₹1).', type: 'error' });
       return;
     }
 
@@ -895,7 +896,7 @@ export default function CandidateWalletPage() {
                 Select Practice Credit Pack
               </label>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
                 {candidatePacks.map((pack) => (
                   <div
                     key={pack.credits}
@@ -903,20 +904,20 @@ export default function CandidateWalletPage() {
                       setSelectedPack(pack.credits);
                       setCustomAmount('');
                     }}
-                    className={`cursor-pointer p-4 rounded-2xl border text-center transition ${
+                    className={`cursor-pointer p-3 sm:p-4 rounded-2xl border text-center transition ${
                       selectedPack === pack.credits && !customAmount
                         ? 'border-cyan-500 bg-cyan-500/10 shadow-sm ring-1 ring-cyan-500'
                         : 'border-line bg-surface hover:border-cyan-500/40'
                     }`}
                   >
-                    <span className="block text-[10px] font-black uppercase text-accent-cyan">
+                    <span className="block text-[10px] font-black uppercase text-accent-cyan truncate">
                       {pack.badge}
                     </span>
-                    <span className="text-xl font-black block mt-1 text-ink">₹{pack.inr}</span>
+                    <span className="text-lg sm:text-xl font-black block mt-1 text-ink">₹{pack.inr}</span>
                     <span className="text-xs text-ink-muted block mt-0.5">
                       {pack.credits} Credits
                     </span>
-                    <span className="text-[10px] text-ink-faint block mt-2">
+                    <span className="text-[10px] text-ink-faint block mt-1.5">
                       ~{pack.minutes} mins practice
                     </span>
                   </div>
@@ -924,18 +925,42 @@ export default function CandidateWalletPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-ink-muted block mb-1">
-                  Or Custom Amount (₹ / Credits)
-                </label>
-                <input
-                  type="number"
-                  min="10"
-                  step="10"
-                  placeholder="e.g. 200"
-                  value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-line bg-inset text-sm text-ink focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-ink-muted">
+                    Or Enter Any Custom Amount (Minimum ₹1)
+                  </label>
+                  <span className="text-[11px] font-bold text-accent-cyan">₹1 = 1 Credit</span>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-ink-muted">₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    placeholder="Enter any amount (even ₹1)"
+                    value={customAmount}
+                    onChange={(e) => setCustomAmount(e.target.value)}
+                    className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-line bg-inset text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+                {/* Quick select chips */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[11px] text-ink-faint">Quick select:</span>
+                  {[1, 5, 10, 49, 99, 199, 500].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setCustomAmount(String(amt))}
+                      className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                        customAmount === String(amt)
+                          ? 'bg-cyan-500 text-white border-cyan-500 shadow-xs'
+                          : 'bg-surface border-line text-ink hover:border-cyan-500/50'
+                      }`}
+                    >
+                      ₹{amt}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
