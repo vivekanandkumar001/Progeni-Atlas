@@ -10,6 +10,9 @@ import time
 import hashlib
 import hmac
 import traceback
+import logging
+
+logger = logging.getLogger("progeni_atlas.billing")
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, request, jsonify, g
 
@@ -241,11 +244,22 @@ def get_billing_wallet_transactions():
                             "createdAt": finished or session.get("created_at") or datetime.now(timezone.utc).isoformat()
                         })
 
-            # 3. Fetch all transactions and compute chronological running balances
             tx_query_parts = [{"userId": user_id}, {"userId": str(user_id)}, {"candidate_id": user_id}]
             if user and user.get("org_id"):
                 tx_query_parts.extend([{"orgId": user.get("org_id")}, {"orgId": str(user.get("org_id"))}])
-            raw_docs = list(db.wallet_transactions.find({"$or": tx_query_parts}).sort("createdAt", 1))
+
+            # 3. Fetch all transactions and compute chronological running balances.
+            # Projection keeps the wire payload small; (userId|orgId)+createdAt
+            # indexes (see core.db.ensure_indexes) back the $or + sort.
+            tx_projection = {
+                "userId": 1, "orgId": 1, "candidate_id": 1, "amountCredits": 1,
+                "createdAt": 1, "reason": 1, "title": 1, "entryType": 1,
+                "sessionId": 1, "durationMinutes": 1, "ratePerMinute": 1,
+                "status": 1, "txRef": 1, "id": 1,
+            }
+            raw_docs = list(
+                db.wallet_transactions.find({"$or": tx_query_parts}, tx_projection).sort("createdAt", 1)
+            )
 
             running_balance = 0.0
             total_credited = 0.0
@@ -278,20 +292,44 @@ def get_billing_wallet_transactions():
 
                 enriched_txs.append(d)
 
-            # Update wallet document with consistent balances (guaranteed >= 0.0)
+            # Update wallet document with consistent balances (guaranteed >= 0.0).
+            # Compare-then-write: a steady-state GET costs one cheap find_one
+            # and ZERO writes — the old code issued an unconditional update_one
+            # (with upsert) on every page load.
             final_available = max(0.0, round(running_balance, 2))
+            final_debited = round(total_debited, 2)
             now_iso = datetime.now(timezone.utc).isoformat()
-            db.wallets.update_one(
-                {"userId": user_id},
-                {
-                    "$set": {
+            try:
+                existing_wallet = db.wallets.find_one(
+                    {"userId": user_id},
+                    {"_id": 1, "availableCredits": 1, "consumedCredits": 1},
+                )
+                if existing_wallet is None:
+                    db.wallets.insert_one({
+                        "userId": user_id,
                         "availableCredits": final_available,
-                        "consumedCredits": round(total_debited, 2),
-                        "updated_at": now_iso
-                    }
-                },
-                upsert=True
-            )
+                        "consumedCredits": final_debited,
+                        "created_at": now_iso,
+                        "updated_at": now_iso,
+                    })
+                else:
+                    drifted = (
+                        abs(float(existing_wallet.get("availableCredits") or 0.0) - final_available) > 0.005
+                        or abs(float(existing_wallet.get("consumedCredits") or 0.0) - final_debited) > 0.005
+                    )
+                    if drifted:
+                        db.wallets.update_one(
+                            {"_id": existing_wallet["_id"]},
+                            {"$set": {
+                                "availableCredits": final_available,
+                                "consumedCredits": final_debited,
+                                "updated_at": now_iso,
+                            }},
+                        )
+            except Exception as wallet_sync_err:
+                # Ledger response must not fail just because the denormalized
+                # wallet copy could not be refreshed.
+                logger.warning("[billing] wallet sync skipped: %s", wallet_sync_err)
 
             # Sort descending for display (newest transaction first)
             enriched_txs.sort(key=lambda x: str(x.get("createdAt", "")), reverse=True)

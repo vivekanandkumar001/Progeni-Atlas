@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { apiFetch } from '@/lib/api';
+import { apiJson } from '@/lib/api';
 import {
   Wallet,
   CreditCard,
@@ -165,33 +165,73 @@ export default function CandidateWalletPage() {
     };
   }, []);
 
+  // Enterprise pattern: server is the source of truth for money.
+  // The transactions endpoint computes the canonical ledger (running balance,
+  // credited/debited totals, non-negative balances) — we never recompute money
+  // client-side. Wallet doc supplies quota/rate metadata. Both calls go through
+  // the typed apiJson client (auth + 401 refresh + in-flight dedup + safe parse),
+  // fired in parallel, and any failure degrades to an honest empty/error state.
   const loadWallet = useCallback(async () => {
     try {
       setLoading(true);
-      let validTransactions: WalletTransaction[] = [];
-      const txRes = await apiFetch('/api/billing/wallet/transactions?limit=50');
-      if (txRes.ok) {
-        // Read body as text first so we can parse it twice without clone issues
-        const text = await txRes.text();
-        const parsed = JSON.parse(text);
-        const txData: {
+
+      const [walletRes, txRes] = await Promise.all([
+        apiJson<{ success: boolean; wallet?: WalletData }>('/api/billing/wallet', {}, { skipCache: true }),
+        apiJson<{
           success: boolean;
-          transactions: WalletTransaction[];
+          transactions?: WalletTransaction[];
           summary?: TransactionSummary;
-        } = parsed;
+        }>('/api/billing/wallet/transactions?limit=50', {}, { skipCache: true }),
+      ]);
 
-        if (txData.success && Array.isArray(txData.transactions)) {
-          setTransactions(txData.transactions);
-        }
+      const txList = Array.isArray(txRes?.transactions) ? txRes.transactions : [];
+      setTransactions(txList);
 
-        // Re-parse the same text for summary calculation
-        const allTxs: WalletTransaction[] = parsed.transactions || [];
+      const serverSummary = txRes?.summary ?? null;
+      const rawWallet = walletRes?.wallet ?? null;
 
-        setSummary({
-          availableCredits: realAvailable,
-          totalCredited: Math.max(realCredited, (rawWallet.paidCredits ?? 0) + (rawWallet.promotionalCredits ?? 0)),
-          totalDebited: Math.max(realDebited, rawWallet.consumedCredits ?? 0),
-          count: Array.isArray(txData.transactions) ? txData.transactions.length : 0,
+      const num = (v: unknown): number => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+      };
+
+      if (rawWallet) {
+        setWallet({
+          ...rawWallet,
+          availableCredits: Math.max(0, num(rawWallet.availableCredits ?? serverSummary?.availableCredits)),
+          paidCredits: num(rawWallet.paidCredits),
+          promotionalCredits: num(rawWallet.promotionalCredits),
+          consumedCredits: Math.max(0, num(rawWallet.consumedCredits ?? serverSummary?.totalDebited)),
+          ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 0.5,
+          demoQuota: rawWallet.demoQuota || {
+            remaining: 0,
+            totalAllowed: 0,
+            completed: 0,
+            maxDurationSeconds: 600,
+          },
+        });
+      }
+
+      setSummary({
+        availableCredits: Math.max(
+          0,
+          num(serverSummary?.availableCredits ?? rawWallet?.availableCredits)
+        ),
+        totalCredited: Math.max(
+          0,
+          num(serverSummary?.totalCredited ?? ((rawWallet?.paidCredits ?? 0) + (rawWallet?.promotionalCredits ?? 0)))
+        ),
+        totalDebited: Math.max(
+          0,
+          num(serverSummary?.totalDebited ?? rawWallet?.consumedCredits)
+        ),
+        count: serverSummary?.count ?? txList.length,
+      });
+
+      if (!walletRes && !txRes) {
+        setMessage({
+          text: 'Failed to load wallet data. Please check your connection and try again.',
+          type: 'error',
         });
       }
     } catch (e) {

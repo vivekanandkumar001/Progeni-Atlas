@@ -11,7 +11,7 @@ import re
 import time
 import traceback
 from datetime import datetime, timezone, timedelta
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, make_response
 
 import pymongo
 from bson import ObjectId
@@ -1210,12 +1210,16 @@ def get_public_packages():
         for p in packages:
             p.pop("_id", None)
             clean.append(p)
-        return jsonify({
+        # Public, user-agnostic catalog: let browsers cache briefly and let
+        # the CDN (Vercel edge / any reverse proxy) serve stale-while-revalidate.
+        response = make_response(jsonify({
             "success": True,
             "packages": clean,
             "items": clean,
             "total": len(clean)
-        }), 200
+        }), 200)
+        response.headers["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        return response
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

@@ -293,129 +293,213 @@ CANONICAL_PACKAGES = [
     },
 ]
 
+# ---------------------------------------------------------------------------
+# Boot strategy (latency-critical):
+#   * init_mongo_db() is intentionally LIGHT. Warm boots / serverless cold
+#     starts pay a single find_one (schema version) and one find_one for the
+#     admin account instead of the old behavior (Argon2 password hash on EVERY
+#     import + full-users dedup scan + ~25 index RPCs + 11 package upserts +
+#     one unconditional write). That alone was several seconds per cold boot.
+#   * One-time / heavy work lives in ensure_indexes(), dedupe_user_emails()
+#     and sync_canonical_packages(), driven either by DB_MIGRATE_ON_BOOT=true
+#     or by `python scripts/migrate_db.py`.
+# ---------------------------------------------------------------------------
+# Bump whenever the index set changes; stored in the _meta collection so the
+# check is a single document read on subsequent boots.
+_SCHEMA_VERSION = 3
+
+def _safe_index(collection, keys, **kwargs):
+    try:
+        collection.create_index(keys, **kwargs)
+    except Exception as idx_err:
+        logger.warning(f"[MongoDB] Notice creating index {keys} on {collection.name}: {idx_err}")
+
+def ensure_indexes(db):
+    """Create the full index set (idempotent, per-index error isolation)."""
+    # users
+    _safe_index(db.users, "email", unique=True, sparse=True)
+    _safe_index(db.users, "id", unique=True, sparse=True)
+    # email_otps
+    _safe_index(db.email_otps, [("email", pymongo.ASCENDING), ("purpose", pymongo.ASCENDING)])
+    _safe_index(db.email_otps, "created_at")
+    # companion_pairings
+    _safe_index(db.companion_pairings, "token_hash", unique=True, sparse=True)
+    _safe_index(db.companion_pairings, "session_id")
+    # companion_rate_limits
+    _safe_index(db.companion_rate_limits, "key", unique=True, sparse=True)
+    # interview_sessions
+    _safe_index(db.interview_sessions, "id", unique=True, sparse=True)
+    _safe_index(db.interview_sessions, "candidate_id")
+    _safe_index(db.interview_sessions, "candidate_email")
+    _safe_index(db.interview_sessions, "recruiter_id")
+    _safe_index(db.interview_sessions, "recruiter_email")
+    # interview_invitations
+    _safe_index(db.interview_invitations, "id", unique=True, sparse=True)
+    _safe_index(db.interview_invitations, "session_id")
+    _safe_index(db.interview_invitations, "candidate_id")
+    _safe_index(db.interview_invitations, "candidate_email")
+    # candidate_notifications
+    _safe_index(db.candidate_notifications, "candidate_id")
+    _safe_index(db.candidate_notifications, "candidate_email")
+    _safe_index(db.candidate_notifications, "created_at")
+    # recruiter_notifications
+    _safe_index(db.recruiter_notifications, "recruiter_id")
+    _safe_index(db.recruiter_notifications, "recruiter_email")
+    _safe_index(db.recruiter_notifications, "created_at")
+    # organizations
+    _safe_index(db.organizations, "id", unique=True, sparse=True)
+    _safe_index(db.organizations, "slug", unique=True, sparse=True)
+    # audit_logs
+    _safe_index(db.audit_logs, "created_at")
+    _safe_index(db.audit_logs, "action")
+    # wallets + ledger (queried on every wallet page load)
+    _safe_index(db.wallets, "userId")
+    _safe_index(db.wallets, "orgId")
+    _safe_index(db.wallet_transactions, [("userId", pymongo.ASCENDING), ("createdAt", pymongo.ASCENDING)])
+    _safe_index(db.wallet_transactions, [("orgId", pymongo.ASCENDING), ("createdAt", pymongo.ASCENDING)])
+    _safe_index(db.wallet_transactions, [("candidate_id", pymongo.ASCENDING), ("createdAt", pymongo.ASCENDING)])
+    # packages catalog (public /api/packages reads)
+    _safe_index(db.packages, "id")
+    _safe_index(db.packages, "status")
+    _safe_index(db.packages, "target_audience")
+
+    from datetime import datetime, timezone
+    try:
+        db["_meta"].update_one(
+            {"_id": "schema_version"},
+            {"$set": {"v": _SCHEMA_VERSION, "updated_at": datetime.now(timezone.utc).isoformat()}},
+            upsert=True,
+        )
+    except Exception as meta_err:
+        logger.warning(f"[MongoDB] Could not record schema version: {meta_err}")
+
+def dedupe_user_emails(db):
+    """One-time cleanup: collapse duplicate accounts sharing a normalized email."""
+    from collections import defaultdict
+
+    email_groups = defaultdict(list)
+    for doc in db.users.find({}, {"_id": 1, "email": 1, "is_email_verified": 1, "created_at": 1}):
+        em = (doc.get("email") or "").strip().lower()
+        if em:
+            email_groups[em].append(doc)
+
+    for em, docs in email_groups.items():
+        if len(docs) > 1:
+            # Keep verified user first, then earliest created account
+            docs.sort(key=lambda d: (not bool(d.get("is_email_verified")), str(d.get("created_at") or "")))
+            keep_doc = docs[0]
+            for dup in docs[1:]:
+                db.users.delete_one({"_id": dup["_id"]})
+                logger.info(f"[MongoDB] Removed duplicate account record for: {em} (kept primary verified: {keep_doc['_id']})")
+
+def sync_canonical_packages(db):
+    """One-time / ops sync of the canonical package catalog."""
+    db.packages.delete_many({"name": {"$in": ["Starter Placement", "Growth Enterprise", "Global Enterprise Tier"]}})
+    for cpkg in CANONICAL_PACKAGES:
+        db.packages.update_one(
+            {"id": cpkg["id"]},
+            {"$set": cpkg},
+            upsert=True,
+        )
+    logger.info("[MongoDB] Synced canonical industry-standard packages.")
+
+def ensure_super_admin(db):
+    """Idempotently ensure the platform super-admin exists.
+
+    Steady state: one find_one, no writes, and no password hashing â€” hashing
+    only happens when the admin document must actually be inserted.
+    """
+    admin_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "admin@progeni.live").strip().lower()
+    if not admin_email:
+        return
+
+    from datetime import datetime, timezone
+
+    existing_admin = db.users.find_one(
+        {"email": admin_email},
+        {"_id": 1, "role": 1, "status": 1, "is_email_verified": 1},
+    )
+    now_utc = datetime.now(timezone.utc)
+
+    if not existing_admin:
+        import uuid
+        from core.security import hash_password
+
+        default_pwd = os.environ.get("SUPER_ADMIN_PASSWORD") or os.environ.get("ADMIN_DEFAULT_PASSWORD", "ProgeniAtlas@1234")
+        pwd_hash = hash_password(default_pwd)
+        db.users.insert_one({
+            "id": str(uuid.uuid4()),
+            "email": admin_email,
+            "password_hash": pwd_hash,
+            "full_name": "Progeni Atlas Administrator",
+            "role": "super_admin",
+            "status": "active",
+            "is_email_verified": True,
+            "created_at": now_utc,
+            "updated_at": now_utc,
+        })
+        logger.info(f"[MongoDB] Seeded default super_admin account: {admin_email}")
+        return
+
+    drifted = (
+        existing_admin.get("role") != "super_admin"
+        or str(existing_admin.get("status", "")).lower() != "active"
+        or existing_admin.get("is_email_verified") is not True
+    )
+    if drifted:
+        db.users.update_one(
+            {"_id": existing_admin["_id"]},
+            {"$set": {
+                "role": "super_admin",
+                "status": "active",
+                "is_email_verified": True,
+                "updated_at": now_utc,
+            }},
+        )
+
 def init_mongo_db():
-    """Ensure indexes exist for collections in MongoDB with resilient per-index error isolation."""
+    """Light boot initializer (safe for serverless cold starts).
+
+    Set DB_MIGRATE_ON_BOOT=true (or run scripts/migrate_db.py) to perform the
+    heavy one-time migrations (user dedup + canonical package sync) at boot.
+    """
     try:
         db = get_mongo_db()
         if db is None:
             logger.warning("[MongoDB] Database connection unavailable during init_mongo_db.")
             return False
 
-        def _safe_index(collection, keys, **kwargs):
-            try:
-                collection.create_index(keys, **kwargs)
-            except Exception as idx_err:
-                logger.warning(f"[MongoDB] Notice creating index {keys} on {collection.name}: {idx_err}")
-
-        # Clean up any potential duplicate emails before building unique index
+        # 1) Cheap admin ensure (1 read; writes only on drift)
         try:
-            from collections import defaultdict
-            email_groups = defaultdict(list)
-            for doc in db.users.find({}, {"_id": 1, "email": 1, "is_email_verified": 1, "created_at": 1}):
-                em = (doc.get("email") or "").strip().lower()
-                if em:
-                    email_groups[em].append(doc)
+            ensure_super_admin(db)
+        except Exception as admin_err:
+            logger.warning(f"[MongoDB] Super-admin ensure note: {admin_err}")
 
-            for em, docs in email_groups.items():
-                if len(docs) > 1:
-                    # Keep verified user first, then earliest created account
-                    docs.sort(key=lambda d: (not bool(d.get("is_email_verified")), str(d.get("created_at") or "")))
-                    keep_doc = docs[0]
-                    for dup in docs[1:]:
-                        db.users.delete_one({"_id": dup["_id"]})
-                        logger.info(f"[MongoDB] Removed duplicate account record for: {em} (kept primary verified: {keep_doc['_id']})")
-        except Exception as dedup_err:
-            logger.warning(f"[MongoDB] Deduplication check note: {dedup_err}")
+        # 2) Index creation only when the stored schema version is stale
+        try:
+            if os.environ.get("DB_CREATE_INDEXES", "true").lower() not in ("0", "false", "no"):
+                meta = db["_meta"].find_one({"_id": "schema_version"}, {"v": 1})
+                if not meta or meta.get("v") != _SCHEMA_VERSION:
+                    ensure_indexes(db)
+                    logger.info("[MongoDB] Index set ensured (schema version %s).", _SCHEMA_VERSION)
+        except Exception as idx_err:
+            logger.warning(f"[MongoDB] Index ensure note: {idx_err}")
 
-        # users
-        _safe_index(db.users, "email", unique=True, sparse=True)
-        _safe_index(db.users, "id", unique=True, sparse=True)
-        # email_otps
-        _safe_index(db.email_otps, [("email", pymongo.ASCENDING), ("purpose", pymongo.ASCENDING)])
-        _safe_index(db.email_otps, "created_at")
-        # companion_pairings
-        _safe_index(db.companion_pairings, "token_hash", unique=True, sparse=True)
-        _safe_index(db.companion_pairings, "session_id")
-        # companion_rate_limits
-        _safe_index(db.companion_rate_limits, "key", unique=True, sparse=True)
-        # interview_sessions
-        _safe_index(db.interview_sessions, "id", unique=True, sparse=True)
-        _safe_index(db.interview_sessions, "candidate_id")
-        _safe_index(db.interview_sessions, "candidate_email")
-        _safe_index(db.interview_sessions, "recruiter_id")
-        _safe_index(db.interview_sessions, "recruiter_email")
-        # interview_invitations
-        _safe_index(db.interview_invitations, "id", unique=True, sparse=True)
-        _safe_index(db.interview_invitations, "session_id")
-        _safe_index(db.interview_invitations, "candidate_id")
-        _safe_index(db.interview_invitations, "candidate_email")
-        # candidate_notifications
-        _safe_index(db.candidate_notifications, "candidate_id")
-        _safe_index(db.candidate_notifications, "candidate_email")
-        _safe_index(db.candidate_notifications, "created_at")
-        # recruiter_notifications
-        _safe_index(db.recruiter_notifications, "recruiter_id")
-        _safe_index(db.recruiter_notifications, "recruiter_email")
-        _safe_index(db.recruiter_notifications, "created_at")
-        # organizations
-        _safe_index(db.organizations, "id", unique=True, sparse=True)
-        _safe_index(db.organizations, "slug", unique=True, sparse=True)
-        # audit_logs
-        _safe_index(db.audit_logs, "created_at")
-        _safe_index(db.audit_logs, "action")
+        # 3) Heavy one-time migrations â€” opt-in only
+        if os.environ.get("DB_MIGRATE_ON_BOOT", "false").lower() in ("1", "true", "yes"):
+            try:
+                dedupe_user_emails(db)
+            except Exception as dedup_err:
+                logger.warning(f"[MongoDB] Deduplication check note: {dedup_err}")
+            try:
+                sync_canonical_packages(db)
+            except Exception as pkg_err:
+                logger.warning(f"[MongoDB] Package sync note: {pkg_err}")
 
-        # Seed default platform super_admin user if not already present
-        admin_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "admin@progeni.live").strip().lower()
-        if admin_email:
-            existing_admin = db.users.find_one({"email": admin_email})
-            import uuid
-            from datetime import datetime, timezone
-            from core.security import hash_password
-            default_pwd = os.environ.get("SUPER_ADMIN_PASSWORD") or os.environ.get("ADMIN_DEFAULT_PASSWORD", "ProgeniAtlas@1234")
-            pwd_hash = hash_password(default_pwd)
-            now_utc = datetime.now(timezone.utc)
-            if not existing_admin:
-                db.users.insert_one({
-                    "id": str(uuid.uuid4()),
-                    "email": admin_email,
-                    "password_hash": pwd_hash,
-                    "full_name": "Progeni Atlas Administrator",
-                    "role": "super_admin",
-                    "status": "active",
-                    "is_email_verified": True,
-                    "created_at": now_utc,
-                    "updated_at": now_utc,
-                })
-                logger.info(f"[MongoDB] Seeded default super_admin account: {admin_email}")
-            else:
-                db.users.update_one(
-                    {"email": admin_email},
-                    {"$set": {
-                        "role": "super_admin",
-                        "status": "active",
-                        "is_email_verified": True,
-                        "updated_at": now_utc,
-                    }}
-                )
-                logger.info(f"[MongoDB] Ensured default super_admin account: {admin_email}")
-
-        # Seed / Sync Canonical Packages matching industry standards
-        canonical_packages = CANONICAL_PACKAGES
-
-        # Clean out obsolete dummy packages
-        db.packages.delete_many({"name": {"$in": ["Starter Placement", "Growth Enterprise", "Global Enterprise Tier"]}})
-        for cpkg in canonical_packages:
-            db.packages.update_one(
-                {"id": cpkg["id"]},
-                {"$set": cpkg},
-                upsert=True
-            )
-        logger.info("[MongoDB] Synced canonical industry-standard packages.")
-
-        logger.info("[MongoDB] Verified database collections and indexes.")
+        logger.info("[MongoDB] Database initialized (light boot).")
         return True
     except Exception as e:
-        logger.warning(f"[MongoDB] Warning initializing indexes: {e}")
+        logger.warning(f"[MongoDB] Warning initializing MongoDB: {e}")
         return False
 
 # Primary database accessor
