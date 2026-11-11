@@ -171,26 +171,28 @@ export default function CandidateWalletPage() {
       let validTransactions: WalletTransaction[] = [];
       const txRes = await apiFetch('/api/billing/wallet/transactions?limit=50');
       if (txRes.ok) {
-        // Clone before reading body so we can read it twice (once for txData, once for summary)
-        const txClone = txRes.clone();
-        const txData = (await txRes.json()) as {
+        // Read body as text first so we can parse it twice without clone issues
+        const text = await txRes.text();
+        const parsed = JSON.parse(text);
+        const txData: {
           success: boolean;
           transactions: WalletTransaction[];
           summary?: TransactionSummary;
-        };
+        } = parsed;
+
         if (txData.success && Array.isArray(txData.transactions)) {
           setTransactions(txData.transactions);
         }
-        // Use cloned response to re-read transactions for summary calculation
-        const allTxs = (await txClone.json().catch(() => ({}))).transactions || [];
 
-          setSummary({
-            availableCredits: realAvailable,
-            totalCredited: Math.max(realCredited, (rawWallet.paidCredits ?? 0) + (rawWallet.promotionalCredits ?? 0)),
-            totalDebited: Math.max(realDebited, rawWallet.consumedCredits ?? 0),
-            count: Array.isArray(allTxs) ? allTxs.length : 0,
-          });
-        }
+        // Re-parse the same text for summary calculation
+        const allTxs: WalletTransaction[] = parsed.transactions || [];
+
+        setSummary({
+          availableCredits: realAvailable,
+          totalCredited: Math.max(realCredited, (rawWallet.paidCredits ?? 0) + (rawWallet.promotionalCredits ?? 0)),
+          totalDebited: Math.max(realDebited, rawWallet.consumedCredits ?? 0),
+          count: Array.isArray(txData.transactions) ? txData.transactions.length : 0,
+        });
       }
     } catch (e) {
       setMessage({
