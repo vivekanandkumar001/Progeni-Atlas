@@ -171,6 +171,8 @@ export default function CandidateWalletPage() {
       let validTransactions: WalletTransaction[] = [];
       const txRes = await apiFetch('/api/billing/wallet/transactions?limit=50');
       if (txRes.ok) {
+        // Clone before reading body so we can read it twice (once for txData, once for summary)
+        const txClone = txRes.clone();
         const txData = (await txRes.json()) as {
           success: boolean;
           transactions: WalletTransaction[];
@@ -179,41 +181,8 @@ export default function CandidateWalletPage() {
         if (txData.success && Array.isArray(txData.transactions)) {
           setTransactions(txData.transactions);
         }
-      }
-
-      const res = await apiFetch('/api/billing/wallet');
-      if (res.ok) {
-        const data = (await res.json()) as { success: boolean; wallet: WalletData };
-        if (data.success && data.wallet) {
-          const rawWallet = data.wallet;
-          const realAvailable = Math.max(0, rawWallet.availableCredits ?? 0);
-
-          setWallet({
-            ...rawWallet,
-            availableCredits: realAvailable,
-            promotionalCredits: rawWallet.promotionalCredits ?? 0,
-            paidCredits: rawWallet.paidCredits ?? 0,
-            ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 0.5,
-            demoQuota: rawWallet.demoQuota || {
-              remaining: 0,
-              totalAllowed: 0,
-              completed: 0,
-              maxDurationSeconds: 600,
-            },
-          });
-
-          const allTxs = (await txRes?.clone().json().catch(() => ({})))?.transactions || [];
-          const realCredited = Array.isArray(allTxs)
-            ? allTxs
-                .filter((t: any) => t.category === 'IN' || t.amountCredits > 0)
-                .reduce((acc: number, t: any) => acc + (t.amountCredits || 0), 0)
-            : (rawWallet.paidCredits ?? 0) + (rawWallet.promotionalCredits ?? 0);
-
-          const realDebited = Array.isArray(allTxs)
-            ? allTxs
-                .filter((t: any) => t.category === 'OUT' || t.amountCredits < 0)
-                .reduce((acc: number, t: any) => acc + Math.abs(t.amountCredits || 0), 0)
-            : (rawWallet.consumedCredits ?? 0);
+        // Use cloned response to re-read transactions for summary calculation
+        const allTxs = (await txClone.json().catch(() => ({}))).transactions || [];
 
           setSummary({
             availableCredits: realAvailable,
