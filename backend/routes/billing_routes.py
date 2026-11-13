@@ -301,6 +301,161 @@ try:
 except (TypeError, ValueError):
     UPI_AUTO_APPROVE_MAX_INR = 10000.0
 
+# ==============================================================================
+# RAZORPAY — hosted checkout (UPI/cards/netbanking) with signature + webhook verification
+# ==============================================================================
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "").strip()
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "").strip()
+RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "").strip()
+
+
+def _razorpay_configured():
+    return bool(RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET)
+
+
+@billing_bp.route("/api/billing/razorpay/config", methods=["GET"])
+@require_auth
+def razorpay_config():
+    """Whether Razorpay checkout is available. key_id is publishable (safe to expose)."""
+    return jsonify({
+        "success": True,
+        "configured": _razorpay_configured(),
+        "key_id": RAZORPAY_KEY_ID if _razorpay_configured() else None,
+    }), 200
+
+
+@billing_bp.route("/api/billing/wallet/razorpay/order", methods=["POST"])
+@require_auth
+def create_razorpay_wallet_order():
+    """Create a Razorpay order (server-side). Client opens Razorpay Checkout with the
+    returned key_id/order id; on success it posts the signature to /verify-payment."""
+    try:
+        if not _razorpay_configured():
+            return jsonify({"success": False, "error": "Razorpay is not configured on this server. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET."}), 503
+
+        user = getattr(g, "user", None)
+        if not user:
+            user, _, _ = get_current_candidate(request)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
+
+        user_id = str(user.get("id") or user.get("_id"))
+        data = request.get_json(silent=True) or {}
+        raw_amount = data.get("amount_inr") or data.get("inr") or data.get("amount")
+        try:
+            amount_inr = float(raw_amount) if raw_amount is not None else 70.0
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "error": "Invalid recharge amount."}), 400
+        if amount_inr < 1.0:
+            return jsonify({"success": False, "error": "Minimum recharge amount is 1 INR."}), 400
+        if amount_inr > 1000000.0:
+            return jsonify({"success": False, "error": "Recharge amount exceeds the allowed limit."}), 400
+
+        db = get_mongo_db()
+        amount_credits = _resolve_credits_for_inr(db, amount_inr)
+        amount_paise = int(round(amount_inr * 100))
+        client_order_id = f"PA-RZP-{uuid.uuid4().hex[:10].upper()}"
+
+        try:
+            import razorpay
+        except ImportError:
+            return jsonify({"success": False, "error": "razorpay SDK is not installed on the server."}), 503
+        client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+        rzp_order = client.order.create({
+            "amount": amount_paise,
+            "currency": "INR",
+            "receipt": client_order_id,
+            "payment_capture": 1,
+            "notes": {
+                "note": f"Progeni Atlas Credits ({int(amount_credits)} cr)",
+                "user_id": user_id,
+            },
+        })
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        if db is not None:
+            db.billing_orders.update_one(
+                {"order_id": client_order_id},
+                {"$set": {
+                    "order_id": client_order_id,
+                    "client_order_id": client_order_id,
+                    "razorpay_order_id": rzp_order.get("id"),
+                    "userId": user_id,
+                    "gateway": "razorpay",
+                    "amount_credits": amount_credits,
+                    "amount_inr": amount_inr,
+                    "amount_paise": amount_paise,
+                    "status": "pending",
+                    "created_at": now_iso,
+                }},
+                upsert=True,
+            )
+
+        return jsonify({
+            "success": True,
+            "key_id": RAZORPAY_KEY_ID,
+            "razorpay_order_id": rzp_order.get("id"),
+            "order_id": client_order_id,
+            "client_order_id": client_order_id,
+            "amount_paise": amount_paise,
+            "currency": "INR",
+            "amount_inr": amount_inr,
+            "amount_credits": amount_credits,
+            "name": "Progeni Atlas",
+            "description": f"{int(amount_credits)} Atlas Credits",
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@billing_bp.route("/api/billing/wallet/razorpay-webhook", methods=["POST"])
+def razorpay_webhook():
+    """Razorpay webhook. Validates the signature and auto-credits on payment.captured.
+    Register in the Razorpay dashboard: https://api-atlas.progeni.live/api/billing/wallet/razorpay-webhook"""
+    try:
+        if not RAZORPAY_WEBHOOK_SECRET:
+            logger.warning("[Razorpay Webhook]: RAZORPAY_WEBHOOK_SECRET is not configured.")
+            return jsonify({"success": False, "error": "Razorpay webhook secret is not configured"}), 500
+
+        raw_body = request.get_data()
+        signature = request.headers.get("X-Razorpay-Signature", "")
+        expected = hmac.new(RAZORPAY_WEBHOOK_SECRET.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+        if not signature or not hmac.compare_digest(expected, signature):
+            logger.warning("[Razorpay Webhook]: invalid signature.")
+            return jsonify({"success": False, "error": "Invalid webhook signature"}), 401
+
+        payload = request.get_json(silent=True) or {}
+        event = payload.get("event", "")
+        if event != "payment.captured":
+            return jsonify({"success": True, "message": "Event ignored", "event": event}), 200
+
+        entity = (((payload.get("payload") or {}).get("payment") or {}).get("entity")) or {}
+        razorpay_order_id = str(entity.get("order_id") or "").strip()
+        payment_id = str(entity.get("id") or f"RZP-WH-{uuid.uuid4().hex[:10]}").strip()
+        if not razorpay_order_id:
+            return jsonify({"success": False, "error": "Missing razorpay order id"}), 400
+
+        db = get_mongo_db()
+        order_rec = None
+        if db is not None:
+            order_rec = db.billing_orders.find_one(
+                {"$or": [{"razorpay_order_id": razorpay_order_id}, {"order_id": razorpay_order_id}]}
+            )
+        if order_rec and order_rec.get("status") != "paid":
+            _complete_paid_order(
+                db, order_rec, payment_id,
+                f"Razorpay webhook payment.captured (payment {payment_id})",
+                extra_fields={
+                    "approval_source": "razorpay_webhook",
+                    "razorpay_payment_id": payment_id,
+                },
+            )
+        return jsonify({"success": True, "message": "Webhook processed"}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 def _resolve_credits_for_inr(db, amount_inr: float) -> float:
     """

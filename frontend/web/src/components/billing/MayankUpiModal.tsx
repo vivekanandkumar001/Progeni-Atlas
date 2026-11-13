@@ -20,6 +20,11 @@ import {
   checkMayankUpiStatus,
   submitMayankUpiUtr,
 } from '@/lib/mayank_upi';
+import {
+  createRazorpayWalletOrder,
+  verifyRazorpayPayment,
+  loadRazorpayScript,
+} from '@/lib/razorpay';
 
 interface MayankUpiModalProps {
   isOpen: boolean;
@@ -42,6 +47,8 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
   const [pollingStatus, setPollingStatus] = useState<'listening' | 'verified' | 'failed'>('listening');
   const [showUtrField, setShowUtrField] = useState(false);
   const [gatewayStalled, setGatewayStalled] = useState(false);
+  const [rzpBusy, setRzpBusy] = useState(false);
+  const [rzpError, setRzpError] = useState<string | null>(null);
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const stallTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -119,6 +126,8 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
       setGatewayStalled(false);
       setUtrInput('');
       setUtrError(null);
+      setRzpBusy(false);
+      setRzpError(null);
     }
   }, [isOpen, orderData?.order_id]);
 
@@ -137,6 +146,71 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
       navigator.clipboard.writeText(orderRef);
       setCopiedOrder(true);
       setTimeout(() => setCopiedOrder(false), 2000);
+    }
+  };
+
+  const handleRazorpayPay = async () => {
+    if (!orderData || rzpBusy) return;
+    setRzpBusy(true);
+    setRzpError(null);
+    try {
+      const created = await createRazorpayWalletOrder(displayAmount);
+      if (!created.success || !created.razorpay_order_id || !created.key_id) {
+        throw new Error(created.error || 'Razorpay checkout is not available yet.');
+      }
+      const ok = await loadRazorpayScript();
+      if (!ok) {
+        throw new Error('Failed to load Razorpay checkout. Check your internet connection.');
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Razorpay = (window as any).Razorpay;
+      const rzp = new Razorpay({
+        key: created.key_id,
+        amount: created.amount_paise || Math.round(displayAmount * 100),
+        currency: created.currency || 'INR',
+        name: 'Progeni Atlas',
+        description: created.description || `${orderData.amount_credits || displayAmount} Atlas Credits`,
+        order_id: created.razorpay_order_id,
+        prefill: {
+          name: orderData.user_name || '',
+          email: orderData.user_email || '',
+        },
+        theme: { color: '#059669' },
+        handler: async (resp: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+          try {
+            const v = await verifyRazorpayPayment({
+              orderId: created.order_id || created.razorpay_order_id || '',
+              razorpayOrderId: resp.razorpay_order_id,
+              razorpayPaymentId: resp.razorpay_payment_id,
+              razorpaySignature: resp.razorpay_signature,
+            });
+            if (v.success) {
+              setPollingStatus('verified');
+              setTimeout(() => {
+                onSuccess({
+                  message: v.message || `Payment confirmed! ${created.amount_credits || displayAmount} credits added.`,
+                  creditsAdded: v.credits_added || created.amount_credits || displayAmount,
+                  paymentId: resp.razorpay_payment_id,
+                });
+                onClose();
+              }, 800);
+            } else {
+              setRzpError(v.error || 'Payment verification failed. Contact support.');
+            }
+          } catch (verifyErr) {
+            setRzpError(verifyErr instanceof Error ? verifyErr.message : 'Payment verification failed.');
+          }
+        },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rzp.on('payment.failed', (resp: any) => {
+        setRzpError(`Payment failed${resp?.error?.description ? `: ${resp.error.description}` : ''}. No money was deducted.`);
+      });
+      rzp.open();
+    } catch (err) {
+      setRzpError(err instanceof Error ? err.message : 'Unable to start Razorpay checkout.');
+    } finally {
+      setRzpBusy(false);
     }
   };
 
@@ -231,6 +305,24 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
               </span>
               <p className="text-[11px] text-ink-faint font-mono mt-1">Ref: {orderRef.slice(-8)}</p>
             </div>
+          </div>
+
+          {/* Razorpay hosted checkout — instant auto-credit on payment */}
+          <div className="space-y-1.5">
+            <button
+              type="button"
+              onClick={handleRazorpayPay}
+              disabled={rzpBusy}
+              className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              {rzpBusy ? 'Starting Razorpay…' : 'Pay via Razorpay (UPI / Card / NetBanking) — Instant Credit'}
+            </button>
+            {rzpError && (
+              <p className="text-[11px] text-rose-600 font-medium flex items-start gap-1 leading-snug">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {rzpError}
+              </p>
+            )}
           </div>
 
           {/* QR Code Canvas */}
