@@ -41,7 +41,9 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
   const [utrError, setUtrError] = useState<string | null>(null);
   const [pollingStatus, setPollingStatus] = useState<'listening' | 'verified' | 'failed'>('listening');
   const [showUtrField, setShowUtrField] = useState(false);
+  const [gatewayStalled, setGatewayStalled] = useState(false);
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const stallTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fallback defaults to ensure nothing is ever blank on screen
   const displayAmount =
@@ -97,10 +99,28 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
 
     pollTimerRef.current = setInterval(poll, 3000);
 
+    // If the live gateway cannot confirm within 15s, nudge the user to self-verify via UTR
+    stallTimerRef.current = setTimeout(() => {
+      setShowUtrField(true);
+      setGatewayStalled(true);
+    }, 15000);
+
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
     };
   }, [isOpen, orderData, pollingStatus, displayAmount, onSuccess, onClose]);
+
+  // Reset flow state whenever the modal is (re)opened for a fresh order
+  useEffect(() => {
+    if (isOpen) {
+      setPollingStatus('listening');
+      setShowUtrField(false);
+      setGatewayStalled(false);
+      setUtrInput('');
+      setUtrError(null);
+    }
+  }, [isOpen, orderData?.order_id]);
 
   if (!isOpen || !orderData) return null;
 
@@ -281,6 +301,12 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
 
           {/* Fallback UTR Submission Accordion */}
           <div className="border-t border-line pt-3">
+            {gatewayStalled && pollingStatus !== 'verified' && (
+              <div className="mb-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] leading-snug text-amber-800 font-medium flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+                <span>Live payment confirmation is unavailable right now. If your money was already debited, paste your 12-digit UTR below — credits will be added instantly.</span>
+              </div>
+            )}
             {!showUtrField ? (
               <button
                 type="button"
