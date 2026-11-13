@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -157,9 +157,6 @@ export default function SuperAdminOrganizationsPage() {
                               className="flex items-center gap-1.5 truncate font-semibold text-ink transition-colors group-hover:text-accent-cyan hover:underline"
                             >
                               <span>{org.name}</span>
-                              <span className="text-[11px] font-normal text-accent-cyan opacity-0 transition-opacity group-hover:opacity-100">
-                                →
-                              </span>
                             </Link>
                             <p className="truncate font-mono text-[11px] text-ink-faint">{org.slug || '—'}</p>
                           </div>

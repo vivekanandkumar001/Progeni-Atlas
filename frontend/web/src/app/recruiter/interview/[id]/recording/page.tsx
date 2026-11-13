@@ -17,7 +17,6 @@ import {
   VolumeX,
   Maximize2,
   Minimize2,
-  ArrowLeft,
   Download,
   CheckCircle2,
   AlertCircle,
@@ -249,7 +248,7 @@ export default function RecruiterRecordingViewPage() {
     const r = (rec || '').toUpperCase();
     if (r.includes('STRONG_HIRE')) {
       return (
-        <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-xs font-mono">
+        <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-accent-emerald font-bold text-xs font-mono">
           Strong Hire
         </span>
       );
@@ -269,7 +268,7 @@ export default function RecruiterRecordingViewPage() {
       );
     }
     return (
-      <span className="px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 font-bold text-xs font-mono">
+      <span className="px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-accent-rose font-bold text-xs font-mono">
         Reject
       </span>
     );
@@ -279,7 +278,7 @@ export default function RecruiterRecordingViewPage() {
     return (
       <div className="min-h-screen bg-canvas text-ink flex flex-col items-center justify-center p-6">
         <div className="max-w-md w-full p-8 rounded-xl bg-surface border border-line text-center space-y-5 shadow-2xl">
-          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center mx-auto text-rose-400">
+          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center mx-auto text-accent-rose">
             <AlertCircle className="w-7 h-7" />
           </div>
           <div className="space-y-1">
@@ -292,7 +291,6 @@ export default function RecruiterRecordingViewPage() {
             href="/recruiter/dashboard"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink text-xs font-semibold transition-all"
           >
-            <ArrowLeft className="w-4 h-4" />
             <span>Return to Recruiter Dashboard</span>
           </Link>
         </div>
@@ -325,7 +323,7 @@ export default function RecruiterRecordingViewPage() {
             className="p-2 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink-muted hover:text-ink transition-colors shrink-0"
             title="Back to Dashboard"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <span className="text-xs font-semibold">Back</span>
           </Link>
 
           <div className="min-w-0">
@@ -367,7 +365,7 @@ export default function RecruiterRecordingViewPage() {
           {/* 1. ENTERPRISE RECORDING VIDEO PLAYER */}
           <div
             ref={playerContainerRef}
-            className="relative w-full rounded-2xl border border-line bg-slate-950 overflow-hidden shadow-2xl flex flex-col group aspect-video min-h-[260px] sm:min-h-[340px]"
+            className="relative w-full rounded-2xl border border-line bg-canvas overflow-hidden shadow-2xl flex flex-col group aspect-video min-h-[260px] sm:min-h-[340px]"
           >
             {hasPlayback ? (
               <>
@@ -386,7 +384,7 @@ export default function RecruiterRecordingViewPage() {
                 <button
                   type="button"
                   onClick={togglePlay}
-                  className={`absolute inset-0 m-auto w-16 h-16 rounded-full bg-slate-950/70 border border-slate-700/80 backdrop-blur-md flex items-center justify-center text-white transition-all transform hover:scale-110 cursor-pointer ${
+                  className={`absolute inset-0 m-auto w-16 h-16 rounded-full bg-canvas/70 border border-line-strong/80 backdrop-blur-md flex items-center justify-center text-white transition-all transform hover:scale-110 cursor-pointer ${
                     isPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'
                   }`}
                   aria-label={isPlaying ? 'Pause' : 'Play'}
@@ -395,7 +393,7 @@ export default function RecruiterRecordingViewPage() {
                 </button>
 
                 {/* Bottom Custom Video Controls */}
-                <div className="absolute bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent flex flex-col gap-2 z-10">
+                <div className="absolute bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-canvas via-slate-950/80 to-transparent flex flex-col gap-2 z-10">
                   {/* Seek Bar */}
                   <div className="flex items-center gap-2">
                     <input
@@ -405,12 +403,12 @@ export default function RecruiterRecordingViewPage() {
                       step="0.1"
                       value={currentTime}
                       onChange={handleSeek}
-                      className="w-full h-1.5 accent-cyan-400 bg-slate-800 rounded-lg cursor-pointer"
+                      className="w-full h-1.5 accent-cyan-400 bg-surface-2 rounded-lg cursor-pointer"
                     />
                   </div>
 
                   {/* Player Toolbar */}
-                  <div className="flex items-center justify-between text-xs text-slate-300">
+                  <div className="flex items-center justify-between text-xs text-ink-muted">
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
@@ -426,7 +424,7 @@ export default function RecruiterRecordingViewPage() {
                           onClick={toggleMute}
                           className="p-1 hover:text-white transition-colors cursor-pointer"
                         >
-                          {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+                          {isMuted ? <VolumeX className="w-4 h-4 text-accent-rose" /> : <Volume2 className="w-4 h-4" />}
                         </button>
                         <input
                           type="range"
@@ -435,25 +433,25 @@ export default function RecruiterRecordingViewPage() {
                           step="0.05"
                           value={isMuted ? 0 : volume}
                           onChange={handleVolumeChange}
-                          className="w-14 sm:w-18 accent-cyan-400 h-1 bg-slate-800 rounded-lg cursor-pointer hidden sm:block"
+                          className="w-14 sm:w-18 accent-cyan-400 h-1 bg-surface-2 rounded-lg cursor-pointer hidden sm:block"
                         />
                       </div>
 
-                      <span className="font-mono text-[11px] text-slate-400">
+                      <span className="font-mono text-[11px] text-ink-muted">
                         {formatSeconds(currentTime)} / {formatSeconds(duration)}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       {/* Speed selector */}
-                      <div className="flex items-center bg-slate-900/80 rounded-lg border border-slate-800 text-[11px] font-mono px-1">
+                      <div className="flex items-center bg-surface-2/80 rounded-lg border border-line text-[11px] font-mono px-1">
                         {[1, 1.25, 1.5].map((speed) => (
                           <button
                             key={speed}
                             type="button"
                             onClick={() => handleSpeedChange(speed)}
                             className={`px-1.5 py-0.5 rounded cursor-pointer ${
-                              playbackRate === speed ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                              playbackRate === speed ? 'text-accent-cyan font-bold' : 'text-ink-muted hover:text-ink'
                             }`}
                           >
                             {speed}x
@@ -544,7 +542,7 @@ export default function RecruiterRecordingViewPage() {
                       title={`Jump to Q${qNum} at ${formatted} (${avgScore}% score)`}
                     >
                       <span className="w-2 h-2 rounded-full bg-rose-400 group-hover:animate-ping" />
-                      <span className="font-semibold text-rose-300">
+                      <span className="font-semibold text-accent-rose">
                         Q{qNum} Weak Answer ({avgScore}%)
                       </span>
                       <span className="inline-flex items-center gap-1 font-mono font-bold text-[11px] text-accent-cyan bg-inset px-2 py-0.5 rounded border border-line">
@@ -641,8 +639,8 @@ export default function RecruiterRecordingViewPage() {
                           </span>
 
                           {turn.isWeakAnswer && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 text-rose-300 font-mono font-bold text-[10px] shrink-0">
-                              <AlertCircle className="w-3 h-3 text-rose-400" />
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 text-accent-rose font-mono font-bold text-[10px] shrink-0">
+                              <AlertCircle className="w-3 h-3 text-accent-rose" />
                               <span className="hidden sm:inline">Weak Answer</span>
                             </span>
                           )}
@@ -725,7 +723,7 @@ export default function RecruiterRecordingViewPage() {
                                   {turn.candidate_code.split('\n').length} lines
                                 </span>
                               </div>
-                              <pre className="p-3 rounded-lg bg-slate-950 border border-line/80 font-mono text-xs text-slate-200 overflow-x-auto max-h-56 leading-relaxed selection:bg-cyan-500/30 selection:text-white">
+                              <pre className="p-3 rounded-lg bg-canvas border border-line/80 font-mono text-xs text-ink overflow-x-auto max-h-56 leading-relaxed selection:bg-cyan-500/30 selection:text-white">
                                 <code>{turn.candidate_code}</code>
                               </pre>
                             </div>
@@ -781,7 +779,7 @@ export default function RecruiterRecordingViewPage() {
             </div>
 
             {/* Match Score Display */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-inset border border-line">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-inset">
               <div>
                 <span className="text-xs text-ink-muted font-medium">Overall AI Match Score</span>
                 <p className="text-[11px] text-ink-muted font-mono mt-0.5">Weighted composite rating</p>
@@ -815,7 +813,7 @@ export default function RecruiterRecordingViewPage() {
                 <Sparkles className="w-3.5 h-3.5 text-accent-indigo" />
                 Executive Summary
               </span>
-              <p className="text-xs text-ink-muted leading-relaxed bg-inset p-3.5 rounded-xl border border-line">
+              <p className="text-xs text-ink-muted leading-relaxed bg-inset p-3.5 rounded-xl">
                 {reportData?.executiveSummary || 'Scorecard evaluation pending.'}
               </p>
             </div>
@@ -861,26 +859,26 @@ export default function RecruiterRecordingViewPage() {
           <div className="rounded-2xl bg-surface border border-line p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <ShieldCheck className="w-4 h-4 text-accent-emerald" />
                 <h3 className="text-sm font-bold text-ink">Integrity & Proctoring Audit</h3>
               </div>
               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                 reportData?.proctoringIntegritySummary.flagged
-                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                  : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                  ? 'bg-rose-500/10 text-accent-rose border border-rose-500/30'
+                  : 'bg-emerald-500/10 text-accent-emerald border border-emerald-500/30'
               }`}>
                 {reportData?.proctoringIntegritySummary.flagged ? 'Flagged for Review' : 'Verified Normal'}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-inset border border-line">
+              <div className="p-3 rounded-xl bg-inset">
                 <span className="text-[11px] text-ink-muted block font-mono">Warning Events</span>
                 <span className="text-sm font-bold text-ink block mt-0.5">
                   {reportData?.proctoringIntegritySummary.warningCount || 0}
                 </span>
               </div>
-              <div className="p-3 rounded-xl bg-inset border border-line">
+              <div className="p-3 rounded-xl bg-inset">
                 <span className="text-[11px] text-ink-muted block font-mono">Warning Threshold</span>
                 <span className="text-sm font-bold text-ink block mt-0.5">
                   {reportData?.proctoringIntegritySummary.threshold || 5}
@@ -909,7 +907,7 @@ export default function RecruiterRecordingViewPage() {
                   {suspiciousEvents.map((evt) => (
                     <div
                       key={evt.id}
-                      className="p-2.5 rounded-xl bg-inset border border-line hover:border-amber-500/40 transition-colors flex items-center justify-between gap-2 text-xs"
+                      className="p-2.5 rounded-xl bg-inset hover:bg-surface-2 transition-colors flex items-center justify-between gap-2 text-xs"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">

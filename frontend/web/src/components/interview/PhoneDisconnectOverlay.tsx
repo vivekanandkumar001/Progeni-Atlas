@@ -42,7 +42,7 @@ export const PhoneDisconnectOverlay: React.FC<PhoneDisconnectOverlayProps> = ({
 
         {isPhoneTerminalFailure ? (
           <div className="space-y-4 py-2">
-            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-200 leading-relaxed">
+            <div className="p-4 rounded-2xl bg-rose-500/10 text-xs text-rose-200 leading-relaxed">
               <p className="font-semibold text-rose-100 mb-1">Max re-pairing attempts reached.</p>
               <p>Phone relay unavailable - try again later or use your desktop camera.</p>
             </div>

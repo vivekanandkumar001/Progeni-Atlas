@@ -12,12 +12,13 @@ import io
 import re
 import traceback
 from datetime import datetime, timezone, timedelta
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, Response
 
 from core.db import get_mongo_db
 from core.security import (
     _authenticate_request, resolve_user, require_auth,
-    send_interview_invite_email_smtp, send_candidate_decision_email_smtp
+    send_interview_invite_email_smtp, send_candidate_decision_email_smtp,
+    send_team_invite_email_smtp,
 )
 from core.context import get_current_recruiter
 from core.wallet import get_user_wallet_balance
@@ -226,35 +227,81 @@ def update_recruiter_profile():
 
 @recruiter_bp.route("/api/recruiter/team-invite", methods=["POST"])
 def send_team_invite():
-    """Send team member workspace invite via MongoDB."""
+    """Send team member workspace invite via MongoDB (org-bound, role-whitelisted)."""
     try:
+        user = get_current_recruiter()
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
         data = request.get_json() or {}
-        invite_email = data.get("email", "").strip().lower()
-        role = data.get("role", "recruiter").strip().lower()
-
+        invite_email = (data.get("email") or "").strip().lower()
+        role = (data.get("role") or "recruiter").strip().lower()
+        if role not in ("recruiter", "hr", "admin", "interviewer"):
+            return jsonify({"success": False, "error": "Invalid role. Allowed: recruiter, hr, interviewer (evaluation-only), admin (org admin)."}), 400
         if not invite_email:
             return jsonify({"error": "Invite email address is required."}), 400
+        org_id = str(user.get("org_id") or "").strip()
+        if not org_id:
+            return jsonify({"success": False, "error": "Your account is not attached to an organization workspace."}), 400
 
         invite_token = str(uuid.uuid4())
         expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
         db = get_mongo_db()
+        inviter_id = str(user.get("id") or user.get("_id") or "")
+        org_name = "your organization"
+        if org_id and db is not None:
+            try:
+                from core.db import get_mongo_db as _gmd
+                _org = db.organizations.find_one({"$or": [{"id": org_id}, {"_id": org_id}]})
+                if _org and _org.get("name"):
+                    org_name = _org["name"]
+            except Exception:
+                pass
+
         db.organization_invites.insert_one({
             "email": invite_email,
             "role": role,
+            "org_id": org_id,
+            "invited_by": inviter_id,
             "status": "pending",
             "token": invite_token,
             "expires_at": expires_at,
             "created_at": datetime.now(timezone.utc)
         })
 
-        print(f"📩 [TEAM INVITE] Workspace invite sent to {invite_email} (Role: {role})")
+        frontend_base = os.environ.get("FRONTEND_BASE_URL", "http://localhost:3000").rstrip("/")
+        invite_url = f"{frontend_base}/team-invite?token={invite_token}"
+        email_delivered = False
+        email_error = None
+        try:
+            email_delivered, email_error = send_team_invite_email_smtp(
+                to_email=invite_email,
+                org_name=org_name,
+                inviter_name=user.get("full_name") or user.get("name") or "Workspace admin",
+                role=role,
+                invite_url=invite_url,
+                expires_in_days=7,
+            )
+        except Exception as mail_err:
+            email_delivered = False
+            email_error = str(mail_err)
+            print(f"[TEAM INVITE EMAIL EXCEPTION] {mail_err}")
+
+        message = f"Workspace invite sent to {invite_email}!"
+        if not email_delivered:
+            message = (f"Invite created for {invite_email}, but the invitation email was NOT delivered: "
+                       f"{email_error or 'email transport not configured'}")
+
+        print(f"[TEAM INVITE] Workspace invite created for org {org_id} (role: {role}) delivered={email_delivered}")
 
         return jsonify({
             "success": True,
-            "message": f"Workspace invite sent successfully to {invite_email}!",
+            "message": message,
+            "emailDelivered": bool(email_delivered),
+            "emailError": email_error,
+            "inviteUrl": invite_url,
             "invite": {
-                "id": str(uuid.uuid4()),
+                "id": invite_token,
                 "email": invite_email,
                 "role": role,
                 "status": "pending"
@@ -262,7 +309,7 @@ def send_team_invite():
         }), 200
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": f"Failed to send invite: {str(e)}"}), 500
+        return jsonify({"error": "Failed to send invite."}), 500
 
 
 @recruiter_bp.route("/api/recruiter/notifications", methods=["GET"])
@@ -319,24 +366,33 @@ def get_recruiter_notifications():
 def mark_recruiter_notifications_read():
     """Mark recruiter notifications as read."""
     try:
+        user = get_current_recruiter()
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
         data = request.get_json() or {}
         nids = data.get("notification_ids", [])
         db = get_mongo_db()
         if db is not None and nids:
             from bson import ObjectId
+            caller_id = str(user.get("id") or user.get("_id") or "")
+            caller_email = str(user.get("email") or "").strip().lower()
             id_objs = []
             for nid in nids:
                 id_objs.append(str(nid))
                 if ObjectId.is_valid(str(nid)):
                     id_objs.append(ObjectId(str(nid)))
+            # Scope strictly to the caller's own notifications
+            owner_filter = {"$or": [{"recruiter_id": caller_id}]}
+            if caller_email:
+                owner_filter["$or"].append({"recruiter_email": caller_email})
             db.recruiter_notifications.update_many(
-                {"$or": [{"id": {"$in": id_objs}}, {"_id": {"$in": id_objs}}]},
+                {"$and": [{"$or": [{"id": {"$in": id_objs}}, {"_id": {"$in": id_objs}}]}, owner_filter]},
                 {"$set": {"is_read": True}}
             )
         return jsonify({"success": True}), 200
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/dashboard", methods=["GET"])
@@ -481,10 +537,14 @@ def get_recruiter_dashboard():
                     sc = a.get("scorecard") or {}
                     apt_obj = {
                         "overallScore": sc.get("overallScore", 0),
-                        "percentile": sc.get("percentile", 0),
+                        "percentile": sc.get("percentile"),
+                        "percentileBasis": sc.get("percentileBasis", "insufficient_pool"),
+                        "normPoolSize": sc.get("normPoolSize", 0),
                         "accuracy": sc.get("accuracyPercent", 0),
                         "trustScore": sc.get("trustScore", 100),
+                        "integrityVerdict": sc.get("integrityVerdict", "clean"),
                         "speedIndex": sc.get("speedIndex", "Balanced"),
+                        "deltaVsPrevious": sc.get("deltaVsPrevious"),
                         "completedAt": a.get("completedAt")
                     }
                     if e and e not in apt_map:
@@ -572,6 +632,8 @@ def recruiter_jobs():
     if request.method == "GET":
         try:
             user = get_current_recruiter()
+            if not user:
+                return jsonify({"error": "Recruiter authentication required."}), 401
             db = get_mongo_db()
             jobs = []
             if db is not None:
@@ -666,6 +728,9 @@ def recruiter_jobs():
 def parse_recruiter_jd():
     """Extract plain text from an uploaded Job Description file (.pdf, .docx, .doc, .txt, .md)."""
     try:
+        user = get_current_recruiter()
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authentication required."}), 401
         if "file" not in request.files:
             data = request.get_json(silent=True, force=True) or {}
             raw_text = data.get("text") or data.get("jobDescription") or data.get("job_description")
@@ -745,6 +810,8 @@ def bulk_parse_resumes(job_id):
     """Parse multiple uploaded candidate resumes and extract names, emails, and matched skills."""
     try:
         user = get_current_recruiter()
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authentication required."}), 401
         files = request.files.getlist("files") or request.files.getlist("file")
         if not files:
             return jsonify({"success": False, "error": "No resume files uploaded."}), 400
@@ -845,6 +912,9 @@ def bulk_parse_resumes(job_id):
 def generate_bulk_schedules():
     """Generate non-conflicting interview timeslots across upcoming business days."""
     try:
+        user = get_current_recruiter()
+        if not user:
+            return jsonify({"error": "Recruiter authentication required."}), 401
         data = request.get_json() or {}
         candidates = data.get("candidates", [])
         candidate_ids = data.get("candidateIds", [])
@@ -931,9 +1001,21 @@ def confirm_bulk_schedules():
             except Exception:
                 pass
 
+        job_jd = ""
+        if job_id and job_id != "custom" and db is not None:
+            try:
+                _jd_doc = db.job_profiles.find_one(
+                    {"$or": [{"id": job_id}, {"_id": job_id}]},
+                    {"job_description": 1},
+                )
+                if _jd_doc:
+                    job_jd = str(_jd_doc.get("job_description") or "")
+            except Exception:
+                job_jd = ""
         frontend_base = os.environ.get("FRONTEND_BASE_URL", "http://localhost:3000").rstrip("/")
         now = datetime.now(timezone.utc)
         confirmed_count = 0
+        email_results = []
 
         for sch in schedules:
             cand_id = sch.get("candidateId") or str(uuid.uuid4())
@@ -1012,25 +1094,42 @@ def confirm_bulk_schedules():
                 db.interview_invitations.insert_one(invitation_record)
 
             if notify and cand_email:
+                invite_email_ok = None
                 try:
-                    send_interview_invite_email_smtp(
+                    invite_email_ok, invite_email_err = send_interview_invite_email_smtp(
                         to_email=cand_email,
                         candidate_name=cand_name,
                         role=role,
                         company_name=company_name,
                         invite_url=invite_url,
                         interview_date=sched_date,
-                        interview_time=sched_time
+                        interview_time=sched_time,
+                        recruiter_name=user.get("full_name") or user.get("name") or "Recruiting Team",
+                        recruiter_email=recruiter_email,
+                        jd_text=job_jd,
+                        duration_minutes=int(sch.get("durationMinutes") or 30),
                     )
                 except Exception:
-                    pass
+                    invite_email_ok = False
+                email_results.append({"email": cand_email, "delivered": bool(invite_email_ok)})
 
             confirmed_count += 1
+
+        delivered_count = sum(1 for r in email_results if r.get("delivered"))
+        requested_count = len(email_results)
+        message = f"Successfully scheduled {confirmed_count} candidate interview(s)."
+        if requested_count:
+            message += f" Invitation email delivered to {delivered_count}/{requested_count} recipient(s)."
+        else:
+            message += " No notification emails were requested."
 
         return jsonify({
             "success": True,
             "confirmedCount": confirmed_count,
-            "message": f"Successfully scheduled {confirmed_count} candidate interview(s)!"
+            "message": message,
+            "emailRequested": requested_count,
+            "emailsDelivered": delivered_count,
+            "emailResults": email_results,
         }), 200
 
     except Exception as e:
@@ -1215,26 +1314,41 @@ def invite_candidate_screening():
 
         print(f"📩 [RECRUITER INVITE] AI Interview invite, invitation record, and notification created for {candidate_email} ({candidate_name}) by recruiter {recruiter_email}")
 
-        # Send invitation email via SMTP if configured
+        # Send invitation email with the uploaded JD as an attachment
+        email_delivered = False
+        email_error = None
         try:
-            send_interview_invite_email_smtp(
+            email_delivered, email_error = send_interview_invite_email_smtp(
                 to_email=candidate_email,
                 candidate_name=candidate_name,
                 role=role,
                 company_name=company_name,
                 invite_url=invite_url,
                 interview_date=interview_date,
-                interview_time=interview_time
+                interview_time=interview_time,
+                recruiter_name=user.get("full_name") or user.get("name") or "Recruiting Team",
+                recruiter_email=recruiter_email,
+                jd_text=jd,
+                duration_minutes=duration_minutes,
             )
         except Exception as mail_err:
-            print(f"⚠️ [INVITE EMAIL EXCEPTION] Failed to dispatch email to {candidate_email}: {mail_err}")
+            email_delivered = False
+            email_error = str(mail_err)
+            print(f"[INVITE EMAIL EXCEPTION] Failed to dispatch email to {candidate_email}: {mail_err}")
+
+        message = f"AI Screening invite dispatched to {candidate_email}."
+        if not email_delivered:
+            message = (f"Interview created for {candidate_email}, but the invitation email was NOT delivered: "
+                       f"{email_error or 'email transport not configured'}")
 
         return jsonify({
             "success": True,
-            "message": f"AI Screening invite dispatched to {candidate_email}!",
+            "message": message,
             "sessionId": session_id,
             "invitationId": invitation_id,
-            "inviteUrl": invite_url
+            "inviteUrl": invite_url,
+            "emailDelivered": bool(email_delivered),
+            "emailError": email_error,
         }), 200
     except Exception as e:
         traceback.print_exc()
@@ -1252,14 +1366,38 @@ def update_candidate_decision(candidate_id):
         data = request.get_json() or {}
         decision = str(data.get("decision") or data.get("status") or "inprocess").lower().strip()
         session_id = data.get("sessionId")
+        if decision not in ("selected", "shortlisted", "rejected", "inprocess", "backout", "advanced_to_panel", "hire", "strong_hire", "no_hire"):
+            return jsonify({"error": "Invalid decision value."}), 400
+
+        # Tenant scoping: only sessions belonging to the caller's org (or owned by the caller)
+        rec_id = str(user.get("id") or user.get("_id") or "")
+        rec_email = str(user.get("email") or "").strip().lower()
+        org_id = str(user.get("org_id") or "").strip()
+        role = str(user.get("role", "")).lower()
+
+        tenant_clauses = []
+        if org_id:
+            tenant_clauses.append({"org_id": org_id})
+        if rec_id:
+            tenant_clauses.append({"recruiter_id": rec_id})
+        if rec_email:
+            tenant_clauses.append({"recruiter_email": rec_email})
+        if role in ("super_admin",):
+            tenant_clauses = None  # platform admin may act across tenants
+        if tenant_clauses == [] and role not in ("super_admin",):
+            return jsonify({"error": "Your account is not attached to an organization workspace."}), 400
 
         db = get_mongo_db()
         if db is not None:
-            update_query = {"$or": [{"candidate_id": candidate_id}, {"id": candidate_id}, {"_id": candidate_id}]}
+            base_query = {"$or": [{"candidate_id": candidate_id}, {"id": candidate_id}, {"_id": candidate_id}]}
             if session_id:
-                update_query = {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]}
+                base_query = {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]}
+            if tenant_clauses is not None:
+                update_query = {"$and": [base_query, {"$or": tenant_clauses}]}
+            else:
+                update_query = base_query
 
-            db.interview_sessions.update_many(
+            result = db.interview_sessions.update_many(
                 update_query,
                 {"$set": {
                     "student_status": decision,
@@ -1267,11 +1405,13 @@ def update_candidate_decision(candidate_id):
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }}
             )
+            if session_id and result.matched_count == 0:
+                return jsonify({"error": "Session not found or not accessible within your organization."}), 404
 
             sess_doc = db.interview_sessions.find_one(update_query)
             cand_id = str((sess_doc and sess_doc.get("candidate_id")) or candidate_id)
-            cand_email = (data.get("candidateEmail") or data.get("email") or (sess_doc and (sess_doc.get("candidate_email") or sess_doc.get("email"))) or "").strip()
-            cand_name = (data.get("candidateName") or data.get("name") or (sess_doc and (sess_doc.get("candidate_name") or sess_doc.get("name"))) or "").strip()
+            cand_email = str((sess_doc and (sess_doc.get("candidate_email") or sess_doc.get("email"))) or "").strip().lower()
+            cand_name = str((sess_doc and (sess_doc.get("candidate_name") or sess_doc.get("name"))) or "Candidate").strip()
             title_role = (data.get("role") or data.get("targetPosition") or (sess_doc and (sess_doc.get("job_title") or sess_doc.get("target_position"))) or "Technical Assessment").strip()
             notes = str(data.get("notes") or "").strip()
             company_name = user.get("company_name") or user.get("organization_name") or (sess_doc and sess_doc.get("company_name")) or "Progeni Atlas"
@@ -1384,6 +1524,21 @@ def reschedule_interview_session(session_id):
                 "availableCredits": 0.0
             }), 402
 
+        # Tenant scoping: the session must belong to the caller's org or be owned by the caller
+        rec_email = str(user.get("email") or "").strip().lower()
+        role = str(user.get("role", "")).lower()
+        tenant_clauses = []
+        if org_id:
+            tenant_clauses.append({"org_id": org_id})
+        if recruiter_id:
+            tenant_clauses.append({"recruiter_id": recruiter_id})
+        if rec_email:
+            tenant_clauses.append({"recruiter_email": rec_email})
+        if role == "super_admin":
+            tenant_clauses = None
+        if tenant_clauses == [] and role != "super_admin":
+            return jsonify({"error": "Your account is not attached to an organization workspace."}), 400
+
         data = request.get_json() or {}
         interview_date = data.get("interviewDate", "").strip()
         interview_time = data.get("interviewTime", "").strip()
@@ -1392,8 +1547,11 @@ def reschedule_interview_session(session_id):
         db = get_mongo_db()
         if db is not None:
             now_iso = f"{interview_date}T{interview_time}:00Z" if (interview_date and interview_time) else datetime.now(timezone.utc).isoformat()
-            db.interview_sessions.update_one(
-                {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
+            session_scope = {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]}
+            if tenant_clauses is not None:
+                session_scope = {"$and": [session_scope, {"$or": tenant_clauses}]}
+            result = db.interview_sessions.update_one(
+                session_scope,
                 {"$set": {
                     "scheduled_date": interview_date,
                     "scheduled_time": interview_time,
@@ -1403,6 +1561,8 @@ def reschedule_interview_session(session_id):
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }}
             )
+            if result.matched_count == 0:
+                return jsonify({"error": "Session not found or not accessible within your organization."}), 404
             try:
                 db.interview_invitations.update_many(
                     {"$or": [{"session_id": session_id}, {"sessionId": session_id}]},
@@ -1419,7 +1579,7 @@ def reschedule_interview_session(session_id):
             sess_doc = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
             if sess_doc:
                 cand_id = str(sess_doc.get("candidate_id") or "")
-                cand_email = str(sess_doc.get("candidate_email") or "")
+                cand_email = str(sess_doc.get("candidate_email") or "").strip().lower()
                 role_title = sess_doc.get("job_title") or "Technical Interview"
                 try:
                     db.candidate_notifications.insert_one({
@@ -1452,6 +1612,99 @@ def reschedule_interview_session(session_id):
 
 
 # Duplicate confirm_recruiter_bulk_schedules removed (unified into confirm_bulk_schedules above)
+
+
+@recruiter_bp.route("/api/recruiter/dossiers/export", methods=["GET"])
+def export_candidate_dossiers():
+    """Export candidate dossiers (CSV or XLSX) scoped to the calling recruiter's
+    tenant. Same data exposure as the dossiers page — nothing more."""
+    try:
+        fmt = (request.args.get("format") or "xlsx").strip().lower()
+        if fmt not in ("xlsx", "csv"):
+            return jsonify({"error": "format must be 'xlsx' or 'csv'"}), 400
+        job_filter = (request.args.get("jobId") or "").strip()
+
+        resp = get_recruiter_dashboard()
+        if hasattr(resp, "get_json"):
+            data = resp.get_json() or {}
+        elif isinstance(resp, tuple) and len(resp) > 0 and hasattr(resp[0], "get_json"):
+            data = resp[0].get_json() or {}
+        else:
+            data = {}
+        candidates = data.get("candidates", []) or []
+        if job_filter and job_filter != "all":
+            candidates = [c for c in candidates if str(c.get("jobProfileId") or "") == job_filter]
+
+        columns = [
+            ("name", "Candidate Name"),
+            ("email", "Email"),
+            ("targetPosition", "Target Position"),
+            ("department", "Department"),
+            ("status", "Status"),
+            ("stage", "Stage"),
+            ("aiMatchScore", "AI Match Score"),
+            ("recommendation", "Recommendation"),
+            ("interviewDuration", "Duration"),
+            ("scheduledDate", "Scheduled Date"),
+            ("scheduledTime", "Scheduled Time"),
+            ("appliedDate", "Applied Date"),
+            ("skills", "Skills"),
+            ("summary", "Summary"),
+        ]
+
+        def _cell(c, key):
+            v = c.get(key)
+            if isinstance(v, (list, tuple)):
+                v = ", ".join(str(x) for x in v)
+            if v is None:
+                return ""
+            return str(v)
+
+        if fmt == "csv":
+            import csv
+            import io
+            buf = io.StringIO()
+            w = csv.writer(buf)
+            w.writerow([label for _, label in columns])
+            for c in candidates:
+                w.writerow([_cell(c, key) for key, _ in columns])
+            body = buf.getvalue().encode("utf-8-sig")
+            filename = f"progeni_atlas_candidate_dossiers_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.csv"
+            return Response(
+                body,
+                mimetype="text/csv",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+
+        try:
+            from openpyxl import Workbook
+        except ImportError:
+            return jsonify({"error": "XLSX export requires openpyxl (not installed on this server). Use format=csv."}), 501
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Dossiers"
+        ws.append([label for _, label in columns])
+        for c in candidates:
+            ws.append([_cell(c, key) for key, _ in columns])
+        for col_idx, (_, label) in enumerate(columns, start=1):
+            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = max(18, min(60, len(label) + 12))
+        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = f"A1:{ws.cell(row=1, column=len(columns)).column_letter}{max(len(candidates) + 1, 2)}"
+
+        import io
+        xbuf = io.BytesIO()
+        wb.save(xbuf)
+        xbuf.seek(0)
+        filename = f"progeni_atlas_candidate_dossiers_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.xlsx"
+        return Response(
+            xbuf.getvalue(),
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @recruiter_bp.route("/api/recruiter/dossiers", methods=["GET"])
@@ -1687,6 +1940,12 @@ def get_evaluation_rubrics():
 def update_evaluation_rubric():
     """Update custom prompt weights and rubric criteria for a job profile with MongoDB persistence."""
     try:
+        user = get_current_recruiter()
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authentication required."}), 401
+        org_id = str(user.get("org_id") or "").strip()
+        rec_id = str(user.get("id") or user.get("_id") or "")
+        role = str(user.get("role", "")).lower()
         data = request.get_json() or {}
         rubric_id = str(data.get("rubricId") or uuid.uuid4())
         job_profile_id = data.get("jobProfileId")
@@ -1708,17 +1967,47 @@ def update_evaluation_rubric():
             if job_profile_id:
                 try:
                     from bson import ObjectId
+                    job_scope = {"$or": [{"id": job_profile_id}, {"_id": job_profile_id}]}
+                    if role != "super_admin":
+                        owner_clauses = [{"recruiter_id": rec_id}]
+                        if org_id:
+                            owner_clauses.append({"org_id": org_id})
+                        job_scope = {"$and": [job_scope, {"$or": owner_clauses}]}
                     db.job_profiles.update_many(
-                        {"$or": [{"id": job_profile_id}, {"_id": job_profile_id}]},
+                        job_scope,
                         {"$set": update_data}
                     )
                 except Exception:
                     pass
 
+            rubric_filter = {"$or": [{"id": rubric_id}, {"_id": rubric_id}] + ([{"job_profile_id": job_profile_id}] if job_profile_id else [])}
+            if role != "super_admin":
+                owner_clauses = [{"recruiter_id": rec_id}]
+                if org_id:
+                    owner_clauses.append({"org_id": org_id})
+                owner_clauses.append({"id": rubric_id})  # new rubric owned by caller
+                rubric_filter = {"$and": [rubric_filter, {"$or": owner_clauses}]}
             db.evaluation_rubrics.update_many(
-                {"$or": [{"id": rubric_id}, {"_id": rubric_id}, {"job_profile_id": job_profile_id}]},
-                {"$set": {**update_data, "id": rubric_id, "title": title}},
-                upsert=True
+                rubric_filter,
+                {"$set": {**update_data, "id": rubric_id, "title": title, "recruiter_id": rec_id, "org_id": org_id or None}},
+            )
+
+            # Ensure the rubric exists (create owned record on first save)
+            db.evaluation_rubrics.update_one(
+                {"id": rubric_id},
+                {"$setOnInsert": {
+                    "id": rubric_id,
+                    "title": title,
+                    "job_profile_id": job_profile_id,
+                    "weights": weights,
+                    "custom_instructions": custom_instructions,
+                    "experience_level": experience_level,
+                    "blueprint_id": blueprint_id,
+                    "recruiter_id": rec_id,
+                    "org_id": org_id or None,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }},
+                upsert=True,
             )
 
         print(f"⚙️ [RUBRIC UPDATE] Rubric {rubric_id} updated for '{title}' with weights: {weights}")
@@ -1748,6 +2037,9 @@ def api_generate_recruiter_rubric():
     Recruiter auto-generate rubric helper using Dynamic Parameter Generator.
     """
     try:
+        user = get_current_recruiter()
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authentication required."}), 401
         data = request.get_json() or {}
         jd = data.get("jobDescription", "") or data.get("job_description", "")
         if not jd:
@@ -1861,7 +2153,11 @@ def get_recruiter_integrations():
     """Retrieve recruiter organization ATS integrations, status, credentials, and sync logs."""
     try:
         user = get_current_recruiter()
-        org_id = (user and user.get("org_id")) or "org-default"
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authentication required."}), 401
+        org_id = str(user.get("org_id") or "").strip()
+        if not org_id:
+            return jsonify({"success": False, "error": "Your account is not attached to an organization workspace."}), 400
         db = get_mongo_db()
 
         config = DEFAULT_ATS_INTEGRATIONS.copy()
@@ -1926,7 +2222,11 @@ def save_recruiter_integration(provider):
     """Save or update configuration and toggles for an ATS provider (greenhouse, workday, lever, ashby)."""
     try:
         user = get_current_recruiter()
-        org_id = (user and user.get("org_id")) or "org-default"
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authentication required."}), 401
+        org_id = str(user.get("org_id") or "").strip()
+        if not org_id:
+            return jsonify({"success": False, "error": "Your account is not attached to an organization workspace."}), 400
         data = request.get_json() or {}
 
         db = get_mongo_db()
@@ -2027,7 +2327,11 @@ def export_candidate_to_ats():
     """Manually export candidate scorecard, 4-pillar evaluation, and PDF dossier to Greenhouse / Workday."""
     try:
         user = get_current_recruiter()
-        org_id = (user and user.get("org_id")) or "org-default"
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authentication required."}), 401
+        org_id = str(user.get("org_id") or "").strip()
+        if not org_id:
+            return jsonify({"success": False, "error": "Your account is not attached to an organization workspace."}), 400
         data = request.get_json() or {}
 
         candidate_name = data.get("candidateName", "Candidate")
@@ -2079,7 +2383,11 @@ def save_recruiter_integration_rules():
     """Save automated hiring pipeline rules (autoInvite, autoExportScorecard, passThreshold, email notifications)."""
     try:
         user = get_current_recruiter()
-        org_id = (user and user.get("org_id")) or "org-default"
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authentication required."}), 401
+        org_id = str(user.get("org_id") or "").strip()
+        if not org_id:
+            return jsonify({"success": False, "error": "Your account is not attached to an organization workspace."}), 400
         data = request.get_json() or {}
 
         db = get_mongo_db()
@@ -2105,7 +2413,11 @@ def bulk_import_candidates_from_source():
     """Bulk import candidates from CSV, Google Sheets, or ATS pipeline and trigger AI interviews."""
     try:
         user = get_current_recruiter()
-        org_id = (user and user.get("org_id")) or "org-default"
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authentication required."}), 401
+        org_id = str(user.get("org_id") or "").strip()
+        if not org_id:
+            return jsonify({"success": False, "error": "Your account is not attached to an organization workspace."}), 400
         data = request.get_json() or {}
 
         source = data.get("source", "csv_upload")
@@ -2150,7 +2462,7 @@ def bulk_import_candidates_from_source():
                     "created_at": now_iso
                 })
 
-                # Log human-readable ATS integration event
+                # Log the import honestly — no email went out yet.
                 db.ats_sync_logs.insert_one({
                     "id": f"ats-log-{uuid.uuid4().hex[:8]}",
                     "org_id": org_id,
@@ -2158,10 +2470,10 @@ def bulk_import_candidates_from_source():
                     "candidateName": c_name,
                     "candidateEmail": c_email,
                     "jobRole": c_role,
-                    "action": "Interview Invite Sent",
-                    "status": "DELIVERED",
-                    "httpCode": 200,
-                    "details": f"Imported via {source.replace('_', ' ').title()}. AI technical screening session provisioned ({c_role}).",
+                    "action": "Interview Invite Created",
+                    "status": "PENDING_EMAIL",
+                    "httpCode": 202,
+                    "details": f"Imported via {source.replace('_', ' ').title()}. Invitation record created ({c_role}); email dispatch pending — provider not configured.",
                     "timestamp": now_iso
                 })
 
@@ -2179,8 +2491,11 @@ def bulk_import_candidates_from_source():
 
         return jsonify({
             "success": True,
-            "message": f"Successfully imported and invited {invited_count} candidate(s) to AI screening!",
-            "invitedCount": invited_count
+            "message": (f"Imported {invited_count} candidate(s). Invitation records created; "
+                        f"email dispatch is pending — no email goes out until an email provider "
+                        f"(RESEND_API_KEY or working SMTP) is configured."),
+            "invitedCount": invited_count,
+            "emailDispatched": False,
         }), 200
     except Exception as e:
         traceback.print_exc()
@@ -2195,6 +2510,15 @@ def greenhouse_inbound_webhook():
         return jsonify({"status": "Greenhouse webhook listener operational", "endpoint": "POST /api/integrations/greenhouse/webhook"}), 200
 
     try:
+        import hmac
+        expected = os.environ.get("GREENHOUSE_WEBHOOK_SECRET", "").strip()
+        if not expected:
+            return jsonify({"error": "Greenhouse webhook integration is not configured on this server."}), 503
+        provided = request.headers.get("X-Webhook-Secret", "").strip()
+        if not hmac.compare_digest(provided, expected):
+            return jsonify({"error": "Invalid webhook signature."}), 401
+        org_id = os.environ.get("GREENHOUSE_ORG_ID", "org-default").strip() or "org-default"
+
         data = request.get_json() or {}
         action = data.get("action", "candidate_stage_change")
         payload = data.get("payload", {})
@@ -2207,7 +2531,7 @@ def greenhouse_inbound_webhook():
         if db is not None:
             log_entry = {
                 "id": f"ats-log-{uuid.uuid4().hex[:8]}",
-                "org_id": "org-default",
+                "org_id": org_id,
                 "provider": "greenhouse",
                 "candidateName": cand_name,
                 "candidateEmail": cand_email,
@@ -2220,7 +2544,7 @@ def greenhouse_inbound_webhook():
             }
             db.ats_sync_logs.insert_one(log_entry)
             db.ats_integrations.update_one(
-                {"org_id": "org-default"},
+                {"org_id": org_id},
                 {"$inc": {"providers.greenhouse.candidatesSynced": 1}}
             )
 
@@ -2241,6 +2565,15 @@ def workday_inbound_webhook():
         return jsonify({"status": "Workday webhook listener operational", "endpoint": "POST /api/integrations/workday/webhook"}), 200
 
     try:
+        import hmac
+        expected = os.environ.get("WORKDAY_WEBHOOK_SECRET", "").strip()
+        if not expected:
+            return jsonify({"error": "Workday webhook integration is not configured on this server."}), 503
+        provided = request.headers.get("X-Webhook-Secret", "").strip()
+        if not hmac.compare_digest(provided, expected):
+            return jsonify({"error": "Invalid webhook signature."}), 401
+        org_id = os.environ.get("WORKDAY_ORG_ID", "org-default").strip() or "org-default"
+
         data = request.get_json() or {}
         event_name = data.get("event", "assessment_requested")
         cand_name = data.get("applicantName", "Workday Applicant")
@@ -2251,7 +2584,7 @@ def workday_inbound_webhook():
         if db is not None:
             log_entry = {
                 "id": f"ats-log-{uuid.uuid4().hex[:8]}",
-                "org_id": "org-default",
+                "org_id": org_id,
                 "provider": "workday",
                 "candidateName": cand_name,
                 "candidateEmail": cand_email,
@@ -2264,7 +2597,7 @@ def workday_inbound_webhook():
             }
             db.ats_sync_logs.insert_one(log_entry)
             db.ats_integrations.update_one(
-                {"org_id": "org-default"},
+                {"org_id": org_id},
                 {"$inc": {"providers.workday.candidatesSynced": 1}}
             )
 
@@ -2281,73 +2614,78 @@ def workday_inbound_webhook():
 # CANDIDATE DOSSIER PDF EXPORT & OUTBOUND WEBHOOK SYNC
 # =====================================================================
 
-DEFAULT_DOSSIER_WEBHOOK = {
-    "webhookUrl": "https://hooks.slack.com/services/T08ENT/B09REC/x918ProgeniAtlasDossiers",
-    "secret": "tp_whsec_79a2f1b8c049e3••••••••",
-    "autoSyncOnComplete": True,
-    "autoSyncOnDecision": True,
-    "format": "json",
-    "status": "active",
-    "lastDispatch": "2026-10-28T18:50:14Z"
-}
-
-DEFAULT_WEBHOOK_DISPATCHES = [
-    {
-        "id": "wh-disp-101",
-        "candidateName": "Alexandra Chen",
-        "jobRole": "Senior Full-Stack Engineer",
-        "event": "dossier.exported",
-        "targetUrl": "https://hooks.slack.com/services/T08ENT/B09REC/x918ProgeniAtlasDossiers",
-        "httpCode": 200,
-        "status": "DELIVERED",
-        "latencyMs": 145,
-        "pdfAttached": True,
-        "timestamp": "2026-10-28T18:50:14Z"
-    },
-    {
-        "id": "wh-disp-102",
-        "candidateName": "Marcus Vance",
-        "jobRole": "Backend Distributed Systems Engineer",
-        "event": "candidate.shortlisted",
-        "targetUrl": "https://hooks.slack.com/services/T08ENT/B09REC/x918ProgeniAtlasDossiers",
-        "httpCode": 200,
-        "status": "DELIVERED",
-        "latencyMs": 132,
-        "pdfAttached": True,
-        "timestamp": "2026-10-28T18:12:30Z"
-    },
-    {
-        "id": "wh-disp-103",
-        "candidateName": "Sophia Patel",
-        "jobRole": "AI / ML Systems Engineer",
-        "event": "dossier.exported",
-        "targetUrl": "https://api.enterprise-ats.internal/webhooks/progeni-atlas",
-        "httpCode": 200,
-        "status": "DELIVERED",
-        "latencyMs": 98,
-        "pdfAttached": True,
-        "timestamp": "2026-10-28T17:35:48Z"
+def _empty_dossier_webhook_config():
+    """Honest empty outbound-webhook state when an org has not configured one yet."""
+    return {
+        "webhookUrl": "",
+        "secret": "",
+        "autoSyncOnComplete": False,
+        "autoSyncOnDecision": False,
+        "format": "json",
+        "status": "disabled",
+        "lastDispatch": None
     }
-]
+
+
+def _is_safe_external_url(url: str) -> bool:
+    """SSRF guard: only allow public http(s) URLs — no loopback/private/link-local/metadata hosts."""
+    try:
+        from urllib.parse import urlparse
+        import ipaddress
+        parsed = urlparse(url if "://" in url else f"https://{url}")
+        if parsed.scheme not in ("http", "https"):
+            return False
+        host = (parsed.hostname or "").strip().lower()
+        if not host:
+            return False
+        if host in ("localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal"):
+            return False
+        try:
+            ip = ipaddress.ip_address(host)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                return False
+        except ValueError:
+            for bad in (".internal", ".local", ".corp", ".lan", ".intranet"):
+                if host.endswith(bad):
+                    return False
+        return True
+    except Exception:
+        return False
+
+
+def _require_recruiter_org():
+    """Return (user, org_id) or (None, error_response) — never a shared default tenant."""
+    user = get_current_recruiter()
+    if not user:
+        return None, (jsonify({"success": False, "error": "Recruiter authentication required."}), 401)
+    org_id = str(user.get("org_id") or "").strip()
+    if not org_id:
+        return None, (jsonify({"success": False, "error": "Your account is not attached to an organization workspace."}), 400)
+    return user, org_id
 
 
 @recruiter_bp.route("/api/recruiter/dossiers/webhook-config", methods=["GET", "POST"])
 def recruiter_dossier_webhook_config():
     """Retrieve or save outbound webhook sync settings for candidate dossier exports."""
     try:
-        user = get_current_recruiter()
-        org_id = (user and user.get("org_id")) or "org-default"
+        user, org_or_err = _require_recruiter_org()
+        if user is None:
+            return org_or_err
+        org_id = org_or_err
         db = get_mongo_db()
 
         if request.method == "POST":
             data = request.get_json() or {}
+            webhook_url = (data.get("webhookUrl") or "").strip()
+            if webhook_url and not _is_safe_external_url(webhook_url):
+                return jsonify({"success": False, "error": "Webhook URL must be a public http(s) URL. Internal/private addresses are not allowed."}), 400
             update_data = {
-                "webhookUrl": data.get("webhookUrl", "").strip(),
-                "secret": data.get("secret", "").strip(),
+                "webhookUrl": webhook_url,
+                "secret": (data.get("secret") or "").strip(),
                 "autoSyncOnComplete": bool(data.get("autoSyncOnComplete", True)),
                 "autoSyncOnDecision": bool(data.get("autoSyncOnDecision", True)),
-                "format": data.get("format", "json"),
-                "status": "active" if data.get("webhookUrl") else "disabled",
+                "format": "json",
+                "status": "active" if webhook_url else "disabled",
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }
             if db is not None:
@@ -2356,37 +2694,32 @@ def recruiter_dossier_webhook_config():
                     {"$set": update_data},
                     upsert=True
                 )
+            safe_config = {**update_data, "secret": ("••••" + update_data["secret"][-4:]) if update_data["secret"] else ""}
             return jsonify({
                 "success": True,
                 "message": "Dossier webhook sync configuration saved successfully!",
-                "config": update_data
+                "config": safe_config
             }), 200
 
-        # GET method
-        config = None
+        # GET method — never leak the stored signing secret
+        config = _empty_dossier_webhook_config()
         dispatches = []
         if db is not None:
             existing = db.dossier_webhooks.find_one({"org_id": org_id})
             if existing:
                 config = {k: v for k, v in existing.items() if k != "_id"}
-            else:
-                config = DEFAULT_DOSSIER_WEBHOOK
+                if config.get("secret"):
+                    config["secret"] = "••••" + str(config["secret"])[-4:]
 
             raw_logs = list(db.webhook_dispatch_logs.find({"org_id": org_id}).sort("timestamp", -1).limit(30))
-            if raw_logs:
-                dispatches = [{k: str(v) if k == "_id" else v for k, v in l.items()} for l in raw_logs]
-            else:
-                dispatches = DEFAULT_WEBHOOK_DISPATCHES
-        else:
-            config = DEFAULT_DOSSIER_WEBHOOK
-            dispatches = DEFAULT_WEBHOOK_DISPATCHES
+            dispatches = [{k: str(v) if k == "_id" else v for k, v in l.items()} for l in raw_logs]
 
         return jsonify({
             "success": True,
             "config": config,
             "dispatches": dispatches
         }), 200
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
         return jsonify({"error": "An unexpected error occurred"}), 500
 
@@ -2395,60 +2728,60 @@ def recruiter_dossier_webhook_config():
 def test_dossier_webhook():
     """Dispatch a verified test ping payload to the configured outbound webhook URL."""
     try:
+        user, org_or_err = _require_recruiter_org()
+        if user is None:
+            return org_or_err
+
         data = request.get_json() or {}
-        webhook_url = data.get("webhookUrl", "").strip()
-        secret = data.get("secret", "").strip()
+        webhook_url = (data.get("webhookUrl") or "").strip()
+        secret = (data.get("secret") or "").strip()
 
         if not webhook_url:
             return jsonify({"error": "Webhook endpoint URL is required"}), 400
+        if not _is_safe_external_url(webhook_url):
+            return jsonify({"error": "Webhook URL must be a public http(s) URL. Internal/private addresses are not allowed."}), 400
 
         payload = {
             "event": "test.ping",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "source": "Progeni Atlas Enterprise Dossier Dispatcher",
-            "message": "Webhook connectivity verified. Candidate dossiers and PDF reports will synchronize cleanly.",
-            "sampleCandidate": {
-                "name": "Alexandra Chen",
-                "role": "Senior Full-Stack Engineer",
-                "score": 94,
-                "recommendation": "STRONG_HIRE"
-            }
+            "message": "Webhook connectivity test ping.",
         }
 
         import time
         start_time = time.time()
-        http_code = 200
-        latency_ms = 120
+        try:
+            import requests
+            headers = {
+                "Content-Type": "application/json",
+                "User-Agent": "Progeni-Atlas-Dossier-Webhook/2.0"
+            }
+            if secret:
+                import hmac, hashlib
+                sig = hmac.new(secret.encode("utf-8"), json.dumps(payload).encode("utf-8"), hashlib.sha256).hexdigest()
+                headers["X-Progeni-Atlas-Signature"] = sig
 
-        # Attempt real POST request if valid external URL
-        if webhook_url.startswith("http://") or webhook_url.startswith("https://"):
-            try:
-                import requests
-                headers = {
-                    "Content-Type": "application/json",
-                    "User-Agent": "Progeni-Atlas-Dossier-Webhook/2.0"
-                }
-                if secret:
-                    import hmac, hashlib
-                    sig = hmac.new(secret.encode("utf-8"), json.dumps(payload).encode("utf-8"), hashlib.sha256).hexdigest()
-                    headers["X-Progeni-Atlas-Signature"] = sig
-
-                r = requests.post(webhook_url, json=payload, headers=headers, timeout=4)
-                http_code = r.status_code
-                latency_ms = int((time.time() - start_time) * 1000)
-            except Exception as net_err:
-                # If network timeout or internal hook, simulate clean test response
-                latency_ms = int((time.time() - start_time) * 1000) or 118
-                http_code = 200
+            r = requests.post(webhook_url, json=payload, headers=headers, timeout=4)
+            http_code = r.status_code
+            latency_ms = int((time.time() - start_time) * 1000)
+            delivered = 200 <= http_code < 300
+        except Exception:
+            return jsonify({
+                "success": False,
+                "message": "Webhook endpoint could not be reached or returned an error.",
+                "httpCode": None,
+                "latencyMs": int((time.time() - start_time) * 1000),
+                "deliveredAt": datetime.now(timezone.utc).isoformat()
+            }), 502
 
         return jsonify({
-            "success": True,
-            "message": f"Webhook test ping delivered (HTTP {http_code}). Latency: {latency_ms}ms.",
+            "success": delivered,
+            "message": f"Webhook test ping delivered (HTTP {http_code}). Latency: {latency_ms}ms." if delivered else f"Webhook endpoint responded with HTTP {http_code}.",
             "httpCode": http_code,
             "latencyMs": latency_ms,
             "deliveredAt": datetime.now(timezone.utc).isoformat()
-        }), 200
-    except Exception as e:
+        }), (200 if delivered else 502)
+    except Exception:
         traceback.print_exc()
         return jsonify({"error": "An unexpected error occurred"}), 500
 
@@ -2457,65 +2790,75 @@ def test_dossier_webhook():
 def dispatch_candidate_dossier_webhook():
     """Manually or automatically dispatch full candidate dossier, 4-pillar scorecard, and PDF URL to webhook."""
     try:
-        user = get_current_recruiter()
-        org_id = (user and user.get("org_id")) or "org-default"
+        user, org_or_err = _require_recruiter_org()
+        if user is None:
+            return org_or_err
+        org_id = org_or_err
         data = request.get_json() or {}
 
-        candidate_name = data.get("candidateName", "Candidate")
-        candidate_id = data.get("candidateId", f"cand-{uuid.uuid4().hex[:6]}")
-        role = data.get("role", "Software Engineer")
-        score = data.get("score", 90)
-        recommendation = data.get("recommendation", "HIRE")
-        breakdown = data.get("breakdown") or {
-            "technicalDepth": 92,
-            "systemArchitecture": 88,
-            "problemSolving": 94,
-            "communication": 90
-        }
+        candidate_name = str(data.get("candidateName") or "Candidate").strip()
+        candidate_id = str(data.get("candidateId") or "").strip()
+        role = str(data.get("role") or "Software Engineer").strip()
+        score = data.get("score")
+        recommendation = str(data.get("recommendation") or "").strip()
+        breakdown = data.get("breakdown") or None
 
         db = get_mongo_db()
-        webhook_url = "https://hooks.slack.com/services/T08ENT/B09REC/x918ProgeniAtlasDossiers"
-
+        webhook_url = ""
+        webhook_secret = ""
         if db is not None:
             hook_conf = db.dossier_webhooks.find_one({"org_id": org_id})
-            if hook_conf and hook_conf.get("webhookUrl"):
-                webhook_url = hook_conf["webhookUrl"]
+            if hook_conf:
+                webhook_url = (hook_conf.get("webhookUrl") or "").strip()
+                webhook_secret = (hook_conf.get("secret") or "").strip()
 
-        pdf_url = f"https://atlas.progeni.live/api/recruiter/dossiers/{candidate_id}/pdf"
+        if not webhook_url:
+            return jsonify({"success": False, "error": "No outbound webhook configured for your organization. Configure one in Settings → Webhooks first."}), 400
+
+        if not _is_safe_external_url(webhook_url):
+            return jsonify({"success": False, "error": "Configured webhook URL is not a public http(s) endpoint."}), 400
+
+        pdf_url = f"https://atlas.progeni.live/api/recruiter/dossiers/{candidate_id}/pdf" if candidate_id else None
 
         payload = {
             "event": "dossier.exported",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "candidate": {
-                "id": candidate_id,
+                "id": candidate_id or None,
                 "name": candidate_name,
                 "role": role,
             },
             "evaluation": {
                 "overallScore": score,
-                "recommendation": recommendation,
-                "scoreBreakdown": breakdown
-            },
-            "integrity": {
-                "trustScore": 98,
-                "flagsCount": 0,
-                "status": "VERIFIED_AUTHENTIC"
+                "recommendation": recommendation or None,
+                "scoreBreakdown": breakdown,
             },
             "dossierPdfUrl": pdf_url,
-            "portalReviewUrl": f"https://atlas.progeni.live/recruiter/dossiers"
+            "portalReviewUrl": "https://atlas.progeni.live/recruiter/dossiers"
         }
 
-        # Dispatch HTTP
-        http_code = 200
-        latency_ms = 135
-        if webhook_url.startswith("http://") or webhook_url.startswith("https://"):
-            try:
-                import requests
-                r = requests.post(webhook_url, json=payload, headers={"Content-Type": "application/json"}, timeout=3)
-                http_code = r.status_code
-            except Exception:
-                http_code = 200
+        import time
+        start_time = time.time()
+        http_code = None
+        try:
+            import requests
+            headers = {"Content-Type": "application/json", "User-Agent": "Progeni-Atlas-Dossier-Webhook/2.0"}
+            if webhook_secret:
+                import hmac, hashlib
+                sig = hmac.new(webhook_secret.encode("utf-8"), json.dumps(payload).encode("utf-8"), hashlib.sha256).hexdigest()
+                headers["X-Progeni-Atlas-Signature"] = sig
+            r = requests.post(webhook_url, json=payload, headers=headers, timeout=4)
+            http_code = r.status_code
+            latency_ms = int((time.time() - start_time) * 1000)
+        except Exception:
+            return jsonify({
+                "success": False,
+                "error": "Webhook endpoint could not be reached.",
+                "httpCode": None,
+                "latencyMs": int((time.time() - start_time) * 1000),
+            }), 502
 
+        delivered = 200 <= http_code < 300
         dispatch_entry = {
             "id": f"wh-disp-{uuid.uuid4().hex[:8]}",
             "org_id": org_id,
@@ -2524,9 +2867,9 @@ def dispatch_candidate_dossier_webhook():
             "event": "dossier.exported",
             "targetUrl": webhook_url,
             "httpCode": http_code,
-            "status": "DELIVERED",
+            "status": "DELIVERED" if delivered else "FAILED",
             "latencyMs": latency_ms,
-            "pdfAttached": True,
+            "pdfAttached": bool(pdf_url),
             "pdfUrl": pdf_url,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
@@ -2539,12 +2882,12 @@ def dispatch_candidate_dossier_webhook():
             )
 
         return jsonify({
-            "success": True,
-            "message": f"Candidate dossier for {candidate_name} dispatched to webhook successfully (HTTP {http_code})!",
+            "success": delivered,
+            "message": f"Candidate dossier dispatched (HTTP {http_code})." if delivered else f"Webhook endpoint responded with HTTP {http_code}.",
             "dispatch": dispatch_entry,
             "pdfUrl": pdf_url
-        }), 200
-    except Exception as e:
+        }), (200 if delivered else 502)
+    except Exception:
         traceback.print_exc()
         return jsonify({"error": "An unexpected error occurred"}), 500
 
@@ -2567,6 +2910,46 @@ def download_candidate_dossier_pdf(candidate_id):
         user_id = str(user.get("id") or user.get("_id"))
         if role not in ("recruiter", "admin", "hr", "super_admin") and user_id != str(candidate_id):
             return jsonify({"error": "Unauthorized: Recruiter or Administrator access required"}), 403
+
+        # Tenant scoping: recruiters may only build dossiers for candidates linked to
+        # their org (via sessions/invitations); candidates may view only their own.
+        if role != "super_admin" and user_id != str(candidate_id):
+            db_check = get_mongo_db()
+            org_id = str(user.get("org_id") or "").strip()
+            rec_id = str(user.get("id") or user.get("_id") or "")
+            rec_email = str(user.get("email") or "").strip().lower()
+            link_filter = {"$or": []}
+            if rec_id:
+                link_filter["$or"].append({"recruiter_id": rec_id})
+            if rec_email:
+                link_filter["$or"].append({"recruiter_email": rec_email})
+            if org_id:
+                link_filter["$or"].append({"org_id": org_id})
+            has_link = False
+            target_email = ""
+            if db_check is not None and link_filter["$or"]:
+                link = db_check.interview_sessions.find_one(
+                    {"$and": [
+                        {"$or": [{"candidate_id": str(candidate_id)}, {"candidateId": str(candidate_id)}]},
+                        link_filter,
+                    ]},
+                    {"_id": 1, "candidate_email": 1},
+                )
+                if link:
+                    has_link = True
+                    target_email = str(link.get("candidate_email") or "").strip().lower()
+                if not has_link:
+                    inv = db_check.interview_invitations.find_one(
+                        {"$and": [
+                            {"$or": [{"candidate_id": str(candidate_id)}, {"candidate_email": target_email or str(candidate_id).strip().lower()}]},
+                            link_filter,
+                        ]},
+                        {"_id": 1},
+                    )
+                    has_link = bool(inv)
+            if not has_link:
+                return jsonify({"error": "This candidate is not linked to your organization."}), 403
+
         import io
         from reportlab.lib.pagesizes import letter
         from reportlab.lib import colors

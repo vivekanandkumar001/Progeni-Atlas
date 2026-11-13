@@ -9,7 +9,6 @@ import {
   Briefcase,
   MapPin,
   Clock,
-  ArrowRight,
   Sparkles,
   Heart,
   Globe,
@@ -18,8 +17,7 @@ import {
   X,
   Upload,
   Send,
-  Building2,
-} from 'lucide-react';
+  Building2 } from 'lucide-react';
 
 export default function CareerPage() {
   const [selectedDept, setSelectedDept] = useState('All');
@@ -211,8 +209,7 @@ export default function CareerPage() {
               href="#openings"
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/20 hover:brightness-110 transition-all"
             >
-              View Open Roles ({jobs.length}) <ArrowRight className="w-4 h-4" />
-            </a>
+              View Open Roles ({jobs.length}) </a>
           </div>
         </div>
       </section>
@@ -309,8 +306,7 @@ export default function CareerPage() {
                     className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#072448] hover:bg-[#0c3666]   text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Apply Now</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                    </button>
                 </div>
               </div>
             ))}
@@ -320,12 +316,12 @@ export default function CareerPage() {
 
       {/* Interactive Application Modal */}
       {applyModalOpen && selectedJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-lg rounded-xl bg-white  border border-slate-200  p-6 sm:p-8 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-2/60 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-lg rounded-xl bg-surface  border border-line  p-6 sm:p-8 shadow-2xl">
             <button
               type="button"
               onClick={() => setApplyModalOpen(false)}
-              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 "
+              className="absolute top-5 right-5 p-2 rounded-full text-ink-muted hover:text-ink-muted "
             >
               <X className="w-5 h-5" />
             </button>
@@ -335,8 +331,8 @@ export default function CareerPage() {
                 <Briefcase className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 ">Apply for Role</h3>
-                <p className="text-xs text-slate-500">{selectedJob.title}</p>
+                <h3 className="text-lg font-bold text-ink ">Apply for Role</h3>
+                <p className="text-xs text-ink-faint">{selectedJob.title}</p>
               </div>
             </div>
 
@@ -345,15 +341,15 @@ export default function CareerPage() {
                 <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center animate-bounce">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
-                <h4 className="text-lg font-bold text-slate-900 ">Application Received!</h4>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                <h4 className="text-lg font-bold text-ink ">Application Received!</h4>
+                <p className="text-xs text-ink-faint max-w-xs mx-auto">
                   Thank you for applying to Progeni Atlas. Our talent team reviews applications within 48 hours.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleApplySubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700  mb-1">
+                  <label className="block text-xs font-bold text-ink-muted  mb-1">
                     Full Name *
                   </label>
                   <input
@@ -362,12 +358,12 @@ export default function CareerPage() {
                     value={applicantName}
                     onChange={(e) => setApplicantName(e.target.value)}
                     placeholder="Please enter your full name"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300  bg-slate-50  text-sm text-slate-900  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700  mb-1">
+                  <label className="block text-xs font-bold text-ink-muted  mb-1">
                     Email Address *
                   </label>
                   <input
@@ -376,12 +372,12 @@ export default function CareerPage() {
                     value={applicantEmail}
                     onChange={(e) => setApplicantEmail(e.target.value)}
                     placeholder="Please enter your email address"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300  bg-slate-50  text-sm text-slate-900  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700  mb-1">
+                  <label className="block text-xs font-bold text-ink-muted  mb-1">
                     LinkedIn / GitHub / Portfolio URL
                   </label>
                   <input
@@ -389,12 +385,12 @@ export default function CareerPage() {
                     value={applicantLinkedIn}
                     onChange={(e) => setApplicantLinkedIn(e.target.value)}
                     placeholder="Please enter LinkedIn, GitHub, or portfolio URL"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300  bg-slate-50  text-sm text-slate-900  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700  mb-1">
+                  <label className="block text-xs font-bold text-ink-muted  mb-1">
                     Resume / Brief Note
                   </label>
                   <textarea
@@ -402,7 +398,7 @@ export default function CareerPage() {
                     value={applicantNote}
                     onChange={(e) => setApplicantNote(e.target.value)}
                     placeholder="Please briefly highlight your relevant experience and projects..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300  bg-slate-50  text-sm text-slate-900  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-[#185adb]"
                   />
                 </div>
 

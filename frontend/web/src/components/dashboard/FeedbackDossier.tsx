@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { FileCheck, CheckCircle2, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
+import { FileCheck, CheckCircle2, AlertTriangle, Loader2, Play } from 'lucide-react';
 import { fetchCandidateInterviews, fetchSessionScorecard, type InterviewSession, type SessionScorecard } from '@/lib/api';
 
 export const FeedbackDossier: React.FC = () => {
@@ -63,7 +63,7 @@ export const FeedbackDossier: React.FC = () => {
       {loading ? (
         <div className="flex items-center gap-2 py-6 text-sm text-ink-muted">
           <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-          LOADING_EVALUATION
+          Loading your latest evaluation…
         </div>
       ) : (
         <div className="space-y-4">
@@ -81,7 +81,7 @@ export const FeedbackDossier: React.FC = () => {
                 strengths.map((item, idx) => (
                   <div
                     key={idx}
-                    className="p-3 rounded-xl bg-inset/80 border border-emerald-500/20 flex items-start space-x-2.5"
+                    className="p-3 rounded-xl bg-inset/80 flex items-start space-x-2.5"
                   >
                     <CheckCircle2 className="w-4 h-4 text-accent-emerald shrink-0 mt-0.5" />
                     <p className="text-xs text-ink leading-normal">{item}</p>
@@ -105,7 +105,7 @@ export const FeedbackDossier: React.FC = () => {
                 concerns.map((item, idx) => (
                   <div
                     key={idx}
-                    className="p-3 rounded-xl bg-inset/80 border border-amber-500/20 flex items-start space-x-2.5"
+                    className="p-3 rounded-xl bg-inset/80 flex items-start space-x-2.5"
                   >
                     <AlertTriangle className="w-4 h-4 text-accent-amber shrink-0 mt-0.5" />
                     <p className="text-xs text-ink leading-normal">{item}</p>
@@ -118,22 +118,31 @@ export const FeedbackDossier: React.FC = () => {
       )}
 
       {/* Action Link */}
+      {!loading && strengths.length === 0 && concerns.length === 0 && (
+        <div className="pt-2">
+          <Link
+            href="/candidate/practice"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 transition-all cursor-pointer"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+            Complete a practice interview to generate your dossier
+          </Link>
+        </div>
+      )}
       {session ? (
         <Link
           href={`/candidate/interview/${session.id}/report`}
           className="inline-flex items-center space-x-1 text-xs font-semibold text-accent-cyan transition-colors pt-1 group"
         >
           <span>View Full Comprehensive Evaluation Report</span>
-          <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" />
-        </Link>
+          </Link>
       ) : (
         <Link
           href="/candidate/interviews"
           className="inline-flex items-center space-x-1 text-xs font-semibold text-accent-cyan transition-colors pt-1 group"
         >
           <span>View your interviews</span>
-          <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" />
-        </Link>
+          </Link>
       )}
     </motion.div>
   );

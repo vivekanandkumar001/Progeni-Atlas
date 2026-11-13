@@ -78,7 +78,7 @@ export default function SuperAdminSupportPage() {
         />
         <div className="mt-4">
           {supportReason ? (
-            <div className="rounded-xl border border-line bg-surface-2 p-3">
+            <div className="rounded-xl bg-surface-2 p-3">
               <p className="text-[10px] font-bold uppercase tracking-wide text-accent-amber">Active reason</p>
               <p className="mt-1 text-xs text-ink">{supportReason}</p>
             </div>

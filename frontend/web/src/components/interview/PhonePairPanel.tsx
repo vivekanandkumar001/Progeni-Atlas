@@ -212,7 +212,7 @@ export const PhonePairPanel: React.FC<PhonePairPanelProps> = ({
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-cyan-400">
+              <div className="p-2 rounded-xl bg-cyan-950/60 text-cyan-400">
                 <QrCode className="w-5 h-5" />
               </div>
               <div>
@@ -239,7 +239,7 @@ export const PhonePairPanel: React.FC<PhonePairPanelProps> = ({
 
           {/* VIRTUAL WEBCAM DETECTED BANNER (If DroidCam / Iriun is installed) */}
           {probeResult?.virtualCameraDetected && (
-            <div className="p-3.5 rounded-xl bg-cyan-950/50 border border-cyan-500/40 text-xs text-cyan-200 flex items-start gap-2.5">
+            <div className="p-3.5 rounded-xl bg-cyan-950/50 text-xs text-cyan-200 flex items-start gap-2.5">
               <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <div className="font-semibold text-cyan-300">
@@ -338,7 +338,7 @@ export const PhonePairPanel: React.FC<PhonePairPanelProps> = ({
               </button>
 
               {showUsbHelp && (
-                <div className="mt-3 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-300 space-y-2.5">
+                <div className="mt-3 p-3.5 rounded-xl bg-slate-950/70 text-xs text-slate-300 space-y-2.5">
                   <p className="leading-relaxed text-[11px] text-slate-400">
                     If your Wi-Fi is spotty or you want zero-latency physical streaming, you can use a virtual webcam app over USB:
                   </p>

@@ -30,7 +30,7 @@ const STAGE_LABELS: Record<string, string> = {
 
 function getScoreBadgeClass(score: number | null | undefined): { bg: string; text: string; border: string } {
   if (score === null || score === undefined) {
-    return { bg: 'bg-slate-500/10', text: 'text-ink-muted', border: 'border-slate-500/20' };
+    return { bg: 'bg-accent-violet/10', text: 'text-ink-muted', border: 'border-accent-violet/20' };
   }
   if (score >= 7.0) {
     return { bg: 'bg-emerald-500/10', text: 'text-accent-emerald', border: 'border-emerald-500/30' };
@@ -38,7 +38,7 @@ function getScoreBadgeClass(score: number | null | undefined): { bg: string; tex
   if (score >= 4.0) {
     return { bg: 'bg-amber-500/10', text: 'text-accent-amber', border: 'border-amber-500/30' };
   }
-  return { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30' };
+  return { bg: 'bg-rose-500/10', text: 'text-accent-rose', border: 'border-rose-500/30' };
 }
 
 export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questions }) => {
@@ -169,7 +169,7 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
               {isExpanded && (
                 <div className="p-5 pt-2 border-t border-line space-y-6 text-xs animate-fadeIn">
                   {/* FULL QUESTION PROMPT */}
-                  <div className="p-4 rounded-xl bg-surface/80 border border-line space-y-2">
+                  <div className="p-4 rounded-xl bg-surface/80 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-mono uppercase tracking-wider text-accent-cyan font-semibold flex items-center gap-1.5">
                         <FileText className="w-3.5 h-3.5 text-accent-cyan" />
@@ -198,7 +198,7 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
                   </div>
 
                   {/* 1. CANDIDATE'S ACTUAL ANSWER (USER NE KYA ANSWER KIYA) */}
-                  <div className="p-4 rounded-xl bg-surface/60 border border-indigo-500/20 space-y-2 relative overflow-hidden">
+                  <div className="p-4 rounded-xl bg-surface/60 space-y-2 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-mono uppercase tracking-wider text-accent-indigo font-semibold flex items-center gap-1.5">
@@ -206,11 +206,11 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
                         Candidate&apos;s Spoken Answer (Your Response):
                       </span>
                       {hasAnswer ? (
-                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
+                        <span className="text-[10px] font-mono text-accent-emerald bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Recorded & Evaluated
                         </span>
                       ) : (
-                        <span className="text-[10px] font-mono text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 flex items-center gap-1">
+                        <span className="text-[10px] font-mono text-accent-rose bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" /> No answer spoken
                         </span>
                       )}
@@ -280,7 +280,7 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
                         return (
                           <div
                             key={param.name || pIdx}
-                            className="p-3.5 rounded-xl bg-surface border border-line space-y-2 hover:border-line-strong transition-all"
+                            className="p-3.5 rounded-xl bg-surface hover:bg-surface-2 transition-all space-y-2"
                           >
                             <div className="flex items-center justify-between gap-1">
                               <span className="font-semibold text-ink text-xs">{param.name}</span>
@@ -317,7 +317,7 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
 
                   {/* EVALUATOR FEEDBACK & MISSING CONCEPTS */}
                   {(question.evaluator_feedback || (question.missing_concepts && question.missing_concepts.length > 0)) && (
-                    <div className="p-4 rounded-xl bg-surface/80 border border-line space-y-2.5">
+                    <div className="p-4 rounded-xl bg-surface/80 space-y-2.5">
                       <div className="flex items-center gap-1.5 text-accent-amber font-semibold text-[11px] font-mono uppercase tracking-wider">
                         <AlertCircle className="w-3.5 h-3.5 text-accent-amber" />
                         Evaluator Feedback & Gap Analysis:
@@ -338,7 +338,7 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
                             {question.missing_concepts.map((concept) => (
                               <span
                                 key={concept}
-                                className="px-2.5 py-1 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400 font-mono text-[11px] inline-flex items-center gap-1"
+                                className="px-2.5 py-1 rounded-md bg-rose-500/10 border border-rose-500/20 text-accent-rose font-mono text-[11px] inline-flex items-center gap-1"
                               >
                                 ✕ {concept}
                               </span>
@@ -373,7 +373,7 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
                       </span>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-inset/90 border border-emerald-500/20 text-ink leading-relaxed font-sans text-xs space-y-2 whitespace-pre-line shadow-inner">
+                    <div className="p-4 rounded-xl bg-inset/90 text-ink leading-relaxed font-sans text-xs space-y-2 whitespace-pre-line shadow-inner">
                       {question.ideal_answer || (
                         <span className="text-ink-muted italic">
                           Generating senior engineer benchmark answer for this question…
@@ -397,4 +397,3 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
     </div>
   );
 };
-

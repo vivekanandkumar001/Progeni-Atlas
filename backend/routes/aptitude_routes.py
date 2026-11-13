@@ -9,6 +9,7 @@ opaque payload delivery, and server-authoritative scoring.
 import os
 import uuid
 import time
+import traceback
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 from flask import Blueprint, request, jsonify, g
@@ -22,10 +23,36 @@ from core.aptitude_bank import (
     APTITUDE_QUESTIONS_CATALOG,
     STANDARD_TEST_TEMPLATES,
     get_template_by_id,
-    assemble_session_questions
+    assemble_session_questions,
+    paper_hash,
+    rendered_hash,
 )
 
 aptitude_bp = Blueprint("aptitude_bp", __name__)
+
+
+def _get_owned_aptitude_session(session_id: str):
+    """
+    Resolve an aptitude test session strictly for its owner.
+    Returns (doc, user, error_response_or_None).
+    """
+    user, _, _ = get_current_candidate(request)
+    if not user:
+        return None, None, (jsonify({"success": False, "error": "Authentication required"}), 401)
+    db = get_mongo_db()
+    if db is None:
+        return None, user, (jsonify({"error": "Database unavailable"}), 503)
+    doc = db.aptitude_sessions.find_one({"sessionId": session_id})
+    if not doc:
+        return None, user, (jsonify({"error": "Aptitude session not found"}), 404)
+    uid = str(user.get("id") or user.get("_id") or "")
+    role = str(user.get("role", "")).lower()
+    cand_id = str(doc.get("candidateId") or "")
+    if role in ("admin", "super_admin"):
+        return doc, user, None
+    if cand_id and cand_id == uid:
+        return doc, user, None
+    return None, user, (jsonify({"error": "You do not have access to this test session"}), 403)
 
 
 # ------------------------------------------------------------------------------
@@ -47,8 +74,8 @@ def get_aptitude_templates():
                 {"name": "Abstract", "description": "Matrix Transformations, Pattern Spatial Reasoning"}
             ]
         }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 # ------------------------------------------------------------------------------
@@ -67,16 +94,40 @@ def start_aptitude_session():
         template_id = data.get("templateId", "template-campus-general")
 
         user, _, _ = get_current_candidate(request)
-        candidate_id = str(user.get("id") or user.get("_id")) if user else "cand-anonymous"
-        candidate_name = user.get("full_name") or user.get("name") if user else "Candidate"
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
+        candidate_id = str(user.get("id") or user.get("_id"))
+        candidate_name = user.get("full_name") or user.get("name") or "Candidate"
 
         template = get_template_by_id(template_id)
         duration_minutes = int(template.get("durationMinutes", 30))
         duration_seconds = duration_minutes * 60
 
-        # Assemble randomized question bank for this session
-        raw_questions = assemble_session_questions(template_id)
+        session_seed = f"{candidate_id}:{uuid.uuid4().hex}"
         session_id = f"apt-{uuid.uuid4().hex[:12]}"
+
+        _db = get_mongo_db()
+        # Assemble randomized, exposure-controlled question paper for this candidate.
+        raw_questions = assemble_session_questions(
+            template_id, candidate_id=candidate_id, db=_db, session_seed=session_seed
+        )
+        paper = paper_hash(raw_questions)
+        try:
+            if (
+                _db is not None
+                and _db.aptitude_sessions.count_documents(
+                    {"candidateId": candidate_id, "paperHash": paper}, limit=1
+                )
+                > 0
+            ):
+                # astronomically rare with parameterized items — reseed and try again
+                session_seed = session_seed + ":retry"
+                raw_questions = assemble_session_questions(
+                    template_id, candidate_id=candidate_id, db=_db, session_seed=session_seed
+                )
+                paper = paper_hash(raw_questions)
+        except Exception:
+            pass
 
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(seconds=duration_seconds + 15)  # 15s grace buffer for latency
@@ -119,6 +170,7 @@ def start_aptitude_session():
             "startedAt": now.isoformat(),
             "expiresAt": expires_at.isoformat(),
             "questions": public_questions,
+            "paperHash": paper,
             "serverSecretAnswers": server_secret_answers,
             "answers": {},
             "telemetry": {
@@ -134,7 +186,30 @@ def start_aptitude_session():
 
         db = get_mongo_db()
         if db is not None:
-            db.aptitude_sessions.insert_one(session_doc)
+            try:
+                db.aptitude_sessions.insert_one(session_doc)
+            except Exception as insert_err:
+                print(f"[Aptitude] session insert warning: {insert_err}")
+            # Record per-user exposure — item caps and paper uniqueness are
+            # enforced at assembly time from this ledger.
+            try:
+                usage_rows = []
+                for slot_idx, q in enumerate(raw_questions):
+                    usage_rows.append({
+                        "userId": candidate_id,
+                        "itemId": q.get("id"),
+                        "familyId": q.get("familyId") or f"static:{q.get('id')}",
+                        "renderedHash": q.get("renderedHash") or rendered_hash(str(q.get("prompt", ""))),
+                        "sessionId": session_id,
+                        "templateId": template_id,
+                        "slotIndex": slot_idx,
+                        "paperHash": paper,
+                        "usedAt": now,
+                    })
+                if usage_rows:
+                    db.aptitude_question_usage.insert_many(usage_rows)
+            except Exception as usage_err:
+                print(f"[Aptitude] usage ledger write warning: {usage_err}")
 
         return jsonify({
             "sessionId": session_id,
@@ -146,20 +221,17 @@ def start_aptitude_session():
         }), 201
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @aptitude_bp.route("/api/aptitude/sessions/<session_id>", methods=["GET"])
 def get_aptitude_session_state(session_id):
     """Retrieve active test session state with server-authoritative remaining time."""
     try:
+        doc, user, err = _get_owned_aptitude_session(session_id)
+        if err:
+            return err
         db = get_mongo_db()
-        if db is None:
-            return jsonify({"error": "Database unavailable"}), 503
-
-        doc = db.aptitude_sessions.find_one({"sessionId": session_id})
-        if not doc:
-            return jsonify({"error": "Aptitude session not found"}), 404
 
         now = datetime.now(timezone.utc)
         expires_at = datetime.fromisoformat(doc["expiresAt"].replace("Z", "+00:00"))
@@ -183,7 +255,7 @@ def get_aptitude_session_state(session_id):
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 # ------------------------------------------------------------------------------
@@ -201,17 +273,9 @@ def submit_aptitude_answer(session_id):
         if db is None:
             return jsonify({"error": "Database unavailable"}), 503
 
-        doc = db.aptitude_sessions.find_one({"sessionId": session_id})
-        if not doc:
-            return jsonify({"error": "Session not found"}), 404
-
-        # Enforce candidate ownership guard
-        claims, _ = _authenticate_request()
-        if claims and claims.get("sub"):
-            caller_id = str(claims.get("sub"))
-            cand_id = str(doc.get("candidateId") or "")
-            if cand_id and cand_id != "cand-anonymous" and cand_id != caller_id and str(claims.get("role", "")).lower() not in ("admin", "super_admin"):
-                return jsonify({"error": "Unauthorized: Session does not belong to your account"}), 403
+        doc, user, err = _get_owned_aptitude_session(session_id)
+        if err:
+            return err
 
         if doc.get("status") != "in_progress":
             return jsonify({"error": "Test session is already closed", "status": doc.get("status")}), 400
@@ -254,7 +318,7 @@ def submit_aptitude_answer(session_id):
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @aptitude_bp.route("/api/aptitude/sessions/<session_id>/violation", methods=["POST"])
@@ -268,9 +332,9 @@ def log_aptitude_violation(session_id):
         if db is None:
             return jsonify({"error": "Database unavailable"}), 503
 
-        doc = db.aptitude_sessions.find_one({"sessionId": session_id})
-        if not doc:
-            return jsonify({"error": "Session not found"}), 404
+        doc, user, err = _get_owned_aptitude_session(session_id)
+        if err:
+            return err
 
         payload = request.get_json(silent=True) or {}
         violation_type = str(payload.get("type", "TAB_SWITCH")).upper()
@@ -323,7 +387,7 @@ def log_aptitude_violation(session_id):
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 # ------------------------------------------------------------------------------
@@ -344,6 +408,15 @@ def _finalize_aptitude_scoring(doc: dict, db) -> dict:
 
     section_stats: Dict[str, Dict[str, Any]] = {}
     question_review_items = []
+
+    # Template context — needed for negative-marking math & benchmark line
+    from core.aptitude_bank import get_template_by_id
+
+    template_id = doc.get("templateId")
+    template = get_template_by_id(template_id) if template_id else None
+    template_title = (template or {}).get("title") or doc.get("templateTitle") or "Aptitude Assessment"
+    benchmark_score = float((template or {}).get("benchmarkScore", 60.0))
+    negative_marking = bool((template or {}).get("negativeMarking", False))
 
     for q_id, secret in secret_answers.items():
         sec = secret.get("section", "General")
@@ -387,9 +460,10 @@ def _finalize_aptitude_scoring(doc: dict, db) -> dict:
             "formula": secret.get("formula", "")
         })
 
-    # Accuracy and Scaled Percentile
+    # Accuracy and Scored Percentage (with negative marking when the template demands it)
     accuracy_pct = round((correct_count / max(1, attempted_count)) * 100, 1) if attempted_count > 0 else 0.0
-    overall_score_pct = round((correct_count / max(1, total_questions)) * 100, 1)
+    effective_raw = correct_count - (0.25 * incorrect_count if negative_marking else 0.0)
+    overall_score_pct = round(max(0.0, (effective_raw / max(1, total_questions)) * 100), 1)
 
     # Trust Score (starts at 100%, drops by 5% per tab switch, 15% per DevTools)
     trust_score = max(0, 100 - (
@@ -408,12 +482,106 @@ def _finalize_aptitude_scoring(doc: dict, db) -> dict:
     else:
         speed_index = "Deliberate"
 
-    # Cognitive Percentile calculation (standard norm distribution approx)
-    percentile = min(99.0, max(15.0, round(overall_score_pct * 0.85 + (trust_score * 0.15), 1)))
+    # Accuracy vs Speed quadrant (fast/slow vs accurate/careless)
+    fast = avg_time <= 45
+    accurate = accuracy_pct >= 75
+    if fast and accurate:
+        accuracy_vs_speed = "fast_accurate"
+    elif fast and not accurate:
+        accuracy_vs_speed = "fast_careless"
+    elif accurate:
+        accuracy_vs_speed = "slow_accurate"
+    else:
+        accuracy_vs_speed = "slow_careless"
+
+    # Cognitive Percentile — REAL norm comparison vs completed attempts of the
+    # SAME track. Never fabricate: until the pool has >=30 completed attempts,
+    # the candidate sees raw accuracy + "benchmarking" state instead.
+    NORM_POOL_MIN = 30
+    percentile = None
+    percentile_basis = "insufficient_pool"
+    norm_pool_size = 0
+    sectional_percentile: dict = {}
+    if db is not None and template_id:
+        try:
+            pool_cursor = db.aptitude_sessions.find(
+                {
+                    "templateId": template_id,
+                    "status": "completed",
+                    "sessionId": {"$ne": doc.get("sessionId")},
+                    "scorecard.overallScore": {"$exists": True},
+                },
+                {"scorecard.overallScore": 1, "scorecard.sectionBreakdown": 1, "_id": 0},
+            )
+            pool = list(pool_cursor)
+            norm_pool_size = len(pool)
+            if norm_pool_size >= NORM_POOL_MIN:
+                lower = sum(1 for p in pool if float(p.get("scorecard", {}).get("overallScore") or 0) < overall_score_pct)
+                percentile = round(100.0 * lower / norm_pool_size, 1)
+                percentile_basis = "norm_pool"
+                # Sectional percentiles — same norm method per pillar
+                for sec_name, stats in section_stats.items():
+                    mine_acc = (stats["correct"] / max(1, stats["attempted"])) if stats["attempted"] else 0.0
+                    sec_pools = []
+                    for p in pool:
+                        sec_pb = (p.get("scorecard", {}).get("sectionBreakdown") or {}).get(sec_name)
+                        if not sec_pb:
+                            continue
+                        att = sec_pb.get("attempted", 0)
+                        if att:
+                            sec_pools.append(sec_pb.get("correct", 0) / att)
+                    if len(sec_pools) >= NORM_POOL_MIN:
+                        sec_lower = sum(1 for a in sec_pools if a < mine_acc)
+                        sectional_percentile[sec_name] = round(100.0 * sec_lower / len(sec_pools), 1)
+                    else:
+                        sectional_percentile[sec_name] = None
+        except Exception as pool_err:
+            print(f"[Aptitude] Norm pool lookup failed: {pool_err}")
+
+    # Integrity verdict band from trust score
+    if trust_score >= 90:
+        integrity_verdict = "clean"
+    elif trust_score >= 75:
+        integrity_verdict = "review"
+    else:
+        integrity_verdict = "flagged"
+
+    # Delta vs previous completed attempt on the same track
+    delta_vs_previous = None
+    if db is not None and template_id:
+        try:
+            prev = db.aptitude_sessions.find_one(
+                {
+                    "templateId": template_id,
+                    "candidateId": str(doc.get("candidateId") or ""),
+                    "status": "completed",
+                    "sessionId": {"$ne": doc.get("sessionId")},
+                    "completedAt": {"$lt": datetime.now(timezone.utc).isoformat()},
+                },
+                {"scorecard.overallScore": 1, "_id": 0},
+                sort=[("completedAt", -1)],
+            )
+            if prev and prev.get("scorecard") is not None:
+                prev_score = float((prev.get("scorecard") or {}).get("overallScore") or 0)
+                delta_vs_previous = round(overall_score_pct - prev_score, 1)
+        except Exception as delta_err:
+            print(f"[Aptitude] Delta lookup failed: {delta_err}")
+
+    # Sectional radar vs benchmark line
+    radar = [
+        {
+            "pillar": sec_name,
+            "score": round((stats["correct"] / max(1, stats["attempted"])) * 100, 1) if stats["attempted"] else 0.0,
+            "benchmark": benchmark_score,
+        }
+        for sec_name, stats in section_stats.items()
+    ]
 
     scorecard = {
         "overallScore": overall_score_pct,
         "percentile": percentile,
+        "percentileBasis": percentile_basis,
+        "normPoolSize": norm_pool_size,
         "totalQuestions": total_questions,
         "attempted": attempted_count,
         "correct": correct_count,
@@ -421,8 +589,15 @@ def _finalize_aptitude_scoring(doc: dict, db) -> dict:
         "unanswered": total_questions - attempted_count,
         "accuracyPercent": accuracy_pct,
         "trustScore": trust_score,
+        "integrityVerdict": integrity_verdict,
         "speedIndex": speed_index,
+        "avgSecondsPerQuestion": round(avg_time, 1),
+        "accuracyVsSpeed": accuracy_vs_speed,
         "sectionBreakdown": section_stats,
+        "sectionalPercentile": sectional_percentile,
+        "benchmarkScore": benchmark_score,
+        "radar": radar,
+        "deltaVsPrevious": delta_vs_previous,
         "review": question_review_items,
         "generatedAt": datetime.now(timezone.utc).isoformat()
     }
@@ -449,17 +624,9 @@ def submit_aptitude_session(session_id):
         if db is None:
             return jsonify({"error": "Database unavailable"}), 503
 
-        doc = db.aptitude_sessions.find_one({"sessionId": session_id})
-        if not doc:
-            return jsonify({"error": "Session not found"}), 404
-
-        # Enforce candidate ownership guard
-        claims, _ = _authenticate_request()
-        if claims and claims.get("sub"):
-            caller_id = str(claims.get("sub"))
-            cand_id = str(doc.get("candidateId") or "")
-            if cand_id and cand_id != "cand-anonymous" and cand_id != caller_id and str(claims.get("role", "")).lower() not in ("admin", "super_admin"):
-                return jsonify({"error": "Unauthorized: Session does not belong to your account"}), 403
+        doc, user, err = _get_owned_aptitude_session(session_id)
+        if err:
+            return err
 
         scorecard = _finalize_aptitude_scoring(doc, db)
         return jsonify({
@@ -469,7 +636,7 @@ def submit_aptitude_session(session_id):
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @aptitude_bp.route("/api/aptitude/sessions/<session_id>/report", methods=["GET"])
@@ -480,17 +647,9 @@ def get_aptitude_session_report(session_id):
         if db is None:
             return jsonify({"error": "Database unavailable"}), 503
 
-        doc = db.aptitude_sessions.find_one({"sessionId": session_id})
-        if not doc:
-            return jsonify({"error": "Session not found"}), 404
-
-        # Enforce candidate ownership guard
-        claims, _ = _authenticate_request()
-        if claims and claims.get("sub"):
-            caller_id = str(claims.get("sub"))
-            cand_id = str(doc.get("candidateId") or "")
-            if cand_id and cand_id != "cand-anonymous" and cand_id != caller_id and str(claims.get("role", "")).lower() not in ("admin", "super_admin"):
-                return jsonify({"error": "Unauthorized: Session does not belong to your account"}), 403
+        doc, user, err = _get_owned_aptitude_session(session_id)
+        if err:
+            return err
 
         scorecard = doc.get("scorecard")
         if not scorecard and doc.get("status") == "completed":
@@ -504,11 +663,158 @@ def get_aptitude_session_report(session_id):
             "completedAt": doc.get("completedAt"),
             "status": doc.get("status"),
             "telemetry": doc.get("telemetry", {}),
-            "scorecard": scorecard
+            "scorecard": scorecard,
+            "abVariant": _get_ab_variant(),
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+
+@aptitude_bp.route("/api/aptitude/sessions/<session_id>/report/pdf", methods=["GET"])
+def get_aptitude_report_pdf(session_id):
+    """Print-ready (browser print → Save as PDF) aptitude scorecard."""
+    try:
+        db = get_mongo_db()
+        doc, user, err = _get_owned_aptitude_session(session_id)
+        if err:
+            return err
+
+        scorecard = doc.get("scorecard")
+        if not scorecard and doc.get("status") == "completed":
+            scorecard = _finalize_aptitude_scoring(doc, db)
+        if not scorecard:
+            return jsonify({"error": "This session is not completed yet. Complete the assessment to unlock the scorecard."}), 409
+
+        import html as html_lib
+
+        sc = scorecard
+        safe_title = html_lib.escape(str(doc.get("templateTitle", "Aptitude Assessment")))
+        cand_name = html_lib.escape(str(doc.get("candidateName", "Candidate")))
+        cand_email = html_lib.escape(str(doc.get("candidateEmail", "")))
+        percentile = sc.get("percentile")
+        percentile_txt = f"{percentile}th" if percentile is not None else "Benchmarking (pool < 30)"
+        overall = sc.get("overallScore", 0)
+        trust = sc.get("trustScore", 100)
+        verdict = sc.get("integrityVerdict", "clean").upper()
+        now_str = datetime.now(timezone.utc).strftime("%b %d, %Y")
+
+        radar_rows = "".join(
+            f"<tr><td>{html_lib.escape(str(r.get('pillar')))}</td>"
+            f"<td>{r.get('score', 0):.1f}%</td>"
+            f"<td>{r.get('benchmark', 60):.0f}%</td></tr>"
+            for r in (sc.get("radar") or [])
+        )
+
+        section_rows = "".join(
+            f"<tr><td>{html_lib.escape(str(name))}</td>"
+            f"<td>{s.get('attempted', 0)}/{s.get('total', 0)}</td>"
+            f"<td>{s.get('correct', 0)}</td>"
+            f"<td>{round((s.get('correct', 0) / max(1, s.get('attempted', 0))) * 100, 1) if s.get('attempted') else 0}%</td>"
+            f"<td>{round(s.get('timeSpent', 0), 1)}s</td></tr>"
+            for name, s in (sc.get("sectionBreakdown") or {}).items()
+        )
+
+        review_rows = "".join(
+            f"<tr><td>{'✓' if q.get('isCorrect') else ('✗' if q.get('isAttempted') else '—')}</td>"
+            f"<td>{html_lib.escape(str(q.get('section')))}</td>"
+            f"<td>{html_lib.escape(str(q.get('topic')))[:80]}</td>"
+            f"<td>{q.get('timeSpentSeconds', 0):.0f}s</td></tr>"
+            for q in (sc.get("review") or [])
+        )
+
+        return f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Progeni Atlas Aptitude Scorecard — {safe_title}</title>
+<style>
+  @page {{ size: A4; margin: 14mm; }}
+  body {{ font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; color: #0f172a; background:#fff; margin:0; padding:24px; }}
+  .h {{ display:flex; justify-content:space-between; border-bottom:2px solid #6366f1; padding-bottom:10px; }}
+  .logo {{ font-weight:800; font-size:18px; letter-spacing:-0.5px }}
+  .sub {{ font-size:9px; color:#64748b; text-transform:uppercase; font-family:monospace }}
+  .card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin:16px 0; }}
+  .big {{ font-size:40px; font-weight:800; color:#334155 }}
+  table {{ width:100%; border-collapse:collapse; font-size:11px }}
+  th,td {{ text-align:left; padding:6px 8px; border-bottom:1px solid #e2e8f0 }}
+  th {{ background:#f1f5f9; text-transform:uppercase; font-size:9px; color:#64748b }}
+  .pill {{ display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; background:#eef2ff; color:#3730a3 }}
+  .foot {{ border-top:1px solid #e2e8f0; margin-top:24px; padding-top:10px; font-size:9px; color:#94a3b8; display:flex; justify-content:space-between }}
+  @media print {{ .noprint {{ display:none }} }}
+</style></head><body>
+<div class="noprint" style="text-align:right; margin-bottom:10px">
+  <button onclick="window.print()" style="padding:8px 14px; background:#4f46e5; color:#fff; border:0; border-radius:6px; font-weight:700; cursor:pointer">Print / Save as PDF</button>
+</div>
+<div class="h">
+  <div><div class="logo">PROGENI ATLAS</div><div class="sub">Candidate-authorized aptitude scorecard</div></div>
+  <div style="text-align:right; font-family:monospace; font-size:10px; color:#64748b"><div>REF: AT-{session_id[:8].upper()}</div><div>Issued: {now_str}</div></div>
+</div>
+
+<div class="card">
+  <h1 style="margin:0; font-size:20px">{safe_title}</h1>
+  <p style="margin:4px 0; color:#64748b; font-size:12px">{cand_name} · {cand_email}</p>
+  <div style="display:flex; gap:32px; margin-top:12px">
+    <div><div class="big">{overall:.1f}%</div><div class="sub">Overall Score</div></div>
+    <div><div class="big" style="font-size:24px; padding-top:10px">{percentile_txt}</div><div class="sub">Percentile</div></div>
+    <div><div class="big" style="font-size:24px; padding-top:10px">{trust}%</div><div class="sub">Integrity ({verdict})</div></div>
+  </div>
+</div>
+
+<h3 style="font-size:12px; text-transform:uppercase; color:#64748b; margin:18px 0 6px">Section Breakdown</h3>
+<table><thead><tr><th>Section</th><th>Attempted</th><th>Correct</th><th>Accuracy</th><th>Time</th></tr></thead><tbody>{section_rows or '<tr><td colspan="5">—</td></tr>'}</tbody></table>
+
+<h3 style="font-size:12px; text-transform:uppercase; color:#64748b; margin:18px 0 6px">Cognitive Radar vs Benchmark ({html_lib.escape(str(int(sc.get('benchmarkScore', 60))))}%)</h3>
+<table><thead><tr><th>Pillar</th><th>Score</th><th>Benchmark</th></tr></thead><tbody>{radar_rows or '<tr><td colspan="3">—</td></tr>'}</tbody></table>
+
+<h3 style="font-size:12px; text-transform:uppercase; color:#64748b; margin:18px 0 6px">Question Review</h3>
+<table><thead><tr><th>Result</th><th>Section</th><th>Topic</th><th>Time</th></tr></thead><tbody>{review_rows or '<tr><td colspan="4">—</td></tr>'}</tbody></table>
+
+<div class="foot"><span>Progeni Atlas · Verified Screening Dossier</span><span>Candidate-authorized copy · Tamper-evident ledger</span></div>
+</body></html>""", 200, {"Content-Type": "text/html; charset=utf-8"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+
+def _get_ab_variant() -> str:
+    """Report hero A/B variant from platform_settings (default 'B' = new copy)."""
+    try:
+        db = get_mongo_db()
+        if db is not None:
+            doc = db.platform_settings.find_one({"key": "aptitude_ab"})
+            variant = str((doc or {}).get("variant") or "B").upper()
+            return variant if variant in ("A", "B") else "B"
+    except Exception:
+        pass
+    return os.environ.get("APTITUDE_AB_VARIANT", "B").upper()
+
+
+@aptitude_bp.route("/api/aptitude/events", methods=["POST"])
+def log_aptitude_event():
+    """Lightweight report-page funnel event (view / retake_click) for A/B measurement."""
+    try:
+        user, _, _ = get_current_candidate(request)
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": True, "persisted": False}), 200
+        data = request.get_json(silent=True) or {}
+        event_name = str(data.get("name") or "").strip().lower()
+        if event_name not in ("report_view", "retake_click", "share_click", "pdf_download"):
+            return jsonify({"success": False, "error": "Unknown event"}), 400
+        candidate_id = str(user.get("id") or user.get("_id") or "")
+        db.aptitude_events.insert_one({
+            "id": str(uuid.uuid4()),
+            "candidateId": candidate_id,
+            "sessionId": str(data.get("sessionId") or ""),
+            "name": event_name,
+            "variant": _get_ab_variant(),
+            "createdAt": datetime.now(timezone.utc).isoformat(),
+        })
+        return jsonify({"success": True, "persisted": True}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
 
 
 @aptitude_bp.route("/api/candidate/aptitude/history", methods=["GET"])
@@ -516,15 +822,16 @@ def get_candidate_aptitude_history():
     """Retrieve all past aptitude test attempts for the logged-in candidate."""
     try:
         user, _, _ = get_current_candidate(request)
-        candidate_id = str(user.get("id") or user.get("_id")) if user else None
+        if not user:
+            return jsonify({"success": False, "error": "Authentication required"}), 401
+        candidate_id = str(user.get("id") or user.get("_id"))
 
         db = get_mongo_db()
         if db is None:
             return jsonify({"attempts": []}), 200
 
-        query = {}
-        if candidate_id:
-            query = {"$or": [{"candidateId": candidate_id}, {"candidateId": str(candidate_id)}]}
+        # Always scoped to the caller — never leak other candidates' test history.
+        query = {"$or": [{"candidateId": candidate_id}, {"candidateId": str(candidate_id)}]}
 
         cursor = db.aptitude_sessions.find(query).sort("startedAt", -1).limit(20)
         attempts = []
@@ -537,13 +844,17 @@ def get_candidate_aptitude_history():
                 "status": doc.get("status"),
                 "score": sc.get("overallScore", 0),
                 "accuracy": sc.get("accuracyPercent", 0),
-                "percentile": sc.get("percentile", 0),
+                "percentile": sc.get("percentile"),
+                "percentileBasis": sc.get("percentileBasis", "insufficient_pool"),
+                "normPoolSize": sc.get("normPoolSize", 0),
                 "trustScore": sc.get("trustScore", 100),
-                "speedIndex": sc.get("speedIndex", "Balanced")
+                "integrityVerdict": sc.get("integrityVerdict", "clean"),
+                "speedIndex": sc.get("speedIndex", "Balanced"),
+                "deltaVsPrevious": sc.get("deltaVsPrevious")
             })
 
         return jsonify({"attempts": attempts}), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An unexpected error occurred"}), 500
 

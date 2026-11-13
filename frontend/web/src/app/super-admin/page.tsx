@@ -5,15 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Activity,
-  ArrowUpRight,
   Building2,
   CheckCircle2,
-  ChevronRight,
   Clock,
   ShieldCheck,
   Users,
-  Video,
-} from 'lucide-react';
+  Video } from 'lucide-react';
 import {
   Card,
   CardHeader,
@@ -137,8 +134,7 @@ export default function SuperAdminOverviewPage() {
                 href="/super-admin/organizations"
                 className="inline-flex items-center gap-1 rounded-xl border border-line bg-surface-2 px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-surface-3"
               >
-                Manage <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
+                Manage </Link>
             }
           />
           <div className="mt-4 overflow-x-auto">
@@ -169,8 +165,7 @@ export default function SuperAdminOverviewPage() {
                     >
                       <td className="py-3 pr-4 font-medium text-ink flex items-center justify-between">
                         <span>{org.name}</span>
-                        <ChevronRight className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100 text-accent-cyan" />
-                      </td>
+                        </td>
                       <td className="py-3 pr-4 tabular-nums text-ink-muted">{formatNumber(org.candidates)}</td>
                       <td className="py-3 pr-4 tabular-nums text-ink-muted">{formatNumber(org.interviews)}</td>
                       <td className="py-3">
@@ -217,8 +212,7 @@ export default function SuperAdminOverviewPage() {
                 href="/super-admin/system-health"
                 className="flex items-center justify-center gap-1 pt-1 text-xs font-semibold text-accent-cyan hover:underline"
               >
-                View full system health <ArrowUpRight className="h-3 w-3" />
-              </Link>
+                View full system health </Link>
             </div>
           </Card>
 
@@ -252,8 +246,7 @@ export default function SuperAdminOverviewPage() {
                 href="/super-admin/audit-logs"
                 className="flex items-center justify-center gap-1 pt-1 text-xs font-semibold text-accent-cyan hover:underline"
               >
-                Open audit trail <ArrowUpRight className="h-3 w-3" />
-              </Link>
+                Open audit trail </Link>
             </div>
           </Card>
         </div>
@@ -276,8 +269,7 @@ export default function SuperAdminOverviewPage() {
             href="/super-admin/roles"
             className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink transition-colors hover:bg-surface-2"
           >
-            Review RBAC matrix <ArrowUpRight className="h-3.5 w-3.5" />
-          </Link>
+            Review RBAC matrix </Link>
         </div>
       </Card>
     </div>

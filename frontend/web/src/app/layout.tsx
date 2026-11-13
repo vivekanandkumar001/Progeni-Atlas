@@ -6,6 +6,22 @@ import { streamGuardScript } from "@/components/common/streamGuardScript";
 import { JsonLd } from "@/components/seo/JsonLd";
 import "./globals.css";
 
+/* Pre-paint theme bootstrap: reads saved preference or the OS setting and
+   stamps data-theme on <html> before first paint (avoids theme flash). */
+const THEME_INIT_SCRIPT = `(function () {
+  try {
+    var saved = localStorage.getItem('tp_theme');
+    var theme = saved === 'dark' || saved === 'light'
+      ? saved
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    if (theme === 'light') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  } catch (e) {}
+})();`;
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -107,7 +123,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#ffffff",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#020617" },
+  ],
 };
 
 export default function RootLayout({
@@ -120,11 +139,13 @@ export default function RootLayout({
       lang="en"
       data-scroll-behavior="smooth"
       className={`${inter.variable} ${jetbrainsMono.variable} scroll-smooth h-full antialiased`}
+      suppressHydrationWarning
     >
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <Script id="stream-guard-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: streamGuardScript }} />
         <JsonLd />
       </head>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ShieldAlert, Mail, ArrowRight, ArrowLeft, KeyRound, AlertCircle, CheckCircle2, Lock, Eye, EyeOff } from 'lucide-react';
+import { ShieldAlert, Mail, KeyRound, AlertCircle, CheckCircle2, Lock, Eye, EyeOff } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { AuthCard, buttonClass, inputClass } from '@/components/ui';
 
@@ -174,8 +174,7 @@ export default function ForgotPasswordPage() {
               ) : (
                 <>
                   <span>Send Verification Code</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
+                  </>
               )}
             </button>
           </form>
@@ -243,8 +242,7 @@ export default function ForgotPasswordPage() {
               ) : (
                 <>
                   <span>Save New Password</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
+                  </>
               )}
             </button>
           </form>
@@ -256,7 +254,7 @@ export default function ForgotPasswordPage() {
             href="/login"
             className="inline-flex items-center gap-1 text-caption text-xs text-ink-muted hover:text-ink transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
+            Back to Login
           </Link>
         </div>
       </AuthCard>

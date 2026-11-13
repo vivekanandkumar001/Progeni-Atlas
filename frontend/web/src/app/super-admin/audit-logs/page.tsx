@@ -188,7 +188,7 @@ export default function SuperAdminAuditLogsPage() {
                     {expanded === log.id && log.detail && (
                       <tr className="border-t border-line/40 bg-inset">
                         <td colSpan={5} className="px-3 sm:px-4 py-3">
-                          <pre className="overflow-x-auto max-w-[calc(100vw-3rem)] sm:max-w-none rounded-xl border border-line bg-surface p-3 font-mono text-[11px] leading-relaxed text-ink-muted scrollbar-thin">
+                          <pre className="overflow-x-auto max-w-[calc(100vw-3rem)] sm:max-w-none rounded-xl bg-surface p-3 font-mono text-[11px] leading-relaxed text-ink-muted scrollbar-thin">
 {JSON.stringify(log.detail, null, 2)}
                           </pre>
                         </td>

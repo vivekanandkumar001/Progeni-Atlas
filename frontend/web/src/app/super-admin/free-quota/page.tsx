@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -40,6 +40,10 @@ type QuotaPolicy = {
   eligible_interview_types: string[] | string | null;
   reset_policy: string;
   promo_bonus_allowance: number;
+  signup_free_enabled: boolean;
+  signup_free_credits: number;
+  signup_free_max_grants: number;
+  signup_free_target_role: string | null;
   version: number;
 };
 
@@ -81,6 +85,15 @@ export default function SuperAdminFreeQuotaPage() {
     max_demo_duration_minutes: '10',
     promo_bonus_allowance: '0',
     eligible_role: 'all',
+  });
+
+  // Signup Welcome Credits (Free Plan) Modal
+  const [signupModalOpen, setSignupModalOpen] = useState(false);
+  const [savingSignup, setSavingSignup] = useState(false);
+  const [signupForm, setSignupForm] = useState({
+    signup_free_enabled: true,
+    signup_free_credits: '10',
+    signup_free_target_role: 'all',
   });
 
   // Org Override Modal
@@ -209,6 +222,55 @@ export default function SuperAdminFreeQuotaPage() {
       toast(err instanceof Error ? err.message : 'Failed to save policy.', 'error');
     } finally {
       setSavingPolicy(false);
+    }
+  };
+
+  const toggleSignupFree = async () => {
+    if (!policy) return;
+    const nextState = !policy.signup_free_enabled;
+    const promptMsg = nextState
+      ? 'Enable the one-time welcome credit grant (Free plan) platform-wide for new signups?'
+      : 'Disable the welcome credit grant platform-wide? New signups will get 0 credits until re-enabled.';
+    if (!window.confirm(promptMsg)) return;
+    await handleSetPolicy({ signup_free_enabled: nextState });
+  };
+
+  const openEditSignup = () => {
+    if (!policy) return;
+    setSignupForm({
+      signup_free_enabled: policy.signup_free_enabled,
+      signup_free_credits: String(policy.signup_free_credits ?? 10),
+      signup_free_target_role: policy.signup_free_target_role || 'all',
+    });
+    setSignupModalOpen(true);
+  };
+
+  const handleSaveSignupForm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const credits = parseFloat(signupForm.signup_free_credits);
+    if (isNaN(credits) || credits < 0 || credits > 100000) {
+      toast('Welcome credits must be a number between 0 and 100000.', 'error');
+      return;
+    }
+    setSavingSignup(true);
+    try {
+      await saFetch('/api/super-admin/entitlement-policy', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          signup_free_enabled: signupForm.signup_free_enabled,
+          signup_free_credits: credits,
+          signup_free_max_grants: 1,
+          signup_free_target_role: signupForm.signup_free_target_role,
+        }),
+      });
+      toast('Signup welcome credit policy saved.', 'success');
+      setSignupModalOpen(false);
+      await load();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save signup policy.', 'error');
+    } finally {
+      setSavingSignup(false);
     }
   };
 
@@ -492,6 +554,76 @@ export default function SuperAdminFreeQuotaPage() {
         </div>
       </Card>
 
+      {/* Signup Welcome Credits (Free Plan) */}
+      <Card>
+        <CardHeader
+          title="Signup Welcome Credits — Free Plan"
+          subtitle="One-time ₹0 welcome grant issued exactly once per new signup (server-enforced). Paid plan prices are ₹1 = 1 Credit and are managed under Packages."
+          icon={Gift}
+          action={
+            <div className="flex items-center gap-2">
+              <GhostButton
+                onClick={toggleSignupFree}
+                className={
+                  policy.signup_free_enabled
+                    ? 'border-rose-500/30 text-accent-rose hover:bg-rose-500/10'
+                    : 'border-emerald-500/30 text-accent-emerald hover:bg-emerald-500/10'
+                }
+              >
+                {policy.signup_free_enabled ? 'Disable Welcome Grant' : 'Enable Welcome Grant'}
+              </GhostButton>
+              <GhostButton
+                icon={Edit2}
+                onClick={openEditSignup}
+                className="border-cyan-500/30 text-accent-cyan hover:bg-cyan-500/10"
+              >
+                Edit Free Plan
+              </GhostButton>
+            </div>
+          }
+        />
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Welcome Grant"
+            value={policy.signup_free_enabled ? 'Enabled' : 'Disabled'}
+            hint="Issued on verified signup only"
+            tone={policy.signup_free_enabled ? 'emerald' : 'amber'}
+            icon={policy.signup_free_enabled ? ShieldCheck : ShieldAlert}
+          />
+          <StatCard
+            label="Welcome Credits"
+            value={formatNumber(policy.signup_free_credits ?? 10)}
+            hint="₹0 — one free assessment worth of credits"
+            tone="cyan"
+            icon={Gift}
+          />
+          <StatCard
+            label="Grants Per User"
+            value={policy.signup_free_max_grants ?? 1}
+            hint="One-time only — enforced atomically server-side"
+            tone="cyan"
+            icon={Clock}
+          />
+          <StatCard
+            label="Assigned To"
+            value={
+              (policy.signup_free_target_role ?? 'all') === 'candidate'
+                ? 'Candidates'
+                : (policy.signup_free_target_role ?? 'all') === 'recruiter'
+                  ? 'Recruiters'
+                  : 'Everyone'
+            }
+            hint="Which new signups receive the free plan"
+            tone="violet"
+            icon={Users}
+          />
+        </div>
+        <p className="mt-3 text-[11px] text-ink-faint">
+          ₹1 = 1 Credit everywhere on the platform. The Free plan is a one-time signup grant only —
+          paid packages and their prices/credits are edited in <span className="font-semibold text-ink-muted">Super Admin → Packages</span>.
+        </p>
+      </Card>
+
       {/* Governance rules */}
       <Card className="border-emerald-400/20 bg-emerald-400/5">
         <CardHeader title="Policy Precedence Rules" icon={ShieldCheck} />
@@ -556,7 +688,7 @@ export default function SuperAdminFreeQuotaPage() {
 
             {loading && orgEntitlements.length === 0 ? (
               <div className="mt-4 overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="w-full min-w-[700px] text-left text-sm">
                   <tbody>
                     <TableSkeleton rows={4} cols={6} />
                   </tbody>
@@ -652,7 +784,7 @@ export default function SuperAdminFreeQuotaPage() {
 
             {searchingUsers ? (
               <div className="mt-4 overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="w-full min-w-[700px] text-left text-sm">
                   <tbody>
                     <TableSkeleton rows={3} cols={5} />
                   </tbody>
@@ -728,6 +860,102 @@ export default function SuperAdminFreeQuotaPage() {
           </div>
         )}
       </Card>
+
+      {/* Edit Signup Welcome Credits (Free Plan) Modal */}
+      {signupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-line">
+              <div className="flex items-center gap-2">
+                <Gift className="h-5 w-5 text-accent-cyan" />
+                <h3 className="text-base font-bold text-ink">Edit Free Plan — Signup Welcome Credits</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSignupModalOpen(false)}
+                className="rounded-lg p-1 text-ink-muted hover:bg-surface-2 hover:text-ink cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSignupForm} className="mt-4 space-y-4">
+              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-line bg-inset px-3 py-2.5">
+                <span className="text-xs font-semibold text-ink">Free Plan enabled platform-wide</span>
+                <input
+                  type="checkbox"
+                  checked={signupForm.signup_free_enabled}
+                  onChange={(e) => setSignupForm({ ...signupForm, signup_free_enabled: e.target.checked })}
+                  className="h-4 w-4 accent-cyan-500"
+                />
+              </label>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1">
+                  Welcome Credits (₹0, one-time)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100000"
+                  step="1"
+                  required
+                  value={signupForm.signup_free_credits}
+                  onChange={(e) => setSignupForm({ ...signupForm, signup_free_credits: e.target.value })}
+                  className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink outline-none font-mono"
+                />
+                <p className="mt-1 text-[11px] text-ink-faint">₹1 = 1 Credit. Granted exactly once per verified signup.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1">
+                  Grants Per User (one-time policy)
+                </label>
+                <input
+                  type="number"
+                  value={1}
+                  disabled
+                  readOnly
+                  className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink-muted outline-none font-mono opacity-70 cursor-not-allowed"
+                />
+                <p className="mt-1 text-[11px] text-ink-faint">Fixed at one-time per account. Enforced atomically in the backend.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1">
+                  Assigned To
+                </label>
+                <select
+                  value={signupForm.signup_free_target_role}
+                  onChange={(e) => setSignupForm({ ...signupForm, signup_free_target_role: e.target.value })}
+                  className="w-full rounded-xl border border-line bg-inset px-3 py-2 text-xs text-ink outline-none"
+                >
+                  <option value="all">Everyone (Candidates & Recruiters)</option>
+                  <option value="candidate">Candidates Only</option>
+                  <option value="recruiter">Recruiters Only</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => setSignupModalOpen(false)}
+                  className="rounded-xl border border-line px-3 py-1.5 text-xs font-semibold text-ink-muted hover:bg-surface-2 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingSignup}
+                  className="rounded-xl border border-cyan-500/50 bg-cyan-500/20 px-4 py-1.5 text-xs font-bold text-accent-cyan hover:bg-cyan-500/30 disabled:opacity-50 cursor-pointer"
+                >
+                  {savingSignup ? 'Saving...' : 'Save Free Plan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Platform Policy Modal */}
       {policyModalOpen && (
@@ -964,7 +1192,7 @@ export default function SuperAdminFreeQuotaPage() {
             ) : (
               <form onSubmit={handleSaveUserOverride} className="mt-4 space-y-4">
                 {userQuota?.source && (
-                  <div className="rounded-xl border border-line bg-surface-2 p-3 text-xs">
+                  <div className="rounded-xl bg-surface-2 p-3 text-xs">
                     <span className="text-ink-faint">Effective Source: </span>
                     <span className="font-semibold text-accent-cyan capitalize">
                       {userQuota.source.replace(/_/g, ' ')}

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { PracticeDrillItem, DrillDifficulty } from '@/types/practice';
-import { Clock, Play, Award, Zap, ChevronRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { Clock, Play, Award, Zap, CheckCircle2, Sparkles } from 'lucide-react';
 
 interface DrillCardGridProps {
   drills: PracticeDrillItem[];
@@ -71,7 +71,7 @@ export const DrillCardGrid: React.FC<DrillCardGridProps> = ({ drills, onStartDri
               </div>
 
               {/* Starter Question Preview Box */}
-              <div className="p-3 rounded-xl bg-inset/80 border border-line space-y-1">
+              <div className="p-3 rounded-xl bg-inset/80 space-y-1">
                 <span className="text-[10px] font-mono text-accent-cyan font-bold uppercase tracking-wider">
                   Sample Starter Scenario:
                 </span>
@@ -122,7 +122,6 @@ export const DrillCardGrid: React.FC<DrillCardGridProps> = ({ drills, onStartDri
               >
                 <Play className="w-3.5 h-3.5 text-accent-cyan fill-cyan-400" />
                 <span>Start Practice Drill</span>
-                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
           </div>

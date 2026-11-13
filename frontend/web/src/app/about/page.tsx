@@ -10,7 +10,6 @@ import {
   Users,
   BrainCircuit,
   CheckCircle2,
-  ArrowRight,
   Sparkles,
   Lock,
   Globe2,
@@ -20,8 +19,7 @@ import {
   Cpu,
   Terminal,
   Activity,
-  Layers,
-} from 'lucide-react';
+  Layers } from 'lucide-react';
 
 export default function AboutPage() {
   const engineeringPrinciples = [
@@ -95,8 +93,7 @@ export default function AboutPage() {
               prefetch={false}
               className="inline-flex items-center gap-2 rounded-xl bg-[#185adb] hover:bg-[#154bb7] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition-all"
             >
-              Start Free Practice <ArrowRight className="w-4 h-4" />
-            </Link>
+              Start Free Practice </Link>
             <Link
               href="#principles"
               className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-6 py-3.5 text-sm font-semibold text-ink hover:bg-surface-2 transition-all"
@@ -171,19 +168,19 @@ export default function AboutPage() {
                 </div>
 
                 <div className="space-y-4 text-xs">
-                  <div className="p-4 rounded-xl bg-surface border border-line">
+                  <div className="p-4 rounded-xl bg-surface">
                     <p className="font-bold text-accent-cyan uppercase text-[10px] tracking-wider mb-1">
                       Context Ingestion
                     </p>
                     <p className="text-ink">Resume + Target Role competencies extracted into structured evaluation rubrics.</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-surface border border-line">
+                  <div className="p-4 rounded-xl bg-surface">
                     <p className="font-bold text-indigo-500 uppercase text-[10px] tracking-wider mb-1">
                       Two-Way Audio/Video Dialog
                     </p>
                     <p className="text-ink">Real-time candidate vocal answers trigger intelligent follow-ups on system trade-offs.</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-surface border border-line">
+                  <div className="p-4 rounded-xl bg-surface">
                     <p className="font-bold text-emerald-500 uppercase text-[10px] tracking-wider mb-1">
                       Evidence-Linked Feedback
                     </p>
@@ -288,20 +285,20 @@ export default function AboutPage() {
       <section className="py-16 bg-gradient-to-r from-[#072448] via-[#0c3666] to-[#185adb] text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <h2 className="text-3xl sm:text-4xl font-black">Ready to practice your technical interview?</h2>
-          <p className="text-slate-200 text-sm sm:text-base max-w-xl mx-auto">
+          <p className="text-ink text-sm sm:text-base max-w-xl mx-auto">
             Take a simulated interview drill right now, test your live coding skills, and get instant detailed feedback.
           </p>
           <div className="flex flex-wrap justify-center gap-4 pt-2">
             <Link
               href="/candidate/practice"
               prefetch={false}
-              className="px-6 py-3 rounded-full bg-white text-[#072448] font-bold text-sm hover:bg-slate-100 transition-colors shadow-md"
+              className="px-6 py-3 rounded-full bg-surface text-[#072448] font-bold text-sm hover:bg-surface-2 transition-colors shadow-md"
             >
               Start Free Practice Interview
             </Link>
             <Link
               href="/pricing"
-              className="px-6 py-3 rounded-full border border-white/40 text-white font-bold text-sm hover:bg-white/10 transition-colors"
+              className="px-6 py-3 rounded-full border border-white/40 text-white font-bold text-sm hover:bg-surface/10 transition-colors"
             >
               View Credit Packs (From ₹49)
             </Link>

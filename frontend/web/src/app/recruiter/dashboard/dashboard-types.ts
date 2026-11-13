@@ -65,10 +65,14 @@ export interface CandidateDossier {
   studentStatus?: StudentStatus | string;
   aptitudeScore?: {
     overallScore: number;
-    percentile: number;
+    percentile: number | null;
+    percentileBasis?: 'norm_pool' | 'insufficient_pool';
+    normPoolSize?: number;
     accuracy: number;
     trustScore: number;
+    integrityVerdict?: 'clean' | 'review' | 'flagged';
     speedIndex: string;
+    deltaVsPrevious?: number | null;
     completedAt?: string;
   } | null;
 }

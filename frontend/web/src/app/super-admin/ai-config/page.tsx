@@ -665,7 +665,7 @@ export default function SuperAdminAiConfigPage() {
             models.map((m) => {
               const test = testResults[m.id] || m.lastTest;
               return (
-                <div key={m.id} className="rounded-2xl border border-line bg-surface-2 p-4">
+                <div key={m.id} className="rounded-2xl bg-surface-2 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">

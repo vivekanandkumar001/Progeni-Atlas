@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -113,7 +113,7 @@ export const UpcomingInterviewCard: React.FC<UpcomingInterviewCardProps> = ({ se
         className="p-6 rounded-2xl bg-surface border border-line flex items-center gap-2 text-sm text-ink-muted"
       >
         <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-        LOADING_NEXT_SESSION
+        Loading your next session…
       </motion.div>
     );
   }
@@ -142,7 +142,7 @@ export const UpcomingInterviewCard: React.FC<UpcomingInterviewCardProps> = ({ se
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-inset/80 border border-line">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-inset/80">
           <div>
             <span className="text-[11px] font-mono text-ink-muted block">Resume</span>
             <span className="text-xs font-semibold text-ink mt-0.5 block">
@@ -212,7 +212,7 @@ export const UpcomingInterviewCard: React.FC<UpcomingInterviewCardProps> = ({ se
       </div>
 
       {/* 3-Column Mini Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-inset/80 border border-line">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-inset/80">
         <div>
           <span className="text-[11px] font-mono text-ink-muted block">Duration</span>
           <span className="text-xs font-semibold text-ink mt-0.5 block flex items-center">
@@ -268,7 +268,7 @@ export const UpcomingInterviewCard: React.FC<UpcomingInterviewCardProps> = ({ se
               : 'bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 shadow-cyan-500/20'
           }`}
         >
-          <span>{isLive ? 'Resume Video Interview →' : 'Enter Video Interview Room →'}</span>
+          <span>{isLive ? 'Resume Video Interview ' : 'Enter Video Interview Room '}</span>
         </Link>
       ) : (
         <div className="w-full py-3.5 px-6 rounded-xl font-medium text-xs text-ink-muted bg-surface/50 border border-line text-center">

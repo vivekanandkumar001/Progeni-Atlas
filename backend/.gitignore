@@ -75,3 +75,5 @@ test_*.db
 .DS_Store
 Thumbs.db
 desktop.ini
+.vercel
+.env*

@@ -19,7 +19,7 @@ import { CompetencyPillarsGrid } from '@/components/report/CompetencyPillarsGrid
 import { StrengthsAndGrowthCards } from '@/components/report/StrengthsAndGrowthCards';
 import { TurnByTurnAccordion } from '@/components/report/TurnByTurnAccordion';
 import { PDFDossierTemplate } from '@/components/report/PDFDossierTemplate';
-import { ArrowRight, Loader2, AlertTriangle, FileText } from 'lucide-react';
+import { Loader2, AlertTriangle, FileText } from 'lucide-react';
 
 /**
  * Real endpoints used by this page:
@@ -154,8 +154,7 @@ export default function CandidateEvaluationReportPage() {
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-cyan"
             >
               <span>Back to my interviews</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+              </Link>
           </div>
         </main>
       </div>
@@ -245,8 +244,7 @@ export default function CandidateEvaluationReportPage() {
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-surface hover:bg-cyan-500/10 border border-line hover:border-cyan-500/30 text-accent-cyan text-xs font-semibold transition-all cursor-pointer group"
             >
               <span>Browse available practice drills</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </Link>
+              </Link>
           </div>
         </section>
       </main>

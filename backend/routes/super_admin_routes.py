@@ -228,7 +228,8 @@ def super_admin_audit_logs():
             "success": True,
             "logs": logs,
             "items": logs,
-            "total": len(logs)
+            "total": len(logs),
+            "count": len(logs),
         }), 200
     except Exception as e:
         traceback.print_exc()
@@ -722,9 +723,9 @@ def super_admin_interview_status(session_id):
             # Record audit log
             db.audit_logs.insert_one({
                 "id": str(uuid.uuid4()),
-                "actor_id": "super_admin",
-                "actor_email": "admin@progeni.atlas",
-                "actor_name": "Super Administrator",
+                "actor_id": str((getattr(g, "user", None) or {}).get("id") or (getattr(g, "user", None) or {}).get("_id") or ""),
+                "actor_email": str((getattr(g, "user", None) or {}).get("email") or ""),
+                "actor_name": str((getattr(g, "user", None) or {}).get("full_name") or "Super Administrator"),
                 "action": f"interview.{new_status}",
                 "entity_type": "interview_session",
                 "entity_id": session_id,
@@ -808,9 +809,14 @@ def super_admin_permissions():
                 "Complete immutability of session audit logs"
             ],
             "enforcement": {
-                "rbac_enforced": True,
-                "multi_tenant_isolated": True,
-                "audit_trail_active": True
+                "candidatePrivacy": True,        # candidate endpoints ownership-scoped
+                "tenantIsolation": True,         # org_id/recruiter_id-scoped queries & writes
+                "privilegedActionAudit": True,   # admin actions write audit_logs
+                "auditLogImmutability": True,    # no delete/update endpoint for audit_logs
+                "liveJoinRequiresReason": True,  # support grant requires an explicit reason
+                "liveKitTokenAuthorization": True,  # LiveKit tokens only for session owners via signed grants
+                "backendApiAuthorization": True, # require_auth + role checks across the admin API
+                "passwordVisibility": False      # passwords are never returned by any admin endpoint
             }
         }), 200
     except Exception as e:
@@ -858,6 +864,31 @@ def super_admin_usage():
             day_cnt = sum(1 for s in sessions if str(s.get("created_at", "")).startswith(day_str))
             daily.append({"date": day_str, "count": day_cnt})
 
+        # Aptitude (cognitive screening) metering
+        aptitude = {"sessions": 0, "completed": 0, "avgAccuracy": None, "avgScore": None, "events": []}
+        try:
+            apt_sessions = list(db.aptitude_sessions.find({}, {"_id": 0, "status": 1, "scorecard": 1, "templateTitle": 1, "startedAt": 1})) if db is not None else []
+            apt_completed = [s for s in apt_sessions if str(s.get("status", "")).lower() == "completed"]
+            scores = [float((s.get("scorecard") or {}).get("overallScore") or 0) for s in apt_completed]
+            accs = [float((s.get("scorecard") or {}).get("accuracyPercent") or 0) for s in apt_completed]
+            aptitude = {
+                "sessions": len(apt_sessions),
+                "completed": len(apt_completed),
+                "avgScore": round(sum(scores) / len(scores), 1) if scores else None,
+                "avgAccuracy": round(sum(accs) / len(accs), 1) if accs else None,
+                "events": [],
+            }
+            try:
+                evt_counts = list(db.aptitude_events.aggregate([
+                    {"$group": {"_id": "$name", "count": {"$sum": 1}}},
+                    {"$sort": {"count": -1}},
+                ])) if db is not None else []
+                aptitude["events"] = [{"name": e.get("_id"), "count": e.get("count", 0)} for e in evt_counts]
+            except Exception:
+                pass
+        except Exception:
+            pass
+
         return jsonify({
             "success": True,
             "days": days,
@@ -867,6 +898,7 @@ def super_admin_usage():
                 "aiEvaluations": completed * 4,
                 "users": len(users)
             },
+            "aptitude": aptitude,
             "statusBreakdown": [{"status": k, "count": v} for k, v in status_counts.items()],
             "roleBreakdown": [{"role": k, "count": v} for k, v in role_counts.items()],
             "daily": daily,
@@ -910,18 +942,146 @@ def super_admin_data_governance():
 def super_admin_settings():
     try:
         db = get_mongo_db()
-        defaults = [
-            {"key": "platform.name", "label": "Platform Name", "value": "Progeni Atlas Enterprise", "type": "string", "description": "Public system branding", "category": "general"},
-            {"key": "interview.default_duration", "label": "Default Session Minutes", "value": "45", "type": "number", "description": "Standard screening length", "category": "interviews"},
-            {"key": "interview.max_retries", "label": "Question Timeout Seconds", "value": "120", "type": "number", "description": "Candidate response deadline per turn", "category": "interviews"},
-            {"key": "proctoring.tab_switch_limit", "label": "Tab Switch Flag Threshold", "value": "3", "type": "number", "description": "Allowed departures before flagging integrity", "category": "security"},
-            {"key": "llm.primary_provider", "label": "Primary AI Provider", "value": "google-gemini", "type": "string", "description": "Active conversational intelligence model", "category": "ai"}
+        six_rows = [
+            {
+                "key": "maintenance_mode",
+                "label": "Maintenance mode",
+                "note": "Requires a scheduled, announced window.",
+                "category": "general",
+                "config": {
+                    "enabled": False,
+                    "message": "Progeni Atlas is currently undergoing scheduled platform maintenance. Services will resume shortly.",
+                    "scheduled_start": "",
+                    "scheduled_end": "",
+                    "allow_super_admin": True,
+                },
+            },
+            {
+                "key": "rate_limits",
+                "label": "API rate limiting",
+                "note": "Applied per client to protect shared capacity.",
+                "category": "platform",
+                "config": {
+                    "enforced": True,
+                    "requests_per_minute": 120,
+                    "burst_limit": 200,
+                    "exempt_super_admin": True,
+                    "strategy": "Token Bucket",
+                },
+            },
+            {
+                "key": "allowed_integrations",
+                "label": "Allowed integrations",
+                "note": "New third-party integrations require review.",
+                "category": "integrations",
+                "config": {
+                    "policy": "allowlist_only",
+                    "allowed_providers": [
+                        {"id": "slack", "name": "Slack Enterprise Webhooks", "enabled": True},
+                        {"id": "google_workspace", "name": "Google Workspace Calendar & SSO", "enabled": True},
+                        {"id": "github", "name": "GitHub OAuth & Code Sync", "enabled": True},
+                        {"id": "greenhouse", "name": "Greenhouse ATS Connector", "enabled": False},
+                        {"id": "lever", "name": "Lever ATS Connector", "enabled": False},
+                        {"id": "workday", "name": "Workday HCM Integration", "enabled": False},
+                    ],
+                },
+            },
+            {
+                "key": "default_interview",
+                "label": "Default interview settings",
+                "note": "Tenants may narrow, not weaken, these defaults.",
+                "category": "interviews",
+                "config": {
+                    "duration_minutes": 30,
+                    "proctoring_warning_threshold": 5,
+                    "proctoring_terminate_on_flagged": False,
+                    "camera_required": True,
+                    "microphone_required": True,
+                    "screen_share_required": False,
+                    "auto_evaluation": True,
+                },
+            },
+            {
+                "key": "languages",
+                "label": "Supported languages",
+                "note": "Interview language set at the platform level.",
+                "category": "interviews",
+                "config": {
+                    "primary_language": "English (US)",
+                    "supported_languages": [
+                        "English (US)",
+                        "English (UK)",
+                        "Spanish (ES)",
+                        "French (FR)",
+                        "German (DE)",
+                        "Hindi (IN)",
+                        "Mandarin Chinese",
+                        "Japanese",
+                    ],
+                },
+            },
+            {
+                "key": "notifications",
+                "label": "Notification templates",
+                "note": "Transactional templates are version-controlled.",
+                "category": "comms",
+                "config": {
+                    "email_notifications": True,
+                    "in_app_notifications": True,
+                    "slack_alerts": False,
+                    "send_interview_invitations": True,
+                    "send_candidate_reminders": True,
+                    "send_scorecard_ready": True,
+                    "sender_name": "Progeni Atlas Notifications",
+                },
+            },
         ]
-        if db is not None:
-            overrides = {d["key"]: d for d in db.platform_settings.find({})}
-            for item in defaults:
-                if item["key"] in overrides:
-                    item["value"] = overrides[item["key"]].get("value", item["value"])
+
+        def _badge_tone_for(key: str, cfg: dict) -> tuple:
+            if key == "maintenance_mode":
+                enabled = bool(cfg.get("enabled"))
+                return ("On" if enabled else "Off", "ON" if enabled else "OFF", "rose" if enabled else "neutral")
+            if key == "rate_limits":
+                if cfg.get("enforced"):
+                    rpm = int(cfg.get("requests_per_minute", 120))
+                    return (f"{rpm} RPM (Enforced)", "ENFORCED", "cyan")
+                return ("Not Enforced", "DISABLED", "neutral")
+            if key == "allowed_integrations":
+                enabled = sum(1 for p in cfg.get("allowed_providers", []) if p.get("enabled"))
+                return (f"{enabled} Active Providers", "MANAGED ALLOW-LIST", "neutral")
+            if key == "default_interview":
+                mins = int(cfg.get("duration_minutes", 30))
+                return (f"{mins} mins default", "PLATFORM DEFAULT", "neutral")
+            if key == "languages":
+                count = len(cfg.get("supported_languages", []))
+                return (f"{count} Languages Supported", "CONFIGURED CENTRALLY", "neutral")
+            if key == "notifications":
+                email = bool(cfg.get("email_notifications"))
+                inapp = bool(cfg.get("in_app_notifications"))
+                if email and inapp:
+                    value = "Email & In-App"
+                elif inapp:
+                    value = "In-App only"
+                else:
+                    value = "Email only"
+                return (value, "PLATFORM-WIDE", "neutral")
+            return (str(cfg), "CONFIGURED", "neutral")
+
+        defaults = []
+        for row in six_rows:
+            override = db.platform_settings.find_one({"key": row["key"]}) if db is not None else None
+            cfg = override.get("config") if override and isinstance(override.get("config"), dict) else row["config"]
+            value, badge, tone = _badge_tone_for(row["key"], cfg)
+            defaults.append({
+                "key": row["key"],
+                "label": row["label"],
+                "value": value,
+                "badge": badge,
+                "tone": tone,
+                "note": row["note"],
+                "category": row["category"],
+                "config": cfg,
+            })
 
         return jsonify({
             "success": True,
@@ -956,9 +1116,9 @@ def super_admin_update_setting(setting_key):
             )
             db.audit_logs.insert_one({
                 "id": str(uuid.uuid4()),
-                "actor_id": "super_admin",
-                "actor_email": "admin@progeni.atlas",
-                "actor_name": "Super Administrator",
+                "actor_id": str((getattr(g, "user", None) or {}).get("id") or (getattr(g, "user", None) or {}).get("_id") or ""),
+                "actor_email": str((getattr(g, "user", None) or {}).get("email") or ""),
+                "actor_name": str((getattr(g, "user", None) or {}).get("full_name") or "Super Administrator"),
                 "action": f"setting.update.{setting_key}",
                 "entity_type": "platform_setting",
                 "entity_id": setting_key,
@@ -1337,6 +1497,24 @@ def super_admin_entitlements():
                 update_data["promo_bonus_allowance"] = max(0, int(data["promo_bonus_allowance"]))
             if "eligible_role" in data:
                 update_data["eligible_role"] = data["eligible_role"]
+            # One-time signup welcome credits (free plan) — admin configurable
+            if "signup_free_enabled" in data:
+                update_data["signup_free_enabled"] = bool(data["signup_free_enabled"])
+            if "signup_free_credits" in data:
+                try:
+                    update_data["signup_free_credits"] = max(0.0, float(data["signup_free_credits"]))
+                except (TypeError, ValueError):
+                    return jsonify({"success": False, "error": "signup_free_credits must be a number"}), 400
+            if "signup_free_max_grants" in data:
+                try:
+                    update_data["signup_free_max_grants"] = max(1, int(data["signup_free_max_grants"]))
+                except (TypeError, ValueError):
+                    return jsonify({"success": False, "error": "signup_free_max_grants must be an integer"}), 400
+            if "signup_free_target_role" in data:
+                target = str(data["signup_free_target_role"]).strip().lower()
+                if target not in ("all", "candidate", "recruiter"):
+                    return jsonify({"success": False, "error": "signup_free_target_role must be one of: all, candidate, recruiter"}), 400
+                update_data["signup_free_target_role"] = target
 
             update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -1358,6 +1536,10 @@ def super_admin_entitlements():
                 "eligible_interview_types": doc.get("eligible_interview_types", ["practice", "technical"]),
                 "reset_policy": doc.get("reset_policy", "monthly"),
                 "promo_bonus_allowance": int(doc.get("promo_bonus_allowance", 0)),
+                "signup_free_enabled": bool(doc.get("signup_free_enabled", True)),
+                "signup_free_credits": float(doc.get("signup_free_credits", 10.0) or 10.0),
+                "signup_free_max_grants": int(doc.get("signup_free_max_grants", 1) or 1),
+                "signup_free_target_role": str(doc.get("signup_free_target_role", "all") or "all").lower(),
                 "version": int(doc.get("version", 1))
             }
             return jsonify({
@@ -1378,11 +1560,32 @@ def super_admin_entitlements():
                 "eligible_interview_types": ["practice", "technical"],
                 "reset_policy": "monthly",
                 "promo_bonus_allowance": 0,
+                "signup_free_enabled": True,
+                "signup_free_credits": 10.0,
+                "signup_free_max_grants": 1,
+                "signup_free_target_role": "all",
                 "version": 1,
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             if db is not None:
                 db.platform_settings.insert_one(doc)
+
+        # Self-heal: legacy docs predate the signup-free fields — backfill defaults on read
+        if doc and doc.get("signup_free_credits") is None:
+            try:
+                db.platform_settings.update_one(
+                    {"key": "entitlement_policy"},
+                    {"$set": {
+                        "signup_free_enabled": True,
+                        "signup_free_credits": 10.0,
+                        "signup_free_max_grants": 1,
+                        "signup_free_target_role": "all",
+                    }},
+                    upsert=True,
+                )
+                doc = db.platform_settings.find_one({"key": "entitlement_policy"}) or doc
+            except Exception:
+                pass
 
         policy_resp = {
             "is_free_quotas_enabled": bool(doc.get("is_free_quotas_enabled", True)),
@@ -1392,6 +1595,10 @@ def super_admin_entitlements():
             "eligible_interview_types": doc.get("eligible_interview_types", ["practice", "technical"]),
             "reset_policy": doc.get("reset_policy", "monthly"),
             "promo_bonus_allowance": int(doc.get("promo_bonus_allowance", 0)),
+            "signup_free_enabled": bool(doc.get("signup_free_enabled") if doc.get("signup_free_enabled") is not None else True),
+            "signup_free_credits": float(doc.get("signup_free_credits") if doc.get("signup_free_credits") is not None else 10.0),
+            "signup_free_max_grants": int(doc.get("signup_free_max_grants") if doc.get("signup_free_max_grants") is not None else 1),
+            "signup_free_target_role": str(doc.get("signup_free_target_role") or "all").lower(),
             "version": int(doc.get("version", 1))
         }
 
@@ -1600,10 +1807,11 @@ def _get_or_create_user_billing_account(db, user_id: str) -> dict:
     org_id = user.get("org_id") or user.get("orgId") if user else None
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    # 3. Check or create wallet
+    # 3. Check or create wallet (wallets start at 0 — free credits come ONLY from
+    #    the admin-configured one-time signup welcome grant)
     wallet = db.wallets.find_one({"$or": [{"userId": clean_uid}, {"userId": user_id}]})
     if not wallet:
-        init_credits = 10.0 if role_name == "candidate" else 0.0
+        init_credits = 0.0
         wallet = {
             "id": f"wallet-{clean_uid[:8]}",
             "accountName": f"{user_name}'s Primary Wallet",
@@ -2500,3 +2708,329 @@ def super_admin_career_applications(job_id):
         return jsonify({"success": True, "applications": applications, "count": len(applications)}), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# =====================================================================
+# PROVIDER SPEND & UNIT ECONOMICS (LLM cost accounting)
+# =====================================================================
+
+@super_admin_bp.route("/api/super-admin/cost-overview", methods=["GET"])
+@require_super_admin
+def super_admin_cost_overview():
+    """Honest, metered view of provider spend from platform_shadow_usage_events."""
+    try:
+        import calendar
+        db = get_mongo_db()
+        now = datetime.now(timezone.utc)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        events = []
+        if db is not None:
+            events = list(db.platform_shadow_usage_events.find({}, {"_id": 0}).limit(20000))
+
+        def _ts(e):
+            v = e.get("created_at")
+            if isinstance(v, str):
+                try:
+                    ts = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                except ValueError:
+                    return None
+            elif isinstance(v, datetime):
+                ts = v
+            else:
+                return None
+            # Legacy events may carry naive datetimes — normalize to tz-aware UTC
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            return ts
+
+        month_events = [e for e in events if (lambda ts: ts is not None and ts >= month_start)(_ts(e))]
+        today_events = [e for e in events if (lambda ts: ts is not None and ts >= today_start)(_ts(e))]
+        attempts_total = len(events)
+
+        def _num(v):
+            try:
+                f = float(v) if v is not None else 0.0
+                return f if f == f else 0.0
+            except (TypeError, ValueError):
+                return 0.0
+
+        def summarize(items):
+            usd = sum(_num(e.get("provider_cost_amount")) for e in items)
+            inr = sum(_num(e.get("provider_cost_inr")) for e in items)
+            tokens_in = sum(int(_num((e.get("measured_usage") or {}).get("input_tokens"))) for e in items)
+            tokens_out = sum(int(_num((e.get("measured_usage") or {}).get("output_tokens"))) for e in items)
+            attempts = len(items)
+
+            status_counts = {}
+            for e in items:
+                key = str(e.get("cost_status") or "unknown")
+                status_counts[key] = status_counts.get(key, 0) + 1
+
+            ok = sum(1 for e in items if str(e.get("status")) == "success")
+
+            by_service = {}
+            for e in items:
+                s = str(e.get("service_category") or "unknown")
+                svc = by_service.setdefault(s, {"attempts": 0, "usd": 0.0, "inr": 0.0, "tokens_in": 0, "tokens_out": 0})
+                svc["attempts"] += 1
+                svc["usd"] += _num(e.get("provider_cost_amount"))
+                svc["inr"] += _num(e.get("provider_cost_inr"))
+                u = e.get("measured_usage") or {}
+                svc["tokens_in"] += int(_num(u.get("input_tokens")))
+                svc["tokens_out"] += int(_num(u.get("output_tokens")))
+
+            by_model = {}
+            for e in items:
+                key = f"{str(e.get('provider') or 'unknown')}/{str(e.get('model') or 'unknown')}"
+                m = by_model.setdefault(key, {
+                    "provider": str(e.get("provider") or "unknown"),
+                    "model": str(e.get("model") or "unknown"),
+                    "attempts": 0,
+                    "usd": 0.0,
+                    "inr": 0.0,
+                    "tokens_in": 0,
+                    "tokens_out": 0,
+                })
+                m["attempts"] += 1
+                m["usd"] += _num(e.get("provider_cost_amount"))
+                m["inr"] += _num(e.get("provider_cost_inr"))
+                u = e.get("measured_usage") or {}
+                m["tokens_in"] += int(_num(u.get("input_tokens")))
+                m["tokens_out"] += int(_num(u.get("output_tokens")))
+
+            by_operation = {}
+            for e in items:
+                op = str(e.get("operation") or "llm_chat")
+                o = by_operation.setdefault(op, {"attempts": 0, "usd": 0.0, "inr": 0.0})
+                o["attempts"] += 1
+                o["usd"] += _num(e.get("provider_cost_amount"))
+                o["inr"] += _num(e.get("provider_cost_inr"))
+
+            for svc in by_service.values():
+                svc["usd"] = round(svc["usd"], 6)
+                svc["inr"] = round(svc["inr"], 6)
+            for m in by_model.values():
+                m["usd"] = round(m["usd"], 6)
+                m["inr"] = round(m["inr"], 6)
+            for o in by_operation.values():
+                o["usd"] = round(o["usd"], 6)
+                o["inr"] = round(o["inr"], 6)
+
+            return {
+                "attempts": attempts,
+                "successful": ok,
+                "failed": attempts - ok,
+                "usd": round(usd, 6),
+                "inr": round(inr, 6),
+                "tokens_in": tokens_in,
+                "tokens_out": tokens_out,
+                "status_counts": status_counts,
+                "by_service": by_service,
+                "by_model": list(by_model.values()),
+                "by_operation": by_operation,
+            }
+
+        month_summary = summarize(month_events)
+        today_summary = summarize(today_events)
+
+        daily = {}
+        for e in events:
+            ts = _ts(e)
+            if not ts:
+                continue
+            day = ts.date().isoformat()
+            daily[day] = daily.get(day, 0.0) + _num(e.get("provider_cost_inr"))
+        series = [{"date": d, "count": round(v, 2)} for d, v in sorted(daily.items())][-14:]
+
+        completed_month = 0
+        completed_total = 0
+        if db is not None:
+            try:
+                completed_month = db.interview_sessions.count_documents({
+                    "status": {"$in": ["completed", "evaluated"]},
+                    "created_at": {"$gte": month_start},
+                })
+                completed_total = db.interview_sessions.count_documents({
+                    "status": {"$in": ["completed", "evaluated"]},
+                })
+            except Exception:
+                pass
+        completed_month = completed_month or 0
+        completed_total = completed_total or 0
+
+        cost_per_completed = (month_summary["inr"] / completed_month) if completed_month else None
+
+        day_of_month = now.day
+        days_in_month = calendar.monthrange(now.year, now.month)[1]
+        elapsed = max(day_of_month, 1)
+        run_rate_inr = (month_summary["inr"] / elapsed) * days_in_month if month_summary["inr"] > 0 else 0.0
+
+        pricing = []
+        if db is not None:
+            for p in db.platform_llm_pricing.find({"active": True}, {"_id": 0}).sort("id", 1):
+                pricing.append({
+                    "id": p.get("id"),
+                    "call_type": p.get("call_type"),
+                    "provider_kind": p.get("provider_kind"),
+                    "match_type": p.get("match_type"),
+                    "model_pattern": p.get("model_pattern"),
+                    "rates": p.get("rates", {}),
+                    "seed_source": p.get("seed_source"),
+                    "version": int(p.get("version") or 1),
+                })
+
+        return jsonify({
+            "success": True,
+            "currency": "INR",
+            "fx_rate_usd_to_inr": 83.0,
+            "generated_at": now.isoformat(),
+            "attempts_total": attempts_total,
+            "today": today_summary,
+            "month": month_summary,
+            "completed_interviews_month": completed_month,
+            "completed_interviews_total": completed_total,
+            "cost_per_completed_interview_inr": round(cost_per_completed, 4) if cost_per_completed is not None else None,
+            "run_rate_month_inr": round(run_rate_inr, 2),
+            "series": series,
+            "pricing": pricing,
+        }), 200
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
+
+
+@super_admin_bp.route("/api/super-admin/pricing/<pricing_id>", methods=["PATCH", "PUT"])
+@require_super_admin
+def super_admin_update_pricing(pricing_id):
+    """Adjust a rate-card entry (admin pricing governance)."""
+    try:
+        user = getattr(g, "user", None) or {}
+        actor_email = str(user.get("email") or "").strip().lower() or "super_admin"
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+
+        doc = db.platform_llm_pricing.find_one({"id": pricing_id})
+        if not doc:
+            return jsonify({"success": False, "error": "Pricing entry not found."}), 404
+
+        data = request.get_json(silent=True) or {}
+        rates = dict(doc.get("rates") or {})
+        changed = {}
+        for key in ("input_per_1m_tokens", "output_per_1m_tokens", "cached_input_per_1m_tokens"):
+            if key in data:
+                try:
+                    val = float(data[key])
+                    if val < 0:
+                        return jsonify({"success": False, "error": f"{key} cannot be negative"}), 400
+                    rates[key] = val
+                    changed[key] = val
+                except (TypeError, ValueError):
+                    return jsonify({"success": False, "error": f"{key} must be a number"}), 400
+
+        if not changed:
+            return jsonify({"success": False, "error": "No rate fields supplied."}), 400
+
+        if data.get("active") is not None:
+            active = bool(data.get("active"))
+        else:
+            active = bool(doc.get("active", True))
+
+        now = datetime.now(timezone.utc).isoformat()
+        db.platform_llm_pricing.update_one(
+            {"id": pricing_id},
+            {"$set": {
+                "rates": rates,
+                "active": active,
+                "version": int(doc.get("version") or 1) + 1,
+                "updated_at": now,
+                "updated_by": actor_email,
+            }},
+        )
+        try:
+            db.audit_logs.insert_one({
+                "id": str(uuid.uuid4()),
+                "actor_id": str(user.get("id") or user.get("_id") or actor_email),
+                "actor_email": actor_email,
+                "actor_name": str(user.get("full_name") or "Super Administrator"),
+                "action": f"pricing.update.{pricing_id}",
+                "entity_type": "llm_pricing",
+                "entity_id": pricing_id,
+                "detail": {"changed": changed, "active": active},
+                "created_at": now,
+            })
+        except Exception:
+            pass
+        return jsonify({"success": True, "id": pricing_id, "rates": rates, "active": active, "version": int(doc.get("version") or 1) + 1}), 200
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
+@super_admin_bp.route("/api/super-admin/aptitude/bank-stats", methods=["GET"])
+@require_super_admin
+def super_admin_aptitude_bank_stats():
+    """Question-bank health: totals, families, usage ledger, daily-job status."""
+    try:
+        from core.aptitude_generator import bank_stats
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        return jsonify({"success": True, "bank": bank_stats(db)}), 200
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
+
+
+@super_admin_bp.route("/api/super-admin/aptitude/generate-now", methods=["POST"])
+@require_super_admin
+def super_admin_aptitude_generate_now():
+    """Admin-triggered batch generation (same as the 5:00 AM auto job, but on demand)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        if data.get("confirm_spend") is not True:
+            return jsonify({"success": False, "error": "confirm_spend=true is required (each batch consumes LLM tokens)."}), 400
+        try:
+            count = max(1, min(int(data.get("count") or 50), 50))
+        except (TypeError, ValueError):
+            count = 50
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+
+        from core.aptitude_generator import generate_items, SETTINGS_KEY
+        result = generate_items(db, count)
+
+        now_utc = datetime.now(timezone.utc)
+        ist_today = (now_utc + timedelta(hours=5, minutes=30)).date().isoformat()
+        try:
+            if result.get("accepted", 0) > 0:
+                db.platform_settings.update_one(
+                    {"key": SETTINGS_KEY},
+                    {"$set": {"lastRunDate": ist_today, "lastClaimDate": ist_today,
+                               "lastResult": {**result, "at": result.get("at")},
+                               "lastFailureDate": None}},
+                    upsert=True,
+                )
+            try:
+                actor_email = str((getattr(g, "user", None) or {}).get("email") or "admin@progeni.live")
+            except Exception:
+                actor_email = "admin@progeni.live"
+            db.audit_logs.insert_one({
+                "id": str(uuid.uuid4()),
+                "actor_id": actor_email,
+                "actor_email": actor_email,
+                "actor_name": "Super Administrator",
+                "action": "aptitude.generate_now",
+                "entity_type": "aptitude_bank",
+                "entity_id": SETTINGS_KEY,
+                "detail": {k: result.get(k) for k in ("accepted", "rejected", "deduped", "bankTotal", "status")},
+                "created_at": now_utc,
+            })
+        except Exception:
+            pass
+
+        return jsonify({"success": True, **result}), 200
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500

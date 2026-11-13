@@ -5,6 +5,7 @@ Root status index, ping/latency diagnostics, and system health checks.
 """
 
 import time
+import os
 from datetime import datetime, timezone
 from flask import Blueprint, jsonify
 from core.db import check_mongo_connection, check_qdrant_connection
@@ -18,7 +19,7 @@ def root_index():
         "status": "online",
         "service": "Progeni Atlas Enterprise Backend API",
         "version": "1.0.0",
-        "frontendUrl": "http://172.16.6.10:3000",
+        "frontendUrl": os.environ.get("FRONTEND_URL", "https://atlas.progeni.live"),
         "endpoints": {
             "health": "/health",
             "candidateProfile": "/api/candidate/profile",
@@ -52,6 +53,19 @@ def healthcheck():
             "qdrant": qdrant_status,
         }
     }), status_code
+
+
+@system_bp.route("/ready", methods=["GET"])
+@system_bp.route("/api/ready", methods=["GET"])
+def ready_check():
+    """Readiness probe: 200 only when the database is actually reachable (for deploy smoke tests / load balancers)."""
+    mongo_status = check_mongo_connection()
+    ready = mongo_status.get("status") in ("connected", "ok")
+    return jsonify({
+        "ready": ready,
+        "services": {"mongodb": mongo_status},
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }), (200 if ready else 503)
 
 
 @system_bp.route("/api/health", methods=["GET"])

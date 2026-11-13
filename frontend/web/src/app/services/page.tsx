@@ -11,14 +11,12 @@ import {
   FileText,
   Sliders,
   Sparkles,
-  ArrowRight,
   Terminal,
   Cpu,
   CheckCircle2,
   Layers,
   Zap,
-  PlayCircle,
-} from 'lucide-react';
+  PlayCircle } from 'lucide-react';
 
 export default function ServicesPage() {
   const serviceList = [
@@ -140,8 +138,7 @@ export default function ServicesPage() {
               href="/pricing"
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/20 hover:brightness-110 transition-all"
             >
-              View Pricing &amp; Plans <ArrowRight className="w-4 h-4" />
-            </Link>
+              View Pricing &amp; Plans </Link>
             <Link
               href="/portfolio"
               className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-6 py-3.5 text-sm font-semibold text-ink hover:bg-surface-2 hover:border-cyan-400/50 transition-all"
@@ -198,8 +195,7 @@ export default function ServicesPage() {
                       href={service.linkHref}
                       className="inline-flex items-center gap-2 text-sm font-bold text-[#185adb]  hover:underline"
                     >
-                      {service.linkText} <ArrowRight className="w-4 h-4" />
-                    </Link>
+                      {service.linkText} </Link>
                   </div>
                 </div>
 

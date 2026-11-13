@@ -276,8 +276,17 @@ def _ensure_catalog_seeded(db) -> None:
     _CATALOG_SEEDED_DATABASES.add(database_key)
 
 
+_CATALOG_CACHE: dict[tuple, tuple] = {}  # (kind, active_only) -> (expires_ts, rows)
+_CATALOG_TTL_SECONDS = 60
+
+
 def _catalog_rows(kind: str, *, active_only: bool = False, strict: bool = False) -> list[dict]:
-    """Read the live catalog; admin edits are visible without a process restart."""
+    """Read the live catalog (60s in-memory TTL cache); admin edits appear within a minute."""
+    import time as _time
+    cache_key = (kind, bool(active_only))
+    cached = _CATALOG_CACHE.get(cache_key)
+    if cached and cached[0] > _time.time():
+        return [dict(r) for r in cached[1]]
     try:
         db = get_mongo_db()
         _ensure_catalog_seeded(db)
@@ -289,6 +298,8 @@ def _catalog_rows(kind: str, *, active_only: bool = False, strict: bool = False)
             for key in ("created_at", "updated_at"):
                 if isinstance(row.get(key), datetime):
                     row[key] = row[key].isoformat()
+        if active_only:
+            _CATALOG_CACHE[cache_key] = (_time.time() + _CATALOG_TTL_SECONDS, rows)
         return rows
     except Exception:
         if strict:

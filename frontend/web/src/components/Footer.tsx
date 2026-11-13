@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { BrandLogo } from '@/components/common/BrandLogo';
-import { ArrowUpRight, ShieldCheck, Sparkles, Heart } from 'lucide-react';
+import { ShieldCheck, Sparkles, Heart } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -33,69 +33,66 @@ export const Footer: React.FC = () => {
 
           {/* Navigation Links: Platform & Services */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900  mb-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-ink  mb-4">
               Platform &amp; Services
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link href="/services" className="text-ink-muted hover:text-blue-600  transition-colors">
+                <Link href="/services" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   AI Video Interviewer
                 </Link>
               </li>
               <li>
-                <Link href="/services#coding" className="text-ink-muted hover:text-blue-600  transition-colors">
+                <Link href="/services#coding" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   Live Coding Sandbox
                 </Link>
               </li>
               <li>
-                <Link href="/services#proctoring" className="text-ink-muted hover:text-blue-600  transition-colors">
+                <Link href="/services#proctoring" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   AI Proctoring Intelligence
                 </Link>
               </li>
               <li>
-                <Link href="/services#dossiers" className="text-ink-muted hover:text-blue-600  transition-colors flex items-center gap-1">
+                <Link href="/services#dossiers" className="text-ink-muted hover:text-accent-blue  transition-colors flex items-center gap-1">
                   Candidate Dossiers
-                  <ArrowUpRight className="w-3 h-3 opacity-60" />
-                </Link>
+                  </Link>
               </li>
               <li>
-                <Link href="/services#rubrics" className="text-ink-muted hover:text-blue-600  transition-colors flex items-center gap-1">
+                <Link href="/services#rubrics" className="text-ink-muted hover:text-accent-blue  transition-colors flex items-center gap-1">
                   Custom Rubrics
-                  <ArrowUpRight className="w-3 h-3 opacity-60" />
-                </Link>
+                  </Link>
               </li>
             </ul>
           </div>
 
           {/* Navigation Links: Showcase & Pricing */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900  mb-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-ink  mb-4">
               Explore &amp; Plans
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link href="/portfolio" className="text-ink-muted hover:text-blue-600  transition-colors">
+                <Link href="/portfolio" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   Platform Showcase
                 </Link>
               </li>
               <li>
-                <Link href="/pricing" className="text-ink-muted hover:text-blue-600  transition-colors font-medium">
+                <Link href="/pricing" className="text-ink-muted hover:text-accent-blue  transition-colors font-medium">
                   Pay Us Now (Pricing)
                 </Link>
               </li>
               <li>
-                <Link href="/candidate/practice" prefetch={false} className="text-ink-muted hover:text-blue-600  transition-colors flex items-center gap-1">
+                <Link href="/candidate/practice" prefetch={false} className="text-ink-muted hover:text-accent-blue  transition-colors flex items-center gap-1">
                   Practice Drill Lab
-                  <ArrowUpRight className="w-3 h-3 opacity-60" />
-                </Link>
+                  </Link>
               </li>
               <li>
-                <Link href="/portfolio#tracks" className="text-ink-muted hover:text-blue-600  transition-colors">
+                <Link href="/portfolio#tracks" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   Engineering Tracks
                 </Link>
               </li>
               <li>
-                <Link href="/#faq" className="text-ink-muted hover:text-blue-600  transition-colors">
+                <Link href="/#faq" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   Frequently Asked Questions
                 </Link>
               </li>
@@ -104,17 +101,17 @@ export const Footer: React.FC = () => {
 
           {/* Navigation Links: Company */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900  mb-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-ink  mb-4">
               Company
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link href="/about" className="text-ink-muted hover:text-blue-600  transition-colors">
+                <Link href="/about" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   About Us
                 </Link>
               </li>
               <li>
-                <Link href="/career" className="text-ink-muted hover:text-blue-600  transition-colors flex items-center gap-1.5 font-medium">
+                <Link href="/career" className="text-ink-muted hover:text-accent-blue  transition-colors flex items-center gap-1.5 font-medium">
                   Career
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600  font-bold border border-emerald-500/20">
                     We&apos;re Hiring
@@ -122,17 +119,17 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-ink-muted hover:text-blue-600  transition-colors">
+                <Link href="/contact" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   Contact Us
                 </Link>
               </li>
               <li>
-                <Link href="/login" className="text-ink-muted hover:text-blue-600  transition-colors">
+                <Link href="/login" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   Candidate Login
                 </Link>
               </li>
               <li>
-                <Link href="/register" className="text-ink-muted hover:text-blue-600  transition-colors">
+                <Link href="/register" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   Sign Up Free
                 </Link>
               </li>

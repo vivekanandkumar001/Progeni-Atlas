@@ -47,8 +47,8 @@ export function BulkSchedulingModal({
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-line pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-              <Sparkles className="w-5 h-5 text-amber-300" />
+            <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-accent-violet">
+              <Sparkles className="w-5 h-5 text-accent-amber" />
             </div>
             <div>
               <h3 className="text-base font-bold text-ink">
@@ -114,7 +114,7 @@ export function BulkSchedulingModal({
 
             {/* Custom Role Input: Show if 'custom' is selected OR if no saved job openings exist */}
             {(bulkTargetJobId === 'custom' || jobProfiles.length === 0) && (
-              <div className="space-y-2 animate-fadeIn p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/20">
+              <div className="space-y-2 animate-fadeIn p-3 rounded-xl bg-indigo-500/5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-ink flex items-center gap-1.5">
                     <span>Role Title (For Hire)</span>
@@ -190,7 +190,7 @@ export function BulkSchedulingModal({
                 className="hidden"
                 onChange={(e) => handleBulkFilesSelect(e.target.files)}
               />
-              <div className="w-12 h-12 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-purple-500/10 text-accent-violet flex items-center justify-center">
                 <UploadCloud className="w-6 h-6" />
               </div>
               <div>
@@ -218,14 +218,14 @@ export function BulkSchedulingModal({
                     Clear All
                   </button>
                 </div>
-                <div className="max-h-40 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-inset border border-line">
+                <div className="max-h-40 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-inset">
                   {bulkFiles.map((file, idx) => (
                     <div
                       key={idx}
                       className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-surface border border-line text-xs"
                     >
                       <div className="flex items-center gap-2 overflow-hidden">
-                        <FileText className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                        <FileText className="w-3.5 h-3.5 text-accent-violet shrink-0" />
                         <span className="truncate text-ink font-mono text-[11px]">
                           {file.name}
                         </span>
@@ -247,10 +247,10 @@ export function BulkSchedulingModal({
             )}
 
             {isZeroBalance && (
-              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-xs">
-                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 flex items-start gap-3 text-xs">
+                <AlertCircle className="w-5 h-5 text-accent-amber shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-semibold text-amber-300">Insufficient Wallet Balance (0 Credits)</p>
+                  <p className="font-semibold text-accent-amber">Insufficient Wallet Balance (0 Credits)</p>
                   <p className="text-ink-muted">
                     Your balance is zero. You cannot schedule interviews until credits are added to your wallet.
                   </p>
@@ -291,7 +291,7 @@ export function BulkSchedulingModal({
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    <Sparkles className="w-4 h-4 text-accent-amber" />
                     <span>Parse Resumes &amp; Generate Proposals</span>
                   </>
                 )}
@@ -303,16 +303,16 @@ export function BulkSchedulingModal({
         {/* Step 2: Review, Modify, and Confirm Proposals (REQ-2, REQ-3) */}
         {bulkStep === 'proposals' && (
           <div className="space-y-4">
-            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center gap-2.5 text-xs text-purple-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="p-3 rounded-xl bg-purple-500/10 flex items-center gap-2.5 text-xs text-purple-200">
+              <CheckCircle2 className="w-4 h-4 text-accent-emerald shrink-0" />
               <span>
                 AI matched <strong>{bulkProposals.length}</strong> candidates. Review or modify proposed time slots below before confirming.
               </span>
             </div>
 
             {/* Proposals Table */}
-            <div className="max-h-64 overflow-y-auto border border-line rounded-xl overflow-hidden">
-              <table className="w-full text-left border-collapse text-xs">
+            <div className="max-h-64 overflow-y-auto overflow-x-auto border border-line rounded-xl">
+              <table className="w-full min-w-[560px] text-left border-collapse text-xs">
                 <thead className="bg-inset border-b border-line text-[11px] font-mono text-ink-muted uppercase">
                   <tr>
                     <th className="py-2.5 px-3">Candidate</th>
@@ -387,10 +387,10 @@ export function BulkSchedulingModal({
             </div>
 
             {isZeroBalance && (
-              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-xs">
-                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 flex items-start gap-3 text-xs">
+                <AlertCircle className="w-5 h-5 text-accent-amber shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-semibold text-amber-300">Insufficient Wallet Balance (0 Credits)</p>
+                  <p className="font-semibold text-accent-amber">Insufficient Wallet Balance (0 Credits)</p>
                   <p className="text-ink-muted">
                     Your balance is zero. You cannot schedule interviews until credits are added to your wallet.
                   </p>

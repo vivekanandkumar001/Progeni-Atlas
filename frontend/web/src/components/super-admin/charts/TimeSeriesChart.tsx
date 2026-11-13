@@ -320,7 +320,7 @@ export function TimeSeriesChart({
                             }}
                           >
                             {/* Highlight cap */}
-                            <div className="h-1 w-full rounded-t-lg bg-white/40" />
+                            <div className="h-1 w-full rounded-t-lg bg-surface/40" />
                             {/* Value badge for peak or hovered */}
                             {(isHovered || isPeak) && (
                               <span className="absolute -top-6 left-1/2 -translate-x-1/2 rounded bg-surface border border-line px-1.5 py-0.5 text-[10px] font-bold text-ink shadow-md tabular-nums z-10 pointer-events-none">

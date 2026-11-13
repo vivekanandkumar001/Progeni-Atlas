@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,7 +8,6 @@ import {
   FileText,
   ShieldCheck,
   CheckCircle2,
-  ArrowRight,
   Clock,
   Building2,
   RefreshCw,
@@ -17,8 +16,7 @@ import {
   Smartphone,
   Coins,
   Sparkles,
-  ExternalLink,
-} from 'lucide-react';
+  ExternalLink } from 'lucide-react';
 
 import type { NetworkCheckStatus } from './NetworkJitterGauge';
 
@@ -207,7 +205,7 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
         try {
           await document.documentElement.requestFullscreen?.();
         } catch {
-          // Non-fatal ΓÇö the room's real-mode start gate will ask again.
+          // Non-fatal – the room's real-mode start gate will ask again.
         }
       }
 
@@ -379,7 +377,7 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
         </div>
       )}
 
-      {/* RESUME SNAPSHOT CARD ΓÇö renders only real, server-provided resume data. */}
+      {/* RESUME SNAPSHOT CARD – renders only real, server-provided resume data. */}
       <div className="rounded-2xl bg-surface border border-line p-5 space-y-4 backdrop-blur-md">
         <div className="flex items-center justify-between border-b border-line pb-3 gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -468,7 +466,7 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
 
         {/* TRACK DROPPED ERROR ALERT */}
         {droppedTrackError && (
-          <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-500/50 text-rose-200 text-xs flex items-start gap-2">
+          <div className="p-3 rounded-xl bg-rose-950/80 text-rose-200 text-xs flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
             <p className="leading-relaxed">{droppedTrackError}</p>
           </div>
@@ -476,7 +474,7 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
 
         {/* ZERO BALANCE WARNING */}
         {isZeroBalance ? (
-          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
+          <div className="p-3.5 rounded-xl bg-amber-500/10 text-amber-200 text-xs flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-amber-300">Insufficient Wallet Balance (0 Credits)</p>
@@ -487,12 +485,12 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
                 href="/candidate/wallet"
                 className="inline-flex items-center gap-1 font-semibold text-accent-cyan hover:underline mt-1.5"
               >
-                Recharge Wallet →
+                Recharge Wallet 
               </a>
             </div>
           </div>
         ) : isLowBalance ? (
-          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
+          <div className="p-3.5 rounded-xl bg-amber-500/10 text-amber-200 text-xs flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-amber-300">Low Wallet Balance</p>
@@ -503,7 +501,7 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
                 href="/candidate/wallet"
                 className="inline-flex items-center gap-1 font-semibold text-accent-cyan hover:underline mt-1.5"
               >
-                Recharge Wallet →
+                Recharge Wallet 
               </a>
             </div>
           </div>
@@ -511,7 +509,7 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
 
         {/* PENDING TOOLTIP / REASON */}
         {!isLaunchEnabled && !isZeroBalance && (
-          <p className="text-[11px] font-mono text-accent-amber bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 flex items-center gap-2">
+          <p className="text-[11px] font-mono text-accent-amber bg-amber-500/10 p-2.5 rounded-xl flex items-center gap-2">
             <Info className="w-3.5 h-3.5 text-accent-amber shrink-0" />
             <span>Pending requirement: {getPendingReason()}</span>
           </p>
@@ -543,8 +541,7 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
           ) : (
             <>
               <span>Enter Video Interview Room</span>
-              <ArrowRight className="w-4 h-4" />
-            </>
+              </>
           )}
         </button>
       </div>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -137,7 +137,7 @@ export default function CandidateInterviewsPage() {
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* HERO HEADER */}
-        <section className="relative overflow-hidden rounded-xl bg-gradient-to-r from-surface via-surface to-cyan-950/50 border border-line p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+        <section className="rounded-2xl bg-gradient-to-r from-accent-cyan/5 via-surface to-accent-indigo/5 border border-line p-6 sm:p-8">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
             <div className="space-y-2 max-w-2xl">
               <div className="flex items-center gap-3">
@@ -150,7 +150,7 @@ export default function CandidateInterviewsPage() {
                 Technical Interview Sessions & AI Reports
               </h1>
               <p className="text-ink-muted text-xs sm:text-sm">
-                View upcoming AI screening invites, enter pre-flight interview lobbies, and inspect past performance dossiers.
+                View upcoming AI screening invites, enter pre-flight interview lobbies, and review past performance dossiers.
               </p>
             </div>
 
@@ -164,21 +164,21 @@ export default function CandidateInterviewsPage() {
           </div>
         </section>
 
-        {/* METRICS STATS */}
-        <section className="grid grid-cols-1 sm:grid-cols-4 gap-5">
-          <div className="rounded-2xl bg-surface border border-line p-5 space-y-1 backdrop-blur-md">
+        {/* METRICS STATS — flat strip (hairline-separated), no boxed tiles */}
+        <section className="rounded-2xl border border-line bg-line grid grid-cols-2 sm:grid-cols-4 gap-px overflow-hidden">
+          <div className="p-5 space-y-1 bg-surface">
             <span className="text-xs text-ink-muted">Upcoming Live Interviews</span>
             <div className="text-2xl font-bold text-accent-cyan font-mono">
               {loading ? '--' : upcoming.length}
             </div>
           </div>
-          <div className="rounded-2xl bg-surface border border-line p-5 space-y-1 backdrop-blur-md">
+          <div className="p-5 space-y-1 bg-surface">
             <span className="text-xs text-ink-muted">Completed Sessions</span>
             <div className="text-2xl font-bold text-ink font-mono">
               {loading ? '--' : completed.length}
             </div>
           </div>
-          <div className="rounded-2xl bg-surface border border-line p-5 space-y-1 backdrop-blur-md">
+          <div className="p-5 space-y-1 bg-surface">
             <span className="text-xs text-ink-muted">Highest Score Achieved</span>
             <div className="text-2xl font-bold text-accent-emerald font-mono">
               {loading ? '--' : highestScore === null ? 'N/A' : `${Math.round(highestScore)}%`}
@@ -187,7 +187,7 @@ export default function CandidateInterviewsPage() {
               <span className="text-[11px] text-ink-muted font-mono">No scored sessions yet</span>
             )}
           </div>
-          <div className="rounded-2xl bg-surface border border-line p-5 space-y-1 backdrop-blur-md">
+          <div className="p-5 space-y-1 bg-surface">
             <span className="text-xs text-ink-muted">Latest Hiring Recommendation</span>
             <div className="text-lg font-bold text-accent-indigo leading-8">
               {loading
@@ -218,8 +218,8 @@ export default function CandidateInterviewsPage() {
           {loading ? (
             <div className="p-16 text-center space-y-3 rounded-2xl bg-surface border border-line">
               <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
-              <p className="text-ink-muted text-sm">Fetching interview sessions from Python backend...</p>
-            </div>
+                <p className="text-ink-muted text-sm">Fetching your interview sessions…</p>
+              </div>
           ) : upcoming.length === 0 ? (
             <div className="p-12 text-center space-y-3 rounded-2xl bg-surface border border-line">
               <Calendar className="w-8 h-8 text-ink-faint mx-auto" />
@@ -240,7 +240,7 @@ export default function CandidateInterviewsPage() {
                 return (
                   <div
                     key={validId ? session.id : `upcoming-session-${idx}`}
-                    className="rounded-2xl bg-gradient-to-r from-surface via-surface to-indigo-950/40 border border-line p-6 backdrop-blur-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6 hover:border-cyan-500/40 transition-all shadow-xl"
+                    className="rounded-2xl bg-gradient-to-r from-accent-cyan/5 via-surface to-accent-indigo/5 border border-line p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 hover:border-cyan-500/40 transition-all"
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-accent-cyan shrink-0">
@@ -284,7 +284,7 @@ export default function CandidateInterviewsPage() {
                         className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all"
                       >
                         <Play className="w-4 h-4 fill-white" />
-                        <span>Enter Pre-flight Lobby →</span>
+                        <span>Enter Pre-flight Lobby</span>
                       </Link>
                     ) : (
                       <span className="text-xs text-ink-muted font-mono bg-surface/50 px-4 py-2 rounded-xl border border-line">
@@ -307,11 +307,11 @@ export default function CandidateInterviewsPage() {
             </h2>
           </div>
 
-          <div className="rounded-2xl bg-surface border border-line overflow-hidden backdrop-blur-md shadow-2xl">
+          <div className="rounded-2xl bg-surface border border-line overflow-hidden">
             {loading ? (
               <div className="p-16 text-center space-y-3">
                 <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
-                <p className="text-ink-muted text-sm">Fetching interview sessions from Python backend...</p>
+                <p className="text-ink-muted text-sm">Fetching your interview sessions…</p>
               </div>
             ) : completed.length === 0 ? (
               <div className="p-12 text-center space-y-3">
@@ -324,7 +324,7 @@ export default function CandidateInterviewsPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full min-w-[640px] text-left border-collapse">
                   <thead>
                     <tr className="bg-inset/80 border-b border-line text-[11px] font-mono text-ink-muted uppercase tracking-wider">
                       <th className="py-4 px-6">Role & Company</th>

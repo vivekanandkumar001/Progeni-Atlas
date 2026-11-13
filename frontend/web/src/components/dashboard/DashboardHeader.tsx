@@ -14,7 +14,8 @@ import {
   AlertTriangle,
   Clock,
   Brain,
-  FileText
+  FileText,
+  Gauge,
 } from 'lucide-react';
 import { AppHeader } from '@/components/dashboard/AppHeader';
 import {
@@ -23,7 +24,7 @@ import {
   fetchCandidateProfile,
   logout,
   initialsOf,
-  apiFetch,
+  apiJson,
   type CandidateNotification,
   type CandidateProfile,
 } from '@/lib/api';
@@ -58,7 +59,7 @@ function getCandidateNotificationVisuals(type: string) {
   if (t.includes('SKILL') || t.includes('BADGE')) {
     return { icon: Award, badge: 'border-amber-500/30 bg-amber-500/10 text-accent-amber' };
   }
-  return { icon: Sparkles, badge: 'border-blue-500/30 bg-blue-500/10 text-blue-600' };
+  return { icon: Sparkles, badge: 'border-blue-500/30 bg-blue-500/10 text-accent-blue' };
 }
 
 export const DashboardHeader: React.FC = () => {
@@ -74,7 +75,7 @@ export const DashboardHeader: React.FC = () => {
         const [record, items, walletRes] = await Promise.all([
           fetchCandidateProfile(),
           fetchCandidateNotifications(),
-          apiFetch('/api/billing/wallet').catch(() => null),
+          apiJson<{ success?: boolean; wallet?: { availableCredits?: number } }>('/api/billing/wallet').catch(() => null),
         ]);
         setProfile(record);
         if (items) {
@@ -88,11 +89,8 @@ export const DashboardHeader: React.FC = () => {
           });
           setNotifications(deduped);
         }
-        if (walletRes && walletRes.ok) {
-          const wData = (await walletRes.json()) as any;
-          if (wData.success && wData.wallet) {
-            setWalletBalance(Math.max(0, Number(wData.wallet.availableCredits ?? 0)));
-          }
+        if (walletRes?.success && walletRes.wallet) {
+          setWalletBalance(Math.max(0, Number(walletRes.wallet.availableCredits ?? 0)));
         }
       } catch { }
     })();
@@ -146,8 +144,9 @@ export const DashboardHeader: React.FC = () => {
   const subtitle = [profile?.course, profile?.academic_year].filter(Boolean).join(' • ') || 'Profile incomplete';
 
   const navLinks = [
-    { name: 'Jobs', href: '/candidate/dashboard', icon: Briefcase },
+    { name: 'Home', href: '/candidate/dashboard', icon: Briefcase },
     { name: 'Practice', href: '/candidate/practice', icon: Sparkles },
+    { name: 'Aptitude', href: '/candidate/aptitude', icon: Gauge },
     { name: 'My Interviews', href: '/candidate/interviews', icon: Video },
     { name: 'Reports', href: '/candidate/reports', icon: FileText },
     { name: 'Skills', href: '/candidate/skills', icon: Award },
@@ -189,7 +188,7 @@ export const DashboardHeader: React.FC = () => {
               <button
                 type="button"
                 onClick={handleMarkAllCandidateRead}
-                className="text-[11px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                className="text-[11px] font-semibold text-accent-blue hover:underline cursor-pointer"
               >
                 Mark all as read
               </button>
@@ -225,7 +224,7 @@ export const DashboardHeader: React.FC = () => {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-1">
-                      <p className="text-xs font-semibold text-ink group-hover:text-blue-600 transition-colors">
+                      <p className="text-xs font-semibold text-ink group-hover:text-accent-blue transition-colors">
                         {item.title}
                       </p>
                       {!item.is_read && (
@@ -262,7 +261,7 @@ export const DashboardHeader: React.FC = () => {
         <Link
           href="/candidate/practice"
           onClick={closeMobileMenu}
-          className="flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-ink hover:bg-slate-100 rounded-xl"
+          className="flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-ink hover:bg-surface-2 rounded-xl"
         >
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#f04124]" />

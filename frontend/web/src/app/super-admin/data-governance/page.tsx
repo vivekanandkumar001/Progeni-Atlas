@@ -78,7 +78,7 @@ export default function SuperAdminDataGovernancePage() {
               <EmptyState title="No policy data" icon={FileLock2} />
             ) : (
               data!.retention.map((r) => (
-                <div key={r.key} className="rounded-xl border border-line bg-surface-2 p-3">
+                <div key={r.key} className="rounded-xl bg-surface-2 p-3">
                   <p className="text-xs font-bold text-ink">{r.label}</p>
                   <p className="mt-1 text-[11px] leading-5 text-ink-muted">{r.policy}</p>
                 </div>
@@ -86,7 +86,7 @@ export default function SuperAdminDataGovernancePage() {
             )}
           </div>
           {data?.deletionNote && (
-            <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] text-accent-amber">
+            <div className="mt-4 rounded-xl bg-amber-500/5 p-3 text-[11px] text-accent-amber">
               {data.deletionNote}
             </div>
           )}

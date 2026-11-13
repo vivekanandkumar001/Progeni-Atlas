@@ -44,7 +44,7 @@ export function ResumeStorageCard({
 
       {/* Active Resume Status Card */}
       {resume ? (
-        <div className="p-4 rounded-xl bg-inset border border-line space-y-3">
+        <div className="p-4 rounded-xl bg-inset space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-accent-rose font-bold text-xs">
@@ -77,7 +77,7 @@ export function ResumeStorageCard({
           </div>
         </div>
       ) : (
-        <div className="p-4 rounded-xl bg-inset border border-line text-center space-y-1">
+        <div className="p-4 rounded-xl bg-inset text-center space-y-1">
           <p className="text-xs font-medium text-ink">No resume uploaded yet</p>
           <p className="text-[11px] text-ink-muted">
             A parsed resume is required before you can join an interview session.

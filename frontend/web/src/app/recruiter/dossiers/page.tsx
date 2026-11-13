@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -25,7 +25,6 @@ import {
  TrendingUp,
  Building2,
  ShieldCheck,
- ChevronRight,
  Video,
  Radio,
  Calendar,
@@ -589,12 +588,12 @@ export default function CandidateDossiersPage() {
       <main className="flex-grow max-w-7xl xl:max-w-screen-2xl w-full mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-8">
  
  {error && (
- <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex flex-col sm:flex-row items-center justify-between gap-4">
+ <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-accent-rose flex flex-col sm:flex-row items-center justify-between gap-4">
  <div className="flex items-center gap-3">
- <AlertCircle className="w-6 h-6 text-rose-400 shrink-0"/>
+ <AlertCircle className="w-6 h-6 text-accent-rose shrink-0"/>
  <div>
  <h3 className="font-semibold text-sm">Backend API Connection Error</h3>
- <p className="text-xs text-rose-300/80">{error}</p>
+ <p className="text-xs text-accent-rose/80">{error}</p>
  </div>
  </div>
  <button
@@ -608,7 +607,7 @@ export default function CandidateDossiersPage() {
  )}
 
  {/* HERO HEADER */}
- <section className="relative overflow-hidden rounded-xl bg-white border border-slate-200 p-6 sm:p-7 shadow-xs">
+ <section className="relative overflow-hidden rounded-xl bg-surface border border-line p-6 sm:p-7 shadow-xs">
  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
  <div className="space-y-2 max-w-2xl">
  <div className="flex items-center gap-3">
@@ -636,7 +635,7 @@ export default function CandidateDossiersPage() {
  className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface hover:bg-surface-elevated border border-line text-ink font-semibold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
  title="Export candidate dossiers and scorecards to Microsoft Excel (.xlsx)"
  >
- <Download className="w-4 h-4 text-emerald-400"/>
+ <Download className="w-4 h-4 text-accent-emerald"/>
  <span>{isExporting ? 'Exporting...': 'Export Excel'}</span>
  </button>
  <button
@@ -646,7 +645,7 @@ export default function CandidateDossiersPage() {
  className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface hover:bg-surface-elevated border border-line text-ink font-semibold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
  title="Export candidate dossiers to CSV (.csv)"
  >
- <Download className="w-4 h-4 text-cyan-400"/>
+ <Download className="w-4 h-4 text-accent-cyan"/>
  <span>Export CSV</span>
  </button>
  <button
@@ -869,7 +868,7 @@ export default function CandidateDossiersPage() {
  c.stage?.toLowerCase().includes('in progress') || c.stage?.toLowerCase().includes('live') || c.stage?.toLowerCase().includes('ongoing') ? (
  <Link
  href={`/recruiter/interview/${c.sessionId}/live`}
- className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[38px] rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold cursor-pointer transition-all"
+ className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[38px] rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-accent-rose border border-rose-500/30 text-xs font-semibold cursor-pointer transition-all"
  title="Monitor live interview session"
  >
  <Radio className="w-3.5 h-3.5 animate-pulse text-rose-500"/>
@@ -974,7 +973,7 @@ export default function CandidateDossiersPage() {
  <Link
  href={`/recruiter/interview/${c.sessionId}/live`}
  onClick={(e) => e.stopPropagation()}
- className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-[36px] rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[11px] font-semibold"
+ className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-[36px] rounded-lg bg-rose-500/10 text-accent-rose border border-rose-500/30 text-[11px] font-semibold"
  >
  <Radio className="w-3 h-3 animate-pulse text-rose-500"/>
  <span>Live</span>
@@ -1105,7 +1104,7 @@ export default function CandidateDossiersPage() {
  selectedCandidate.stage?.toLowerCase().includes('in progress') || selectedCandidate.stage?.toLowerCase().includes('live') || selectedCandidate.stage?.toLowerCase().includes('ongoing') ? (
  <Link
  href={`/recruiter/interview/${selectedCandidate.sessionId}/live`}
- className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all"
+ className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-accent-rose border border-rose-500/30 text-xs font-semibold transition-all"
  >
  <Radio className="w-4 h-4 animate-pulse text-rose-500"/>
  <span>Open Live Monitor</span>
@@ -1135,7 +1134,7 @@ export default function CandidateDossiersPage() {
  className="px-4 py-2 min-h-[40px] rounded-xl bg-surface-2 hover:bg-surface-3 border border-line text-xs font-semibold text-ink cursor-pointer transition-all inline-flex items-center gap-2"
  title="Download verified PDF Candidate Dossier"
  >
- <Download className="w-4 h-4 text-emerald-400"/>
+ <Download className="w-4 h-4 text-accent-emerald"/>
  <span>Download PDF Dossier</span>
  </button>
 
@@ -1167,7 +1166,7 @@ export default function CandidateDossiersPage() {
  onClick={() => handleCandidateDecision(selectedCandidate.id, 'advanced_to_panel', selectedCandidate.sessionId)}
  className="px-5 py-2 min-h-[40px] rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-400 hover:to-cyan-400 text-xs font-bold text-white shadow-md shadow-indigo-500/20 cursor-pointer transition-all disabled:opacity-50"
  >
- {updatingDecision ? 'Updating...': 'Advance to Panel Round →'}
+ {updatingDecision ? 'Updating...': 'Advance to Panel Round '}
  </button>
  </div>
  </div>
@@ -1234,7 +1233,7 @@ export default function CandidateDossiersPage() {
  <div className="bg-surface border border-line rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
  <div className="flex items-start justify-between">
  <div className="flex items-center gap-2">
- <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+ <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
  <Calendar className="w-5 h-5"/>
  </div>
  <div>
@@ -1251,7 +1250,7 @@ export default function CandidateDossiersPage() {
  </button>
  </div>
 
- <div className="p-4 rounded-2xl bg-inset border border-line space-y-2">
+ <div className="p-4 rounded-2xl bg-inset space-y-2">
  <p className="font-semibold text-sm text-ink">{rescheduleCandidate.name} ({rescheduleCandidate.email})</p>
  <p className="text-xs text-ink-muted font-mono">Role: {rescheduleCandidate.targetPosition}</p>
  {(() => {
@@ -1356,7 +1355,7 @@ export default function CandidateDossiersPage() {
  />
  </div>
 
- <div className="flex items-center gap-2.5 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/15">
+ <div className="flex items-center gap-2.5 p-3 rounded-xl bg-indigo-500/5">
  <input
  type="checkbox"
  id="notifyCandDossier"
@@ -1488,7 +1487,7 @@ export default function CandidateDossiersPage() {
 
               {/* Test Result Message */}
               {testResult && (
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-accent-emerald text-xs font-semibold">
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-accent-emerald text-xs font-semibold">
                   {testResult}
                 </div>
               )}

@@ -144,7 +144,7 @@ export const VideoStreamMockup: React.FC = () => {
             className="px-4 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-ink font-bold text-xs flex items-center space-x-1.5 shadow-lg transition-all"
           >
             <CheckCircle className="w-3.5 h-3.5" />
-            <span>{answerCompleted ? 'Answer Submitted Γ£ô' : 'Complete Answer'}</span>
+            <span>{answerCompleted ? 'Answer Submitted ✓' : 'Complete Answer'}</span>
           </button>
         </div>
       </div>

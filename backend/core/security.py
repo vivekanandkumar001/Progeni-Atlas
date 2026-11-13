@@ -1,9 +1,11 @@
 """
-Progeni Atlas — Security & Authentication Helpers
+Progeni Atlas ÔÇö Security & Authentication Helpers
 ===================================================
 Provides JWT decoding, request authentication, role-based authorization decorators,
 password hashing, OTP generation/verification, and transactional email dispatch.
 """
+
+import logging
 
 import os
 import time
@@ -52,6 +54,8 @@ try:
 except ImportError:
     _ARGON2_HASHER = None
 
+
+logger = logging.getLogger(__name__)
 
 def hash_password(password: str) -> str:
     """
@@ -115,7 +119,7 @@ def verify_password(password: str, stored_hash: str) -> tuple[bool, bool]:
             except Exception:
                 return False, False
 
-    # 3. Legacy unsalted SHA-256 (64 hex characters) — seamless upgrade path
+    # 3. Legacy unsalted SHA-256 (64 hex characters) ÔÇö seamless upgrade path
     if len(stored) == 64 and all(c in "0123456789abcdefABCDEF" for c in stored):
         candidate = hashlib.sha256(password.encode("utf-8")).hexdigest()
         if hmac.compare_digest(candidate.lower(), stored.lower()):
@@ -361,6 +365,86 @@ def require_super_admin(view):
     return wrapper
 
 
+def require_session_access(view):
+    """
+    Session-scoped authorization for /api/interview/.../<session_id> routes.
+
+    Authenticates the caller and verifies the interview_sessions document
+    addressed by the <session_id> URL parameter belongs to them. Access is
+    granted to: the candidate owner, the recruiter owner, staff members of
+    the owning organization, and super-admins. Everyone else gets 403.
+    """
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        claims, error = _authenticate_request()
+        if error:
+            return error
+
+        try:
+            user = resolve_user(claims.get("sub"))
+        except Exception:
+            traceback.print_exc()
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+
+        if user is None:
+            return jsonify({"success": False, "error": "Account not found"}), 401
+        if str(user.get("status", "")).lower() not in ("active", "1", "true"):
+            return jsonify({"success": False, "error": "Account is suspended"}), 403
+
+        session_id = kwargs.get("session_id") or (args[0] if args else None)
+        session_id = str(session_id or "").strip()
+        if not session_id:
+            return jsonify({"success": False, "error": "Session id required"}), 400
+
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+
+        session_doc = db.interview_sessions.find_one(
+            {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
+        )
+        if not session_doc:
+            return jsonify({"error": "Interview session not found", "status": 404}), 404
+
+        g.user_claims = claims
+        g.user = dict(user)
+        g.session_document = session_doc
+
+        role = str(user.get("role", "")).lower()
+        if role == "super_admin":
+            return view(*args, **kwargs)
+
+        uid = str(user.get("id") or user.get("_id") or "").strip().lower()
+        email = str(user.get("email") or "").strip().lower()
+
+        def _owns(*fields):
+            for field in fields:
+                value = session_doc.get(field)
+                cleaned = str(value).strip().lower() if value else ""
+                if cleaned and (cleaned == uid or cleaned == email):
+                    return True
+            return False
+
+        # Candidate owner (id or email match)
+        if _owns("candidate_id", "candidate_email", "candidateId", "candidateEmail", "user_id", "userId"):
+            return view(*args, **kwargs)
+
+        # Recruiter owner (id or email match)
+        if _owns("recruiter_id", "recruiter_email", "recruiterId", "recruiterEmail"):
+            return view(*args, **kwargs)
+
+        # Staff member of the owning organization
+        caller_org = str(user.get("org_id") or user.get("orgId") or "").strip()
+        session_org = str(session_doc.get("org_id") or session_doc.get("orgId") or "").strip()
+        if caller_org and session_org and caller_org == session_org:
+            if role in ("recruiter", "hr", "admin", "employer"):
+                return view(*args, **kwargs)
+
+        return jsonify({"success": False, "error": "You do not have access to this interview session"}), 403
+
+    return wrapper
+
+
 def send_otp_email_smtp(to_email: str, otp_code: str, purpose: str = "REGISTRATION_VERIFY") -> tuple[bool, str | None]:
     """Dispatch email OTP via SMTP."""
     smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
@@ -374,9 +458,9 @@ def send_otp_email_smtp(to_email: str, otp_code: str, purpose: str = "REGISTRATI
     from_name = os.environ.get("SMTP_FROM_NAME", "Progeni Atlas").strip()
     smtp_from = os.environ.get("SMTP_FROM", f'"{from_name}" <{smtp_user}>').strip()
 
-    subject = "Progeni Atlas — Verify Your Email Address"
+    subject = "Progeni Atlas ÔÇö Verify Your Email Address"
     if purpose == "FORGOT_PASSWORD":
-        subject = "Progeni Atlas — Password Reset Verification Code"
+        subject = "Progeni Atlas ÔÇö Password Reset Verification Code"
 
     html_content = f"""
     <div style="font-family: Arial, sans-serif; background-color: #020617; color: #f8fafc; padding: 32px; border-radius: 12px; max-width: 500px; margin: 0 auto; border: 1px solid #1e293b;">
@@ -390,33 +474,21 @@ def send_otp_email_smtp(to_email: str, otp_code: str, purpose: str = "REGISTRATI
     </div>
     """
 
-    if not smtp_user or not smtp_pass:
-        print("[OTP] Email delivery failed: SMTP_USER/SMTP_PASS not configured.")
-        return False, "Email service is not configured. Please set SMTP_USER and SMTP_PASS."
-
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = smtp_from
-        msg["To"] = to_email
-        msg.attach(MIMEText(html_content, "html"))
-
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10) as server:
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_from, [to_email], msg.as_string())
+        from core.email import send_transactional_email
+        ok, err = send_transactional_email(
+            to_email=to_email,
+            subject=subject,
+            html_body=html_content,
+        )
+        if ok:
+            print(f"[EMAIL] Transactional message delivered to {to_email}")
         else:
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_from, [to_email], msg.as_string())
-
-        print(f"[OTP] Email provider accepted message purpose={purpose} recipient={to_email}")
-        return True, None
+            print(f"[EMAIL] Delivery failed for {to_email}: {err}")
+        return ok, err
     except Exception as err:
-        print(f"[OTP] Email delivery failed for recipient={to_email}: {err}")
+        logger.exception("[EMAIL] send_transactional_email crashed for %s", to_email)
         return False, f"Failed to deliver email: {str(err)}"
-
 
 def send_interview_invite_email_smtp(
     to_email: str,
@@ -425,77 +497,217 @@ def send_interview_invite_email_smtp(
     company_name: str,
     invite_url: str,
     interview_date: str = "",
-    interview_time: str = ""
+    interview_time: str = "",
+    recruiter_name: str = "",
+    recruiter_email: str = "",
+    jd_text: str = "",
+    duration_minutes: int = 30,
 ) -> tuple[bool, str | None]:
-    """Send an interview screening invitation email to candidate."""
-    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
-    try:
-        smtp_port = int(os.environ.get("SMTP_PORT", 465))
-    except (ValueError, TypeError):
-        smtp_port = 465
+    """Send a professional, branded interview invitation with an optional JD PDF attachment."""
+    from html import escape as _esc
+    from datetime import datetime
 
-    smtp_user = os.environ.get("SMTP_USER", "").strip()
-    smtp_pass = os.environ.get("SMTP_PASS", "").strip()
-    from_name = os.environ.get("SMTP_FROM_NAME", "Progeni Atlas").strip()
-    smtp_from = os.environ.get("SMTP_FROM", f'"{from_name}" <{smtp_user}>').strip()
+    who = _esc((candidate_name or "Candidate").strip() or "Candidate")
+    role_esc = _esc(role)
+    company = _esc(company_name)
+    recruiter_line = f"{_esc(recruiter_name)} · {_esc(recruiter_email)}" if recruiter_email else _esc(recruiter_name or "Recruiting Team")
+    invite = _esc(invite_url)
 
-    if not smtp_user or not smtp_pass:
-        print(f"[INVITE EMAIL] SMTP not configured. Skipping email dispatch to {to_email}.")
-        return False, "SMTP not configured"
+    # Professional schedule phrasing
+    schedule_text = "Open — you can start anytime using your personal link"
+    if interview_date:
+        try:
+            d = datetime.strptime(interview_date.strip(), "%Y-%m-%d")
+            schedule_text = d.strftime("%A, %d %B %Y")
+            if interview_time:
+                hh, mm = interview_time.strip().split(":")[:2]
+                hour = int(hh); minute = mm[:2]
+                suffix = "AM" if hour < 12 else "PM"
+                disp = hour % 12 or 12
+                schedule_text += f"  at  {disp}:{minute} {suffix} IST"
+        except Exception:
+            schedule_text = f"{interview_date}{(' at ' + interview_time) if interview_time else ''}"
 
-    scheduled_text = f"Scheduled on {interview_date} at {interview_time} UTC" if (interview_date and interview_time) else "Ready to take anytime"
     subject = f"Interview Invitation: {role} at {company_name}"
 
-    html_content = f"""
-    <div style="font-family: Arial, sans-serif; background-color: #020617; color: #f8fafc; padding: 32px; border-radius: 12px; max-width: 540px; margin: 0 auto; border: 1px solid #1e293b;">
-      <h2 style="color: #06b6d4; margin-bottom: 8px;">{company_name}</h2>
-      <p style="color: #94a3b8; font-size: 15px; margin-top: 0;">AI Technical Screening Assessment</p>
-      
-      <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6;">
-        Hello <strong>{candidate_name}</strong>,<br/>
-        You have been invited for a <strong>{role}</strong> interview session by {company_name}.
-      </p>
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>{subject}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;padding:28px 12px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 4px 18px rgba(15,23,42,0.08);">
 
-      <div style="background-color: #0f172a; border: 1px solid #334155; padding: 18px; border-radius: 8px; margin: 20px 0;">
-        <p style="margin: 4px 0; color: #94a3b8; font-size: 13px;">Role: <strong style="color: #f1f5f9;">{role}</strong></p>
-        <p style="margin: 4px 0; color: #94a3b8; font-size: 13px;">Schedule: <strong style="color: #38bdf8;">{scheduled_text}</strong></p>
-      </div>
+  <!-- Brand header band -->
+  <tr><td style="background:#0f172a;padding:22px 30px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="vertical-align:middle;">
+          <div style="font-size:19px;font-weight:800;color:#ffffff;letter-spacing:0.2px;">Progeni <span style="color:#22d3ee;">Atlas</span></div>
+          <div style="font-size:10px;color:#94a3b8;letter-spacing:1.6px;text-transform:uppercase;margin-top:2px;">AI Technical Screening</div>
+        </td>
+        <td align="right" style="vertical-align:middle;">
+          <div style="display:inline-block;border:1px solid #22d3ee;color:#22d3ee;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;border-radius:999px;padding:5px 12px;">Invitation</div>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td style="height:3px;background:linear-gradient(90deg,#22d3ee,#38bdf8,#6366f1);line-height:3px;font-size:0;">&nbsp;</td></tr>
 
-      <div style="text-align: center; margin: 28px 0;">
-        <a href="{invite_url}" style="background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">
-          Start Your Interview &rarr;
-        </a>
-      </div>
+  <!-- Body -->
+  <tr><td style="padding:28px 30px 8px 30px;">
+    <p style="margin:0 0 14px 0;font-size:15px;color:#0f172a;">Hi <strong>{who}</strong>,</p>
+    <p style="margin:0 0 18px 0;font-size:13.5px;line-height:1.65;color:#334155;">
+      You have been invited to complete an <strong>AI Technical Screening</strong> for the role of
+      <strong>{role_esc}</strong> at <strong>{company}</strong>. The assessment is a live, two-way interview conducted
+      by Progeni Atlas's AI interviewer — it adapts to your answers and evaluates you on structured rubrics.
+    </p>
 
-      <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
-        Alternatively, copy and paste this link in your browser:<br/>
-        <a href="{invite_url}" style="color: #06b6d4; word-break: break-all;">{invite_url}</a>
-      </p>
+    <!-- Details table -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 18px 0;">
+      <tr><td style="background:#f8fafc;padding:10px 14px;font-size:11px;color:#64748b;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;width:150px;">Position</td><td style="padding:10px 14px;font-size:13px;color:#0f172a;font-weight:700;">{role_esc}</td></tr>
+      <tr><td style="background:#f8fafc;padding:10px 14px;font-size:11px;color:#64748b;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;border-top:1px solid #e2e8f0;">Company</td><td style="padding:10px 14px;font-size:13px;color:#0f172a;border-top:1px solid #e2e8f0;">{company}</td></tr>
+      <tr><td style="background:#f8fafc;padding:10px 14px;font-size:11px;color:#64748b;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;border-top:1px solid #e2e8f0;">Schedule</td><td style="padding:10px 14px;font-size:13px;color:#0f172a;font-weight:700;border-top:1px solid #e2e8f0;">{schedule_text}</td></tr>
+      <tr><td style="background:#f8fafc;padding:10px 14px;font-size:11px;color:#64748b;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;border-top:1px solid #e2e8f0;">Duration</td><td style="padding:10px 14px;font-size:13px;color:#0f172a;border-top:1px solid #e2e8f0;">{int(duration_minutes)} minutes  ·  camera, microphone &amp; a coding environment required</td></tr>
+      <tr><td style="background:#f8fafc;padding:10px 14px;font-size:11px;color:#64748b;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;border-top:1px solid #e2e8f0;">Organiser</td><td style="padding:10px 14px;font-size:13px;color:#0f172a;border-top:1px solid #e2e8f0;">{recruiter_line}</td></tr>
+    </table>
+
+    <div style="margin:0 0 18px 0;padding:12px 14px;background:#ecfeff;border-left:3px solid #22d3ee;border-radius:6px;font-size:12px;line-height:1.6;color:#155e75;">
+      <strong>Attached:</strong> full job description for this role (PDF) with preparation checklist — please review it before your interview.
     </div>
-    """
+
+    <!-- CTA -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:6px 0 16px 0;">
+      <a href="{invite}" style="display:inline-block;background:linear-gradient(135deg,#0891b2,#0284c7);color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;letter-spacing:0.2px;border-radius:10px;padding:14px 36px;">Start Your Interview</a>
+    </td></tr></table>
+    <p style="margin:0 0 4px 0;font-size:11.5px;color:#64748b;text-align:center;">Or copy this link into your browser:</p>
+    <p style="margin:0 0 16px 0;font-size:11px;color:#0891b2;text-align:center;word-break:break-all;">{invite}</p>
+
+    <p style="margin:0;font-size:11px;line-height:1.6;color:#94a3b8;">This link is personal to you. Do not forward, share, or post it. Interviews are monitored for integrity.</p>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 30px;">
+    <p style="margin:0;font-size:10.5px;line-height:1.6;color:#64748b;">
+      You are receiving this email because {company} invited you via <strong>Progeni Atlas</strong>.
+      Questions about this role? Reply directly to this email — it reaches {recruiter_line.split(' · ')[0]}.
+      <br/>Progeni Atlas  ·  AI-led technical screening  ·  <a href="https://atlas.progeni.live" style="color:#0891b2;text-decoration:none;">atlas.progeni.live</a>
+    </p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body>
+</html>"""
+
+    attachments = []
+    if jd_text and jd_text.strip():
+        try:
+            from core.email_docs import build_jd_pdf
+            pdf_bytes, filename = build_jd_pdf(
+                company=company_name,
+                role=role,
+                jd_text=jd_text,
+                interview_date=interview_date,
+                interview_time=interview_time,
+                duration_minutes=duration_minutes,
+                invite_url=invite_url,
+                recruiter_name=recruiter_name,
+            )
+            attachments.append({"filename": filename, "content": pdf_bytes, "content_type": "application/pdf"})
+        except Exception:
+            logger.exception("[INVITE EMAIL] JD PDF generation failed; sending without attachment")
 
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = smtp_from
-        msg["To"] = to_email
-        msg.attach(MIMEText(html_content, "html"))
-
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12) as server:
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_from, [to_email], msg.as_string())
+        from core.email import send_transactional_email
+        ok, err = send_transactional_email(
+            to_email=to_email,
+            subject=subject,
+            html_body=html_content,
+            reply_to=recruiter_email or None,
+            attachments=attachments,
+        )
+        if ok:
+            print(f"[EMAIL] Interview invitation delivered to {to_email}")
         else:
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_from, [to_email], msg.as_string())
-
-        print(f"[INVITE EMAIL] Successfully dispatched screening email to {to_email}")
-        return True, None
+            print(f"[EMAIL] Delivery failed for {to_email}: {err}")
+        return ok, err
     except Exception as err:
-        print(f"[INVITE EMAIL ERROR] Failed to send email to {to_email}: {err}")
-        return False, str(err)
+        logger.exception("[EMAIL] send_transactional_email crashed for %s", to_email)
+        return False, f"Failed to deliver email: {str(err)}"
+
+
+def send_team_invite_email_smtp(
+    to_email: str,
+    org_name: str,
+    inviter_name: str,
+    role: str,
+    invite_url: str,
+    expires_in_days: int = 7,
+) -> tuple[bool, str | None]:
+    """Professional org team-workspace invitation email."""
+    from html import escape as _esc
+
+    org = _esc(org_name or "your organization")
+    inviter = _esc(inviter_name or "Your workspace admin")
+    role_esc = _esc(role)
+    url = _esc(invite_url)
+    subject = f"You've been invited to join {org_name} on Progeni Atlas"
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>{_esc(subject)}</title></head>
+<body style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;padding:28px 12px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 4px 18px rgba(15,23,42,0.08);">
+  <tr><td style="background:#0f172a;padding:22px 30px;">
+    <div style="font-size:19px;font-weight:800;color:#ffffff;">Progeni <span style="color:#22d3ee;">Atlas</span></div>
+    <div style="font-size:10px;color:#94a3b8;letter-spacing:1.6px;text-transform:uppercase;margin-top:2px;">Team Workspace Invitation</div>
+  </td></tr>
+  <tr><td style="height:3px;background:linear-gradient(90deg,#22d3ee,#38bdf8,#6366f1);line-height:3px;font-size:0;">&nbsp;</td></tr>
+  <tr><td style="padding:28px 30px 10px 30px;">
+    <p style="margin:0 0 14px 0;font-size:15px;color:#0f172a;">Hi there,</p>
+    <p style="margin:0 0 16px 0;font-size:13.5px;line-height:1.65;color:#334155;">
+      <strong>{inviter}</strong> has invited you to join <strong>{org}</strong> on Progeni Atlas as a
+      <strong>{role_esc}</strong>. As a member you can review departments, interview dossiers, decision pipelines and team analytics.
+    </p>
+    <div style="margin:0 0 18px 0;padding:12px 14px;background:#f0f9ff;border-left:3px solid #22d3ee;border-radius:6px;font-size:12px;color:#155e75;">
+      Accepting also links your account to <strong>{org}</strong> — no separate org code needed.
+    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:4px 0 14px 0;">
+      <a href="{url}" style="display:inline-block;background:linear-gradient(135deg,#0891b2,#0284c7);color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;border-radius:10px;padding:13px 34px;">Accept Invitation</a>
+    </td></tr></table>
+    <p style="margin:0 0 4px 0;font-size:11.5px;color:#64748b;text-align:center;">Or copy this link:</p>
+    <p style="margin:0 0 14px 0;font-size:11px;color:#0891b2;text-align:center;word-break:break-all;">{url}</p>
+    <p style="margin:0;font-size:11px;line-height:1.6;color:#94a3b8;">This invitation expires in {int(expires_in_days)} days. If you were not expecting this invitation, you can safely ignore this email — nothing will be changed without your action.</p>
+  </td></tr>
+  <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:14px 30px;">
+    <p style="margin:0;font-size:10.5px;line-height:1.6;color:#64748b;">{org} invited you via <strong>Progeni Atlas</strong> · <a href="https://atlas.progeni.live" style="color:#0891b2;text-decoration:none;">atlas.progeni.live</a></p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body>
+</html>"""
+
+    try:
+        from core.email import send_transactional_email
+        ok, err = send_transactional_email(
+            to_email=to_email,
+            subject=subject,
+            html_body=html_content,
+        )
+        if ok:
+            print(f"[EMAIL] Team invite delivered to {to_email}")
+        else:
+            print(f"[EMAIL] Team invite delivery failed for {to_email}: {err}")
+        return ok, err
+    except Exception as err:
+        logger.exception("[EMAIL] team invite send crashed for %s", to_email)
+        return False, f"Failed to deliver email: {str(err)}"
 
 
 def send_candidate_decision_email_smtp(
@@ -520,10 +732,6 @@ def send_candidate_decision_email_smtp(
 
     decision_norm = str(decision).lower().strip()
     is_positive = decision_norm in ("selected", "shortlisted", "advanced_to_panel", "hire", "strong_hire")
-
-    if not smtp_user or not smtp_pass:
-        print(f"[DECISION EMAIL] SMTP not configured. Logged decision '{decision_norm}' email for {to_email}.")
-        return False, "SMTP not configured"
 
     if is_positive:
         subject = f"Congratulations! Next Steps for {role} at {company_name}"
@@ -627,29 +835,20 @@ def send_candidate_decision_email_smtp(
     """
 
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = smtp_from
-        msg["To"] = to_email
-        msg.attach(MIMEText(html_content, "html"))
-
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12) as server:
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_from, [to_email], msg.as_string())
+        from core.email import send_transactional_email
+        ok, err = send_transactional_email(
+            to_email=to_email,
+            subject=subject,
+            html_body=html_content,
+        )
+        if ok:
+            print(f"[EMAIL] Transactional message delivered to {to_email}")
         else:
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_from, [to_email], msg.as_string())
-
-        print(f"[DECISION EMAIL] Successfully dispatched decision email ('{decision_norm}') to {to_email}")
-        return True, None
+            print(f"[EMAIL] Delivery failed for {to_email}: {err}")
+        return ok, err
     except Exception as err:
-        print(f"[DECISION EMAIL ERROR] Failed to send decision email to {to_email}: {err}")
-        return False, str(err)
-
-
+        logger.exception("[EMAIL] send_transactional_email crashed for %s", to_email)
+        return False, f"Failed to deliver email: {str(err)}"
 
 def send_interview_completion_email_smtp(
     to_email: str,
@@ -669,10 +868,6 @@ def send_interview_completion_email_smtp(
     smtp_pass = os.environ.get("SMTP_PASS", "").strip()
     from_name = os.environ.get("SMTP_FROM_NAME", "Progeni Atlas").strip()
     smtp_from = os.environ.get("SMTP_FROM", f'"{from_name}" <{smtp_user}>').strip()
-
-    if not smtp_user or not smtp_pass:
-        print(f"[COMPLETION EMAIL] SMTP not configured. Logged completion email for {to_email}.")
-        return False, "SMTP not configured"
 
     subject = f"Technical Assessment Completed: {role} at {company_name}"
     score_badge = f'<div style="text-align: right;"><span style="background-color: #0284c7; color: #ffffff; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;">OVERALL SCORE: {overall_score}%</span></div>' if overall_score is not None else ''
@@ -728,24 +923,18 @@ def send_interview_completion_email_smtp(
     """
 
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = smtp_from
-        msg["To"] = to_email
-        msg.attach(MIMEText(html_content, "html"))
-
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12) as server:
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_from, [to_email], msg.as_string())
+        from core.email import send_transactional_email
+        ok, err = send_transactional_email(
+            to_email=to_email,
+            subject=subject,
+            html_body=html_content,
+        )
+        if ok:
+            print(f"[EMAIL] Transactional message delivered to {to_email}")
         else:
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_from, [to_email], msg.as_string())
-
-        print(f"[COMPLETION EMAIL] Successfully dispatched assessment completion email to {to_email}")
-        return True, None
+            print(f"[EMAIL] Delivery failed for {to_email}: {err}")
+        return ok, err
     except Exception as err:
-        print(f"[COMPLETION EMAIL ERROR] Failed to send completion email to {to_email}: {err}")
-        return False, str(err)
+        logger.exception("[EMAIL] send_transactional_email crashed for %s", to_email)
+        return False, f"Failed to deliver email: {str(err)}"
+

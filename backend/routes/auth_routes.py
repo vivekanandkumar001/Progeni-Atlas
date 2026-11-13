@@ -14,6 +14,7 @@ import jwt
 from flask import Blueprint, request, jsonify, make_response, g
 
 from core.db import get_mongo_db
+from core.wallet import grant_signup_free_credits
 from core.security import (
     hash_password, verify_password, validate_password_strength,
     hash_otp, check_otp_hash, generate_otp_code,
@@ -261,6 +262,7 @@ def verify_otp():
 
         user_role = "candidate"
         user_doc = None
+        credits_granted = 0.0
         if purpose == "REGISTRATION_VERIFY":
             db.users.update_one({"email": email}, {"$set": {"is_email_verified": True, "updated_at": now_utc, "last_login_at": now_utc}})
             user_doc = db.users.find_one({"email": email})
@@ -268,6 +270,16 @@ def verify_otp():
                 user_role = user_doc.get("role", "candidate")
                 resolved_user_id = str(user_doc.get("id") or user_doc["_id"])
                 link_candidate_records_by_email(resolved_user_id, email)
+                # Admin-configured one-time welcome credits (free plan)
+                try:
+                    credits_granted = grant_signup_free_credits(user_doc)
+                except Exception as grant_err:
+                    credits_granted = 0.0
+                    print(f"[SIGNUP BONUS] Grant FAILED for {email}: {grant_err}")
+                if credits_granted and credits_granted > 0:
+                    print(f"[SIGNUP BONUS] Granted {credits_granted} free credits to {email} on first verification")
+            else:
+                credits_granted = 0.0
 
         user_role = str(user_role).lower().strip()
         target_dashboard = (
@@ -308,7 +320,8 @@ def verify_otp():
             "success": True,
             "message": "Email verified successfully!",
             "role": user_role,
-            "redirectUrl": target_dashboard
+            "redirectUrl": target_dashboard,
+            "creditsGranted": credits_granted if purpose == "REGISTRATION_VERIFY" else 0.0,
         }
         if token and user_payload:
             resp_data["token"] = token

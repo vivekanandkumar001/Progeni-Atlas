@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { BarChart3, Lightbulb, Loader2 } from 'lucide-react';
+import { BarChart3, Lightbulb, Loader2, Play } from 'lucide-react';
 import { fetchCandidateInterviews, fetchSessionScorecard } from '@/lib/api';
 
 const BAR_COLORS = ['bg-cyan-400', 'bg-emerald-400', 'bg-indigo-400', 'bg-sky-400', 'bg-amber-400'];
@@ -99,14 +100,23 @@ export const CompetencyCard: React.FC = () => {
         {competencies === null ? (
           <div className="flex items-center gap-2 py-6 text-sm text-ink-muted">
             <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-            LOADING_COMPETENCY_SCORES
+            Loading competency scores…
           </div>
         ) : !hasData ? (
-          <div className="py-6 text-center space-y-1">
-            <p className="text-sm text-ink">No competency scores yet</p>
-            <p className="text-xs text-ink-muted">
-              Scores appear here once you complete an interview session.
-            </p>
+          <div className="py-6 text-center space-y-3">
+            <div>
+              <p className="text-sm text-ink">No competency scores yet</p>
+              <p className="text-xs text-ink-muted mt-1">
+                Scores appear here once you complete an interview session.
+              </p>
+            </div>
+            <Link
+              href="/candidate/practice"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 transition-all cursor-pointer"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              Start your first practice interview
+            </Link>
           </div>
         ) : (
           competencies!.map((item, idx) => (
@@ -129,7 +139,7 @@ export const CompetencyCard: React.FC = () => {
         )}
       </div>
 
-      <div className="p-3.5 rounded-xl bg-inset border border-line flex items-start space-x-3">
+      <div className="p-3.5 rounded-xl bg-inset flex items-start space-x-3">
         <Lightbulb className="w-4 h-4 text-accent-amber shrink-0 mt-0.5" />
         <p className="text-xs text-ink leading-normal">
           {top ? (

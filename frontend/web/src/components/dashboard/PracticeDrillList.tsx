@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Target, Play, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import { Play, Loader2, AlertTriangle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import type { PracticeDrillItem } from '@/types/practice';
 
@@ -11,6 +11,9 @@ interface DrillsResponse {
   error?: string;
 }
 
+/**
+ * Flat drill rows — hairline dividers, no boxes. AI-recommended first.
+ */
 export const PracticeDrillList: React.FC = () => {
   const router = useRouter();
   const [drills, setDrills] = useState<PracticeDrillItem[] | null>(null);
@@ -43,101 +46,74 @@ export const PracticeDrillList: React.FC = () => {
     };
   }, []);
 
-  // Recommended first, then whatever order the service returned.
   const featured = (drills ?? [])
     .slice()
     .sort((a, b) => Number(Boolean(b.recommendedReason)) - Number(Boolean(a.recommendedReason)))
-    .slice(0, 3);
+    .slice(0, 4);
 
   return (
-    <div className="bg-surface backdrop-blur-md border border-line rounded-2xl p-6 flex flex-col justify-between h-full">
-      <div>
-        <div className="flex items-center justify-between mb-4 gap-3">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-accent-indigo">
-              <Target className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-heading text-xl text-ink font-bold">
-                Targeted Practice Sessions
-              </h3>
-              <p className="text-body text-xs text-ink-muted">
-                10-minute micro-interviews to strengthen weak spots
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-1 text-caption text-accent-indigo bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full">
-            <Sparkles className="w-3 h-3" /> AI Tailored
-          </span>
-        </div>
+    <div>
+      <div className="flex items-baseline justify-between gap-3 mb-3">
+        <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-ink-faint">Targeted drills</h2>
+        <button
+          type="button"
+          onClick={() => router.push('/candidate/practice')}
+          className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-ink-muted hover:text-accent-cyan transition-colors cursor-pointer"
+        >
+          All drills
+        </button>
+      </div>
 
-        <div className="space-y-3 mt-4">
-          {drills === null ? (
-            <div className="flex items-center gap-2 py-6 text-sm text-ink-muted">
-              <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-              LOADING_DRILLS
-            </div>
-          ) : error ? (
-            <div className="flex items-start gap-2 py-4 text-xs text-ink-muted">
-              <AlertTriangle className="w-4 h-4 text-accent-amber shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          ) : featured.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-xs text-ink-muted mb-4">
-                No practice drills are available right now.
-              </p>
+      {drills === null ? (
+        <div className="flex items-center gap-2 py-6 text-xs text-ink-muted border-t border-line">
+          <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
+          Loading drills…
+        </div>
+      ) : error ? (
+        <div className="flex items-start gap-2 py-5 text-xs text-ink-muted border-t border-line">
+          <AlertTriangle className="w-4 h-4 text-accent-amber shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </div>
+      ) : featured.length === 0 ? (
+        <div className="border-t border-line pt-5">
+          <p className="text-xs text-ink-muted leading-relaxed">No drills available right now.</p>
+          <button
+            type="button"
+            onClick={() => router.push('/candidate/practice')}
+            className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 px-4 py-2 rounded-lg transition-all cursor-pointer"
+          >
+            Browse available drills
+          </button>
+        </div>
+      ) : (
+        <ul className="divide-y divide-line border-t border-line">
+          {featured.map((drill, idx) => (
+            <li
+              key={`${drill.id}-${idx}`}
+              className="py-3 flex items-center justify-between gap-3 group"
+            >
+              <div className="min-w-0">
+                <p className="text-[10px] font-mono text-ink-faint uppercase tracking-wide">
+                  {drill.estimatedMinutes} min · {drill.difficulty}
+                  {drill.recommendedReason && <span className="text-accent-indigo"> · Recommended</span>}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-ink group-hover:text-accent-cyan transition-colors truncate">
+                  {drill.title}
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => router.push('/candidate/practice')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/30 text-indigo-300 font-semibold text-xs transition-all cursor-pointer"
+                onClick={() => router.push(`/candidate/practice?drill=${encodeURIComponent(drill.id)}`)}
+                className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold text-ink-muted hover:text-accent-cyan border border-transparent hover:border-line px-3 py-1.5 rounded-md transition-all cursor-pointer"
+                aria-label={`Practice ${drill.title}`}
               >
-                <Sparkles className="w-3.5 h-3.5" /> Browse Available Drills
+                <Play className="w-3.5 h-3.5" />
+                Practice
               </button>
-            </div>
-          ) : (
-            featured.map((drill, idx) => (
-              <div
-                key={`${drill.id}-${idx}`}
-                className="p-4 rounded-xl bg-inset border border-line hover:border-line-strong transition-all flex items-center justify-between gap-4 group"
-              >
-                <div className="space-y-1.5 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-caption text-xs font-mono text-accent-cyan bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded">
-                      {drill.estimatedMinutes} mins • {drill.difficulty}
-                    </span>
-                    {drill.recommendedReason && (
-                      <span className="text-caption text-xs font-mono text-accent-indigo bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded">
-                        Recommended
-                      </span>
-                    )}
-                  </div>
-                  <h4 className="text-body font-medium text-ink group-hover:text-accent-cyan transition-colors truncate">
-                    {drill.title}
-                  </h4>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => router.push(`/candidate/practice?drill=${encodeURIComponent(drill.id)}`)}
-                  className="shrink-0 inline-flex items-center gap-1.5 bg-surface-2 hover:bg-surface-3 text-ink hover:text-ink px-3 py-2 rounded-lg text-xs font-medium border border-line-strong transition-all cursor-pointer shadow-sm active:scale-95"
-                >
-                  <Play className="w-3.5 h-3.5 text-accent-cyan fill-cyan-400/20" />
-                  <span>Practice Topic</span>
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="mt-5 pt-4 border-t border-line text-center">
-        <p className="text-caption text-ink-muted text-xs">
-          {featured.length > 0
-            ? 'Drills are generated from your interview speech and code patterns.'
-            : 'Drills are generated from your interview speech and code patterns once a session is scored.'}
-        </p>
-      </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

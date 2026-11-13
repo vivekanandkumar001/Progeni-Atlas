@@ -1,4 +1,4 @@
-import { Edit2, Scale } from 'lucide-react';
+﻿import { Edit2, Scale } from 'lucide-react';
 import { Card, CardHeader, Pill, Spinner } from '@/components/super-admin/ui';
 import { formatDateTime, type RateCard } from '@/lib/super-admin';
 import type { PricingPolicy } from '../billing-types';
@@ -49,7 +49,7 @@ export function RatesTab({
           </div>
 
           {/* Safety Switch Toggle */}
-          <div className="flex items-center gap-3 rounded-xl border border-line bg-surface p-2.5">
+          <div className="flex items-center gap-3 rounded-xl bg-surface p-2.5">
             <div className="text-right">
               <span className="block text-xs font-bold text-ink">Production Charging</span>
               <span className="block text-[10px] text-ink-muted">
@@ -65,11 +65,11 @@ export function RatesTab({
                 })
               }
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                pricingPolicy?.charging_enabled ? 'bg-accent-emerald' : 'bg-slate-600'
+                pricingPolicy?.charging_enabled ? 'bg-accent-emerald' : 'bg-surface-3'
               }`}
             >
               <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-surface shadow ring-0 transition duration-200 ease-in-out ${
                   pricingPolicy?.charging_enabled ? 'translate-x-5' : 'translate-x-0'
                 }`}
               />
@@ -82,10 +82,10 @@ export function RatesTab({
           {/* Option A: ₹1 per 3 minutes */}
           <div
             onClick={() => void handleUpdatePolicy({ rate_per_minute_credits: LAUNCH_RATE_PER_MINUTE, base_fee_credits: 0.0 })}
-            className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+            className={`cursor-pointer rounded-2xl p-4 transition-all ${
               Math.abs((pricingPolicy?.rate_per_minute_credits ?? 0) - LAUNCH_RATE_PER_MINUTE) < 0.000001 && pricingPolicy?.base_fee_credits === 0.0
-                ? 'border-cyan-500 bg-cyan-500/10 shadow-sm ring-1 ring-cyan-500'
-                : 'border-line bg-surface hover:border-cyan-500/40'
+                ? 'bg-cyan-500/10 shadow-sm ring-1 ring-cyan-500'
+                : 'bg-surface hover:bg-surface-2'
             }`}
           >
             <div className="flex items-center justify-between">
@@ -109,10 +109,10 @@ export function RatesTab({
           {/* Option B: 1 Credit / Min */}
           <div
             onClick={() => void handleUpdatePolicy({ rate_per_minute_credits: 1.0, base_fee_credits: 0.0 })}
-            className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+            className={`cursor-pointer rounded-2xl p-4 transition-all ${
               pricingPolicy?.rate_per_minute_credits === 1.0 && pricingPolicy?.base_fee_credits === 0.0
-                ? 'border-cyan-500 bg-cyan-500/10 shadow-sm ring-1 ring-cyan-500'
-                : 'border-line bg-surface hover:border-cyan-500/40'
+                ? 'bg-cyan-500/10 shadow-sm ring-1 ring-cyan-500'
+                : 'bg-surface hover:bg-surface-2'
             }`}
           >
             <div className="flex items-center justify-between">
@@ -136,10 +136,10 @@ export function RatesTab({
           {/* Option C: ₹10 Base + 1 Credit / Min */}
           <div
             onClick={() => void handleUpdatePolicy({ rate_per_minute_credits: 1.0, base_fee_credits: 10.0 })}
-            className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+            className={`cursor-pointer rounded-2xl p-4 transition-all ${
               pricingPolicy?.base_fee_credits === 10.0
-                ? 'border-cyan-500 bg-cyan-500/10 shadow-sm ring-1 ring-cyan-500'
-                : 'border-line bg-surface hover:border-cyan-500/40'
+                ? 'bg-cyan-500/10 shadow-sm ring-1 ring-cyan-500'
+                : 'bg-surface hover:bg-surface-2'
             }`}
           >
             <div className="flex items-center justify-between">
@@ -163,24 +163,24 @@ export function RatesTab({
 
         {/* Duration Rules Summary */}
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-line/60 pt-4 text-xs font-mono">
-          <div className="rounded-xl border border-line bg-surface p-2.5">
+          <div className="rounded-xl bg-surface p-2.5">
             <span className="block text-[10px] uppercase text-ink-faint">Preflight Reserve</span>
             <span className="font-bold text-ink">{pricingPolicy?.reserve_minutes ?? 15} Minutes</span>
             <span className="block text-[10px] text-ink-muted">
               ({((pricingPolicy?.reserve_minutes ?? 15) * (pricingPolicy?.rate_per_minute_credits ?? LAUNCH_RATE_PER_MINUTE)).toFixed(2)} Credits Hold)
             </span>
           </div>
-          <div className="rounded-xl border border-line bg-surface p-2.5">
+          <div className="rounded-xl bg-surface p-2.5">
             <span className="block text-[10px] uppercase text-ink-faint">Rounding Rule</span>
             <span className="font-bold text-accent-cyan">Ceiling Minute</span>
             <span className="block text-[10px] text-ink-muted">5m 10s → 6 Minutes</span>
           </div>
-          <div className="rounded-xl border border-line bg-surface p-2.5">
+          <div className="rounded-xl bg-surface p-2.5">
             <span className="block text-[10px] uppercase text-ink-faint">Min Billable Duration</span>
             <span className="font-bold text-ink">{pricingPolicy?.minimum_billable_seconds ?? 60} Seconds</span>
             <span className="block text-[10px] text-ink-muted">1 Minute Minimum</span>
           </div>
-          <div className="rounded-xl border border-line bg-surface p-2.5">
+          <div className="rounded-xl bg-surface p-2.5">
             <span className="block text-[10px] uppercase text-ink-faint">Platform Currency</span>
             <span className="font-bold text-accent-emerald">INR (₹)</span>
             <span className="block text-[10px] text-ink-muted">₹1 = 1 Credit</span>
@@ -203,7 +203,7 @@ export function RatesTab({
             rateCards.map((rc) => (
               <div
                 key={rc.id}
-                className="flex flex-col justify-between rounded-2xl border border-line bg-surface-2 p-4 transition hover:border-cyan-500/30"
+                className="flex flex-col justify-between rounded-2xl bg-surface-2 p-4 transition hover:bg-surface-3"
               >
                 <div>
                   <div className="flex items-center justify-between">
@@ -213,7 +213,7 @@ export function RatesTab({
                     <Pill tone="cyan">v{rc.version}</Pill>
                   </div>
                   <p className="mt-2 text-xs text-ink-muted">{rc.description}</p>
-                  <div className="mt-4 space-y-1.5 rounded-xl border border-line/60 bg-surface p-3 font-mono text-xs">
+                  <div className="mt-4 space-y-1.5 rounded-xl bg-surface p-3 font-mono text-xs">
                     <span className="block text-[10px] uppercase text-ink-faint">
                       Unit: {rc.unit}
                     </span>

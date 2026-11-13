@@ -76,7 +76,7 @@ export const PDFDossierTemplate: React.FC<PDFDossierTemplateProps> = ({
           <h3 className="text-sm font-bold text-slate-900 border-b pb-1">
             Overall Parameter-Wise Evaluation Marks
           </h3>
-          <div className="grid grid-cols-3 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             {overallParams.map((param) => (
               <div key={param.name} className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
                 <p className="font-semibold text-slate-800">{param.name}</p>

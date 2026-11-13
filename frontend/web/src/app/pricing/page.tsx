@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -12,9 +12,7 @@ import {
   Zap,
   Users,
   Building2,
-  Lock,
-  ArrowRight,
-} from 'lucide-react';
+  Lock } from 'lucide-react';
 
 interface PlanCard {
   name: string;
@@ -125,15 +123,15 @@ const DEFAULT_RECRUITER_PLANS: PlanCard[] = [
     badge: 'FREE TRIAL',
     price: '₹0',
     priceNum: 0,
-    credits: '50 Credits',
+    credits: '10 Credits',
     period: 'free trial on signup',
-    description: 'Test automated AI technical screening with complimentary candidate assessments.',
+    description: '10 welcome credits, granted one-time on signup to test AI technical screening.',
     popular: false,
     buttonText: 'Start Recruiter Trial',
     buttonHref: '/register',
     features: [
-      '50 Screening Credits (100 mins)',
-      'Up to 3 Candidate Screening Sessions',
+      '10 Welcome Credits (20 mins, one-time on signup)',
+      '1 Full AI Screening Interview',
       'Automated Candidate Dossiers & PDF Reports',
       'Standard Role Rubric Templates',
       '1 Team Member Seat',
@@ -389,7 +387,7 @@ export default function PricingPage() {
                     : 'text-ink-muted hover:text-ink'
                 }`}
               >
-                <Sparkles className="w-4 h-4 text-cyan-400" />
+                <Sparkles className="w-4 h-4 text-accent-cyan" />
                 <span>{candidateTabLabel}</span>
               </button>
               <button
@@ -443,7 +441,7 @@ export default function PricingPage() {
                       <span className="text-xs font-medium text-ink-muted"> / {plan.period}</span>
                     </div>
                     <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-accent-cyan text-xs font-mono font-bold">
-                      <Zap className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400" />
+                      <Zap className="w-3.5 h-3.5 fill-cyan-400 text-accent-cyan" />
                       <span>{plan.credits}</span>
                     </div>
                   </div>
@@ -468,12 +466,11 @@ export default function PricingPage() {
                   className={`w-full py-3 rounded-xl text-center text-xs sm:text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer ${
                     plan.popular
                       ? 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-cyan-500/20 hover:brightness-110'
-                      : 'border border-[#072448] text-[#072448] hover:bg-slate-100'
+                      : 'border border-[#072448] text-[#072448] hover:bg-surface-2'
                   }`}
                 >
                   <span>{plan.buttonText}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                  </Link>
               </div>
             ))}
           </div>
@@ -496,7 +493,7 @@ export default function PricingPage() {
               href="/register"
               className="px-6 py-3.5 rounded-xl bg-blue-600 text-white text-xs sm:text-sm font-bold shadow-md hover:bg-blue-700 transition shrink-0 whitespace-nowrap"
             >
-              Claim 10 Free Credits →
+              Claim 10 Free Credits 
             </Link>
           </div>
         </div>

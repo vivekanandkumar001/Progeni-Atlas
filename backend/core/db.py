@@ -29,7 +29,7 @@ _mongo_client = None
 def get_mongo_client():
     global _mongo_client
     if _mongo_client is None:
-        kwargs = {"serverSelectionTimeoutMS": 5000}
+        kwargs = {"serverSelectionTimeoutMS": 5000, "connectTimeoutMS": 2000, "socketTimeoutMS": 15000, "maxPoolSize": 50}
         use_tls = "mongodb+srv://" in MONGO_URI.lower() or "ssl=true" in MONGO_URI.lower() or "tls=true" in MONGO_URI.lower()
         if use_tls and CERTIFI_CA:
             kwargs["tlsCAFile"] = CERTIFI_CA
@@ -178,21 +178,21 @@ CANONICAL_PACKAGES = [
         "monthlyPrice": 0,
         "annualPrice": 0,
         "price_nanousd": 0,
-        "included_interviews": 3,
-        "interviewsIncluded": 3,
-        "credits": 50,
+        "included_interviews": 1,
+        "interviewsIncluded": 1,
+        "credits": 10,
         "included_recruiter_seats": 1,
         "seatsIncluded": 1,
         "included_candidate_seats": 5,
-        "interview_duration_limit_minutes": 100,
-        "version": 1,
+        "interview_duration_limit_minutes": 20,
+        "version": 2,
         "status": "published",
         "active": True,
         "popular": False,
-        "description": "Free trial to test AI candidate screening with complimentary technical assessments.",
+        "description": "Free one-time welcome credits on signup to test AI candidate screening with a complimentary technical assessment.",
         "features": [
-            "50 Screening Credits (100 mins)",
-            "Up to 3 Candidate Screening Sessions",
+            "10 Welcome Credits (20 mins, one-time on signup)",
+            "1 Full AI Technical Screening Interview",
             "Automated Candidate Dossiers & PDF Reports",
             "Standard Role Rubric Templates",
             "1 Team Member Seat",
@@ -306,7 +306,7 @@ CANONICAL_PACKAGES = [
 # ---------------------------------------------------------------------------
 # Bump whenever the index set changes; stored in the _meta collection so the
 # check is a single document read on subsequent boots.
-_SCHEMA_VERSION = 3
+_SCHEMA_VERSION = 4
 
 def _safe_index(collection, keys, **kwargs):
     try:
@@ -362,6 +362,37 @@ def ensure_indexes(db):
     _safe_index(db.packages, "id")
     _safe_index(db.packages, "status")
     _safe_index(db.packages, "target_audience")
+    # hot-path collections previously unindexed (v4)
+    _safe_index(db.candidate_resumes, [("candidate_id", pymongo.ASCENDING), ("is_active", pymongo.ASCENDING), ("uploaded_at", pymongo.DESCENDING)])
+    _safe_index(db.candidate_resumes, [("candidate_email", pymongo.ASCENDING), ("uploaded_at", pymongo.DESCENDING)])
+    _safe_index(db.practice_sessions, [("userId", pymongo.ASCENDING), ("completedAt", pymongo.DESCENDING)])
+    _safe_index(db.job_profiles, "recruiter_id")
+    _safe_index(db.job_profiles, "recruiter_email")
+    _safe_index(db.job_profiles, [("org_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)])
+    _safe_index(db.job_profiles, "created_at")
+    _safe_index(db.aptitude_sessions, "candidateId")
+    _safe_index(db.aptitude_sessions, "candidateEmail")
+    _safe_index(db.aptitude_sessions, [("candidateId", pymongo.ASCENDING), ("startedAt", pymongo.DESCENDING)])
+    # demo_allowances.user_id already has a unique index in production — reuse it
+    _safe_index(db.demo_allowances, "org_id")
+    _safe_index(db.billing_accounts, "orgId")
+    _safe_index(db.billing_accounts, "id")
+    _safe_index(db.wallet_transactions, "sessionId")
+    _safe_index(db.wallet_transactions, "id", unique=True, sparse=True)
+    _safe_index(db.platform_settings, "key")
+    _safe_index(db.interview_sessions, [("org_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)])
+    _safe_index(db.evaluation_rubrics, "id")
+    _safe_index(db.evaluation_rubrics, "recruiter_id")
+    _safe_index(db.evaluation_rubrics, "org_id")
+    _safe_index(db.organization_invites, "email")
+    _safe_index(db.organization_invites, "token", unique=True, sparse=True)
+    _safe_index(db.organization_invites, "org_id")
+    _safe_index(db.ats_integrations, "org_id", unique=True, sparse=True)
+    _safe_index(db.ats_sync_logs, [("org_id", pymongo.ASCENDING), ("timestamp", pymongo.DESCENDING)])
+    _safe_index(db.dossier_webhooks, "org_id", unique=True, sparse=True)
+    _safe_index(db.webhook_dispatch_logs, [("org_id", pymongo.ASCENDING), ("timestamp", pymongo.DESCENDING)])
+    _safe_index(db.hardware_diagnostics, "sessionId")
+    _safe_index(db.lobby_checks, "sessionId")
 
     from datetime import datetime, timezone
     try:
@@ -425,7 +456,11 @@ def ensure_super_admin(db):
         import uuid
         from core.security import hash_password
 
-        default_pwd = os.environ.get("SUPER_ADMIN_PASSWORD") or os.environ.get("ADMIN_DEFAULT_PASSWORD", "ProgeniAtlas@1234")
+        default_pwd = os.environ.get("SUPER_ADMIN_PASSWORD") or os.environ.get("ADMIN_DEFAULT_PASSWORD")
+        if not default_pwd:
+            import secrets as _secrets
+            default_pwd = _secrets.token_urlsafe(24)
+            logger.warning("[MongoDB] SUPER_ADMIN_PASSWORD not set — seeding super_admin with a random one-time password (rotate via env).")
         pwd_hash = hash_password(default_pwd)
         db.users.insert_one({
             "id": str(uuid.uuid4()),
@@ -474,6 +509,20 @@ def init_mongo_db():
             ensure_super_admin(db)
         except Exception as admin_err:
             logger.warning(f"[MongoDB] Super-admin ensure note: {admin_err}")
+
+        # 1b) Seed the manual LLM rate card (insert-if-absent; never overwrites admin edits)
+        try:
+            from core.shadow_metering import ensure_pricing_seeded
+            ensure_pricing_seeded(db)
+        except Exception as pricing_err:
+            logger.warning(f"[MongoDB] Pricing seed note: {pricing_err}")
+
+        # 1c) Seed the infra inventory (insert-if-absent; never overwrites admin edits)
+        try:
+            from core.cost_model import ensure_infra_seeded
+            ensure_infra_seeded(db)
+        except Exception as infra_err:
+            logger.warning(f"[MongoDB] Infra seed note: {infra_err}")
 
         # 2) Index creation only when the stored schema version is stale
         try:

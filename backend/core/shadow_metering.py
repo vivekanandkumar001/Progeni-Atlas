@@ -105,6 +105,116 @@ _index_lock = threading.Lock()
 _indexes_ready = False
 
 
+# --------------------------------------------------------------------------- pricing seed
+
+# Manually seeded public rate cards (manual, versioned, active=True).
+# NEVER fabricate precision: unmatched models produce "MEASURED_USAGE_RATE_UNVERIFIED"
+# (usage measured, rate not on file) — honest and visible in the admin console.
+_SEED_LLM_PRICING = [
+    {
+        "id": "google-gemini-2.0-flash",
+        "call_type": "chat",
+        "provider_kind": "google",
+        "match_type": "prefix",
+        "model_pattern": "gemini-2.0-flash",
+        "rates": {"input_per_1m_tokens": 0.10, "output_per_1m_tokens": 0.40, "cached_input_per_1m_tokens": 0.025},
+        "seed_source": "Google AI Studio public rate card (manual seed)",
+        "effective_from": "2025-01-01T00:00:00Z",
+    },
+    {
+        "id": "google-gemini-2.5-flash",
+        "call_type": "chat",
+        "provider_kind": "google",
+        "match_type": "prefix",
+        "model_pattern": "gemini-2.5-flash",
+        "rates": {"input_per_1m_tokens": 0.30, "output_per_1m_tokens": 2.50, "cached_input_per_1m_tokens": 0.075},
+        "seed_source": "Google AI Studio public rate card (manual seed)",
+        "effective_from": "2025-06-01T00:00:00Z",
+    },
+    {
+        "id": "google-gemini-2.5-pro",
+        "call_type": "chat",
+        "provider_kind": "google",
+        "match_type": "prefix",
+        "model_pattern": "gemini-2.5-pro",
+        "rates": {"input_per_1m_tokens": 1.25, "output_per_1m_tokens": 10.00, "cached_input_per_1m_tokens": 0.31},
+        "seed_source": "Google AI Studio public rate card (manual seed)",
+        "effective_from": "2025-06-01T00:00:00Z",
+    },
+    {
+        "id": "openai-gpt-4o-mini",
+        "call_type": "chat",
+        "provider_kind": "openai",
+        "match_type": "exact",
+        "model_pattern": "gpt-4o-mini",
+        "rates": {"input_per_1m_tokens": 0.15, "output_per_1m_tokens": 0.60, "cached_input_per_1m_tokens": 0.075},
+        "seed_source": "OpenAI public rate card (manual seed)",
+        "effective_from": "2024-07-01T00:00:00Z",
+    },
+    {
+        "id": "openai-gpt-4o",
+        "call_type": "chat",
+        "provider_kind": "openai",
+        "match_type": "exact",
+        "model_pattern": "gpt-4o",
+        "rates": {"input_per_1m_tokens": 2.50, "output_per_1m_tokens": 10.00, "cached_input_per_1m_tokens": 1.25},
+        "seed_source": "OpenAI public rate card (manual seed)",
+        "effective_from": "2024-07-01T00:00:00Z",
+    },
+    {
+        "id": "openrouter-gpt-4o-mini",
+        "call_type": "chat",
+        "provider_kind": "openrouter",
+        "match_type": "exact",
+        "model_pattern": "openai/gpt-4o-mini",
+        "rates": {"input_per_1m_tokens": 0.15, "output_per_1m_tokens": 0.60, "cached_input_per_1m_tokens": 0.075},
+        "seed_source": "OpenRouter public listing (manual seed)",
+        "effective_from": "2024-07-01T00:00:00Z",
+    },
+    {
+        "id": "openrouter-gpt-4o",
+        "call_type": "chat",
+        "provider_kind": "openrouter",
+        "match_type": "exact",
+        "model_pattern": "openai/gpt-4o",
+        "rates": {"input_per_1m_tokens": 2.50, "output_per_1m_tokens": 10.00, "cached_input_per_1m_tokens": 1.25},
+        "seed_source": "OpenRouter public listing (manual seed)",
+        "effective_from": "2024-07-01T00:00:00Z",
+    },
+    {
+        "id": "ollama-local",
+        "call_type": "chat",
+        "provider_kind": "ollama",
+        "match_type": "prefix",
+        "model_pattern": "llama",
+        "rates": {"input_per_1m_tokens": 0.0, "output_per_1m_tokens": 0.0, "cached_input_per_1m_tokens": 0.0},
+        "seed_source": "local Ollama — zero marginal cost",
+        "effective_from": "2024-01-01T00:00:00Z",
+    },
+]
+
+
+def ensure_pricing_seeded(db) -> None:
+    """Idempotently insert the manual LLM rate card (never overwrites admin edits)."""
+    try:
+        coll = db[PRICING_COLLECTION]
+        now = datetime.now(timezone.utc).isoformat()
+        for seed in _SEED_LLM_PRICING:
+            coll.update_one(
+                {"id": seed["id"]},
+                {"$setOnInsert": {
+                    **seed,
+                    "active": True,
+                    "version": 1,
+                    "created_at": now,
+                    "updated_at": now,
+                }},
+                upsert=True,
+            )
+    except Exception as exc:
+        logger.warning("[ShadowMetering] Pricing seed note: %s", exc)
+
+
 def ensure_indexes() -> None:
     """Create the shadow-event indexes once per process (best-effort).
 
@@ -135,7 +245,10 @@ def ensure_indexes() -> None:
             coll.create_index("correlation_id")
             coll.create_index([("organization_id", 1), ("created_at", -1)])
             coll.create_index([("service_category", 1), ("created_at", -1)])
-            coll.create_index("expires_at", expireAfterSeconds=0)
+            try:
+                coll.create_index("expires_at", expireAfterSeconds=0)
+            except Exception as ttl_err:
+                logger.info("ShadowMetering TTL index on expires_at not created: %s", ttl_err)
             _indexes_ready = True
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("shadow metering index setup failed: %s", type(exc).__name__)

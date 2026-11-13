@@ -26,20 +26,22 @@ export function useDashboardData() {
       setLoading(true);
       setError(null);
 
-      // Fetch recruiter wallet balance concurrently
-      try {
-        const walletRes = await apiFetch('/api/billing/wallet');
-        if (walletRes.ok) {
-          const wData = await walletRes.json();
-          if (wData?.success && wData?.wallet) {
-            setWalletBalance(Number(wData.wallet.availableCredits ?? 0));
+      // Fetch wallet + dashboard in parallel — never serialize them
+      const walletPromise = apiFetch('/api/billing/wallet')
+        .then(async (walletRes) => {
+          if (walletRes.ok) {
+            const wData = await walletRes.json();
+            if (wData?.success && wData?.wallet) {
+              setWalletBalance(Number(wData.wallet.availableCredits ?? 0));
+            }
           }
-        }
-      } catch {
-        // non-fatal wallet balance fallback
-      }
+        })
+        .catch(() => {
+          // non-fatal wallet balance fallback
+        });
 
       const res = await apiFetch('/api/recruiter/dashboard');
+      await walletPromise;
       if (res.ok) {
         const data = await res.json();
         if (data.overview) setOverview(data.overview);

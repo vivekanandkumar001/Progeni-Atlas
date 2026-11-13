@@ -562,6 +562,7 @@ def assess_turn(
     )
 
     try:
+        llm_service.set_operation("interviewer")
         content, model_used = llm_service._chat(system, user, temperature=0.2)
         payload = llm_service._json_from(content)
         return _parse_assessment(

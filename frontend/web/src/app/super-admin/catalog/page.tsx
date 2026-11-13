@@ -182,22 +182,22 @@ export default function SkillPracticeCatalogPage() {
           {loading ? <div className="flex justify-center py-12"><Spinner /></div> : (
             <div className="mt-4 space-y-2">
               {kind === 'skills' ? skills.map((skill) => (
-                <div key={skill.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line/70 bg-inset/40 p-3">
+                <div key={skill.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-inset/40 p-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-ink">{skill.name}</p>
                     <p className="mt-0.5 truncate text-[11px] text-ink-muted">{skill.category} · {skill.aliases?.length ? skill.aliases.join(', ') : 'No aliases'} · {skill.active ? 'Active' : 'Archived'}</p>
                   </div>
                   <button type="button" onClick={() => editSkill(skill)} className="rounded-lg border border-line p-2 text-ink-muted hover:text-accent-cyan" aria-label={`Edit ${skill.name}`}><Pencil className="h-3.5 w-3.5" /></button>
-                  <button type="button" onClick={() => void toggleActive('skills', skill)} className="rounded-lg border border-line p-2 text-ink-muted hover:text-rose-400" aria-label={skill.active ? `Archive ${skill.name}` : `Activate ${skill.name}`}><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => void toggleActive('skills', skill)} className="rounded-lg border border-line p-2 text-ink-muted hover:text-accent-rose" aria-label={skill.active ? `Archive ${skill.name}` : `Activate ${skill.name}`}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               )) : drills.map((drill) => (
-                <div key={drill.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line/70 bg-inset/40 p-3">
+                <div key={drill.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-inset/40 p-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-ink">{drill.title}</p>
                     <p className="mt-0.5 truncate text-[11px] text-ink-muted">{drill.category} · {drill.difficulty} · {drill.estimatedMinutes} min · {drill.active ? 'Active' : 'Archived'}</p>
                   </div>
                   <button type="button" onClick={() => editDrill(drill)} className="rounded-lg border border-line p-2 text-ink-muted hover:text-accent-cyan" aria-label={`Edit ${drill.title}`}><Pencil className="h-3.5 w-3.5" /></button>
-                  <button type="button" onClick={() => void toggleActive('drills', drill)} className="rounded-lg border border-line p-2 text-ink-muted hover:text-rose-400" aria-label={drill.active ? `Archive ${drill.title}` : `Activate ${drill.title}`}><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => void toggleActive('drills', drill)} className="rounded-lg border border-line p-2 text-ink-muted hover:text-accent-rose" aria-label={drill.active ? `Archive ${drill.title}` : `Activate ${drill.title}`}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               ))}
               {!loading && (kind === 'skills' ? skills.length === 0 : drills.length === 0) && <p className="py-8 text-center text-sm text-ink-muted">No catalog items yet.</p>}

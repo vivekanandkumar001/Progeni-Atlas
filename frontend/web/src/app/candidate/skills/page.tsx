@@ -15,12 +15,10 @@ import {
   Award,
   BookOpen,
   RefreshCw,
-  ArrowRight,
   Sparkles,
   CheckCircle2,
   FileText,
-  ExternalLink,
-} from 'lucide-react';
+  ExternalLink } from 'lucide-react';
 
 const SOURCE_LABELS: Record<string, string> = {
   interview: 'Real interview',
@@ -75,7 +73,7 @@ export default function CandidateSkillsPage() {
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* HERO HEADER */}
-        <section className="relative overflow-hidden rounded-xl bg-white border border-slate-200 p-6 sm:p-7 shadow-xs">
+        <section className="relative overflow-hidden rounded-2xl bg-surface border border-line p-6 sm:p-7">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
             <div className="space-y-2 max-w-2xl">
               <div className="flex items-center gap-3">
@@ -84,7 +82,7 @@ export default function CandidateSkillsPage() {
                   Technical Skill Matrix & Insights
                 </span>
                 {hasResumeSkills && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-emerald-500/10 border border-emerald-500/30 text-accent-emerald">
                     {profileSkills.length} Resume Skills Linked
                   </span>
                 )}
@@ -97,7 +95,7 @@ export default function CandidateSkillsPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3 bg-inset p-4 rounded-2xl border border-line">
+            <div className="flex items-center gap-3 bg-inset p-4 rounded-2xl">
               <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-accent-cyan font-mono font-bold text-xl">
                 {insights?.overallReadinessScore ?? '--'}
               </div>
@@ -146,7 +144,7 @@ export default function CandidateSkillsPage() {
                 {profileSkills.map((skill, idx) => (
                   <div
                     key={`${skill.name}-${idx}`}
-                    className="group flex items-center gap-2 px-3.5 py-2 rounded-xl bg-inset border border-line hover:border-cyan-500/40 transition-all text-xs"
+                    className="group flex items-center gap-2 px-3.5 py-2 rounded-xl bg-inset ring-1 ring-transparent hover:ring-cyan-500/40 transition-all text-xs"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 text-accent-cyan shrink-0" />
                     <span className="font-semibold text-ink">{skill.name}</span>
@@ -161,8 +159,7 @@ export default function CandidateSkillsPage() {
                       title={`Start practice drill for ${skill.name}`}
                     >
                       <span>Practice</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
+                      </Link>
                   </div>
                 ))}
               </div>
@@ -173,8 +170,7 @@ export default function CandidateSkillsPage() {
                   className="inline-flex items-center gap-1 text-accent-cyan hover:underline font-semibold"
                 >
                   <span>Practice all skills</span>
-                  <ArrowRight className="w-3 h-3" />
-                </Link>
+                  </Link>
               </div>
             </div>
           ) : (
@@ -189,8 +185,7 @@ export default function CandidateSkillsPage() {
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-accent-cyan border border-cyan-500/30 text-xs font-semibold"
               >
                 <span>Upload Resume in Profile</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+                </Link>
             </div>
           )}
         </section>
@@ -236,7 +231,7 @@ export default function CandidateSkillsPage() {
                         </span>
                       </div>
 
-                      <div className="w-full h-2.5 rounded-full bg-inset border border-line overflow-hidden">
+                      <div className="w-full h-2.5 rounded-full bg-inset overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 transition-all duration-300"
                           style={{ width: `${percent}%` }}
@@ -261,8 +256,7 @@ export default function CandidateSkillsPage() {
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-accent-cyan border border-cyan-500/30 text-xs font-semibold"
               >
                 <span>Start a Practice Interview</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+                </Link>
             </div>
           )}
         </section>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
@@ -11,11 +11,9 @@ import {
   CheckCircle2,
   Clock,
   Building2,
-  ArrowRight,
   RefreshCw,
   AlertCircle,
   ExternalLink,
-  ChevronRight,
   Brain,
   ShieldCheck,
   Zap,
@@ -42,7 +40,7 @@ type ReportTab = 'interviews' | 'practice' | 'aptitude';
 function RecommendationBadge({ recommendation }: { recommendation: string | null | undefined }) {
   if (!recommendation) {
     return (
-      <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-surface-2 border border-slate-200 dark:border-line text-slate-500 flex items-center gap-1">
+      <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-surface-2 border border-line text-ink-faint flex items-center gap-1">
         <AlertCircle className="w-3.5 h-3.5" /> EVALUATED
       </span>
     );
@@ -50,17 +48,17 @@ function RecommendationBadge({ recommendation }: { recommendation: string | null
 
   const rec = recommendation.toUpperCase();
   const styles: Record<string, string> = {
-    STRONG_HIRE: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-accent-emerald',
-    HIRE: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-700 dark:text-accent-cyan',
-    LEAN_HIRE: 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-accent-amber',
-    NO_HIRE: 'bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-accent-rose',
-    REJECT: 'bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-accent-rose',
+    STRONG_HIRE: 'bg-emerald-500/15 border-emerald-500/30 text-accent-emerald',
+    HIRE: 'bg-cyan-500/15 border-cyan-500/30 text-accent-cyan',
+    LEAN_HIRE: 'bg-amber-500/15 border-amber-500/30 text-accent-amber',
+    NO_HIRE: 'bg-rose-500/15 border-rose-500/30 text-accent-rose',
+    REJECT: 'bg-rose-500/15 border-rose-500/30 text-accent-rose',
   };
   const Icon = rec.includes('HIRE') ? Sparkles : AlertCircle;
 
   return (
     <span
-      className={`px-3 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 border ${styles[rec] || 'bg-slate-100 border-slate-200 text-slate-600'}`}
+      className={`px-3 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 border ${styles[rec] || 'bg-surface-2 border-line text-ink-muted'}`}
     >
       <Icon className="w-3.5 h-3.5" /> {rec.replace(/_/g, ' ')}
     </span>
@@ -134,7 +132,7 @@ function CandidateReportsContent() {
   return (
     <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans relative overflow-x-clip selection:bg-cyan-500/30 selection:text-accent-cyan">
       {/* Background ambient lighting */}
-      <div className="fixed top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="fixed top-0 left-1/4 w-96 h-96 bg-accent-cyan/10 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="fixed top-1/3 right-1/4 w-[28rem] h-[28rem] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
       {/* Modern Dashboard Header */}
@@ -147,12 +145,12 @@ function CandidateReportsContent() {
         <section className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-line">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-accent-cyan border border-blue-500/20">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">
                 Verified Dossiers &amp; Analytics
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight flex items-center gap-3">
-              <FileText className="w-7 h-7 text-blue-600 dark:text-accent-cyan" />
+              <FileText className="w-7 h-7 text-accent-cyan" />
               <span>Assessment &amp; Practice Reports</span>
             </h1>
             <p className="mt-1 text-sm text-ink-muted max-w-2xl">
@@ -164,7 +162,7 @@ function CandidateReportsContent() {
           {/* Quick Metrics Cards */}
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
             <div className="px-4 py-3 rounded-2xl bg-surface border border-line shadow-xs flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-accent-cyan">
+              <div className="w-10 h-10 rounded-xl bg-accent-cyan/10 flex items-center justify-center text-accent-cyan">
                 <BarChart3 className="w-5 h-5" />
               </div>
               <div>
@@ -174,7 +172,7 @@ function CandidateReportsContent() {
             </div>
 
             <div className="px-4 py-3 rounded-2xl bg-surface border border-line shadow-xs flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-accent-emerald">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-accent-emerald">
                 <Target className="w-5 h-5" />
               </div>
               <div>
@@ -189,14 +187,14 @@ function CandidateReportsContent() {
 
         {/* Tab Navigation Segmented Bar */}
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-surface-2 border border-slate-200 dark:border-line shadow-xs">
+          <div className="flex items-center p-1 rounded-2xl bg-surface-2 border border-line shadow-xs">
             <button
               type="button"
               onClick={() => setActiveTab('interviews')}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'interviews'
-                  ? 'bg-white dark:bg-surface text-blue-600 dark:text-accent-cyan shadow-sm border border-slate-200/80 dark:border-line/80'
-                  : 'text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink'
+                  ? 'bg-surface text-accent-cyan shadow-sm border border-line'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               <Video className="w-4 h-4" />
@@ -208,8 +206,8 @@ function CandidateReportsContent() {
               onClick={() => setActiveTab('practice')}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'practice'
-                  ? 'bg-white dark:bg-surface text-blue-600 dark:text-accent-cyan shadow-sm border border-slate-200/80 dark:border-line/80'
-                  : 'text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink'
+                  ? 'bg-surface text-accent-cyan shadow-sm border border-line'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               <Sparkles className="w-4 h-4" />
@@ -221,8 +219,8 @@ function CandidateReportsContent() {
               onClick={() => setActiveTab('aptitude')}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'aptitude'
-                  ? 'bg-white dark:bg-surface text-blue-600 dark:text-accent-cyan shadow-sm border border-slate-200/80 dark:border-line/80'
-                  : 'text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink'
+                  ? 'bg-surface text-accent-cyan shadow-sm border border-line'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               <Award className="w-4 h-4" />
@@ -232,7 +230,7 @@ function CandidateReportsContent() {
 
           <Link
             href="/candidate/practice"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Launch New Practice Drill</span>
@@ -244,12 +242,12 @@ function CandidateReportsContent() {
           <div className="space-y-4">
             {loading ? (
               <div className="rounded-2xl border border-line bg-surface p-16 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-blue-600 dark:text-accent-cyan animate-spin mx-auto" />
+                <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
                 <p className="text-sm text-ink-muted">Loading interview evaluation dossiers...</p>
               </div>
             ) : completedInterviews.length === 0 ? (
               <div className="rounded-2xl border border-line bg-surface p-12 text-center space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-600 flex items-center justify-center mx-auto">
+                <div className="w-14 h-14 rounded-2xl bg-accent-cyan/10 border border-accent-cyan/20 text-accent-cyan flex items-center justify-center mx-auto">
                   <Video className="w-7 h-7" />
                 </div>
                 <div>
@@ -262,11 +260,10 @@ function CandidateReportsContent() {
                 <div className="flex items-center justify-center gap-3 pt-2">
                   <Link
                     href="/candidate/practice"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs transition"
                   >
                     <span>Start Practice Interview</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
+                    </Link>
                   <Link
                     href="/candidate/interviews"
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-line bg-surface hover:bg-surface-2 text-ink text-xs font-semibold transition"
@@ -285,10 +282,10 @@ function CandidateReportsContent() {
                   return (
                     <div
                       key={session.id}
-                      className="rounded-2xl bg-surface border border-line p-6 hover:border-blue-500/40 transition-all shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
+                      className="rounded-2xl bg-surface border border-line p-6 hover:border-accent-cyan/40 transition-all shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex flex-col items-center justify-center font-mono font-extrabold text-blue-600 dark:text-accent-cyan shrink-0">
+                        <div className="w-14 h-14 rounded-2xl bg-accent-cyan/10 border border-accent-cyan/20 flex flex-col items-center justify-center font-mono font-extrabold text-accent-cyan shrink-0">
                           {scoreVal !== null ? (
                             <>
                               <span className="text-base leading-none">{scoreVal}%</span>
@@ -306,7 +303,7 @@ function CandidateReportsContent() {
                             </h3>
                             <RecommendationBadge recommendation={session.final_recommendation} />
                             {session.isPractice && (
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/10 text-purple-600 border border-purple-500/30">
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-accent-violet/10 text-accent-violet border border-accent-violet/30">
                                 AI PRACTICE MOCK
                               </span>
                             )}
@@ -326,10 +323,10 @@ function CandidateReportsContent() {
                       <div className="flex items-center gap-3 w-full md:w-auto justify-end">
                         <Link
                           href={reportUrl}
-                          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all"
+                          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-cyan-500/20 transition-all"
                         >
                           <FileText className="w-4 h-4" />
-                          <span>View Full Dossier &rarr;</span>
+                          <span>View Full Dossier</span>
                         </Link>
                       </div>
                     </div>
@@ -351,13 +348,13 @@ function CandidateReportsContent() {
               </div>
               <div className="p-4 rounded-2xl bg-surface border border-line shadow-xs">
                 <p className="text-xs text-ink-muted font-medium">Average Drill Accuracy</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-accent-emerald mt-1">
+                <p className="text-xl font-bold text-accent-emerald mt-1">
                   {practiceStats.averageScore ? `${Math.round(practiceStats.averageScore)}%` : '0%'}
                 </p>
               </div>
               <div className="p-4 rounded-2xl bg-surface border border-line shadow-xs">
                 <p className="text-xs text-ink-muted font-medium">Practice Time Invested</p>
-                <p className="text-xl font-bold text-blue-600 dark:text-accent-cyan mt-1">
+                <p className="text-xl font-bold text-accent-cyan mt-1">
                   {practiceStats.totalPracticeMinutes} minutes
                 </p>
               </div>
@@ -365,12 +362,12 @@ function CandidateReportsContent() {
 
             {loading ? (
               <div className="rounded-2xl border border-line bg-surface p-16 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-blue-600 dark:text-accent-cyan animate-spin mx-auto" />
+                <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
                 <p className="text-sm text-ink-muted">Loading practice evaluations...</p>
               </div>
             ) : drillAttempts.length === 0 && practiceInterviews.length === 0 ? (
               <div className="rounded-2xl border border-line bg-surface p-12 text-center space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-600 flex items-center justify-center mx-auto">
+                <div className="w-14 h-14 rounded-2xl bg-accent-violet/10 border border-purple-500/20 text-accent-violet flex items-center justify-center mx-auto">
                   <Sparkles className="w-7 h-7" />
                 </div>
                 <div>
@@ -383,7 +380,7 @@ function CandidateReportsContent() {
                 <div className="pt-2">
                   <Link
                     href="/candidate/practice"
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition"
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition"
                   >
                     <Sparkles className="w-4 h-4" />
                     <span>Launch Practice Lab</span>
@@ -405,7 +402,7 @@ function CandidateReportsContent() {
                           className="rounded-2xl bg-surface border border-line p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-purple-500/40 transition"
                         >
                           <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-600 font-mono font-bold">
+                            <div className="w-12 h-12 rounded-xl bg-accent-violet/10 border border-accent-violet/30 flex items-center justify-center text-accent-violet font-mono font-bold">
                               {m.score !== null && m.score !== undefined ? `${m.score}%` : 'MOCK'}
                             </div>
                             <div>
@@ -420,11 +417,10 @@ function CandidateReportsContent() {
 
                           <Link
                             href={m.reportUrl || `/candidate/interview/${m.sessionId}/report`}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30 text-xs font-bold transition"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-violet/10 hover:bg-accent-violet/20 text-accent-violet border border-accent-violet/30 text-xs font-bold transition"
                           >
                             <span>View Mock Report</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </Link>
+                            </Link>
                         </div>
                       ))}
                     </div>
@@ -441,19 +437,19 @@ function CandidateReportsContent() {
                       {drillAttempts.map((drill) => (
                         <div
                           key={drill.id}
-                          className="rounded-2xl bg-surface border border-line p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-blue-500/40 transition"
+                          className="rounded-2xl bg-surface border border-line p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-accent-cyan/40 transition"
                         >
                           <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-mono font-bold text-emerald-600 text-sm shrink-0">
+                            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-mono font-bold text-accent-emerald text-sm shrink-0">
                               {drill.score}%
                             </div>
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="font-bold text-ink text-sm">{drill.drillTitle}</h4>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 dark:bg-surface-2 text-slate-600 dark:text-ink-muted">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-surface-2 text-ink-muted">
                                   {drill.category}
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-500/10 text-blue-600">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-accent-cyan/10 text-accent-cyan">
                                   {drill.difficulty}
                                 </span>
                               </div>
@@ -474,7 +470,7 @@ function CandidateReportsContent() {
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-2 hover:bg-surface border border-line text-xs font-bold text-ink transition cursor-pointer"
                           >
                             <span>Review Turn Feedback</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
+            
                           </button>
                         </div>
                       ))}
@@ -491,7 +487,7 @@ function CandidateReportsContent() {
           <div className="space-y-4">
             {loading ? (
               <div className="rounded-2xl border border-line bg-surface p-16 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-blue-600 dark:text-accent-cyan animate-spin mx-auto" />
+                <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
                 <p className="text-sm text-ink-muted">Loading cognitive aptitude reports...</p>
               </div>
             ) : !aptitudeAttempts || aptitudeAttempts.length === 0 ? (
@@ -530,7 +526,7 @@ function CandidateReportsContent() {
                         <p className="text-xs text-ink-muted flex items-center gap-3 mt-1 font-mono">
                           <span>Accuracy: {attempt.accuracy}%</span>
                           <span>•</span>
-                          <span>Percentile: {attempt.percentile}%</span>
+                          <span>Percentile: {attempt.percentile != null ? `${attempt.percentile}%` : 'benchmarking'}</span>
                           <span>•</span>
                           <span>Trust Score: {attempt.trustScore}%</span>
                         </p>
@@ -539,7 +535,7 @@ function CandidateReportsContent() {
 
                     <Link
                       href={`/candidate/aptitude/test/${attempt.sessionId}/report`}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 text-xs font-bold transition"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-accent-amber border border-amber-500/30 text-xs font-bold transition"
                     >
                       <FileText className="w-3.5 h-3.5" />
                       <span>View Aptitude Report</span>
@@ -558,7 +554,7 @@ function CandidateReportsContent() {
           <div className="w-full max-w-2xl bg-surface rounded-2xl border border-line shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             <div className="p-5 border-b border-line flex items-center justify-between bg-surface-2">
               <div>
-                <span className="text-[10px] font-mono font-bold text-blue-600 uppercase">
+                <span className="text-[10px] font-mono font-bold text-accent-cyan uppercase">
                   {selectedDrill.category} Drill Evaluation
                 </span>
                 <h3 className="text-base font-bold text-ink">{selectedDrill.drillTitle}</h3>
@@ -575,10 +571,10 @@ function CandidateReportsContent() {
             <div className="p-6 overflow-y-auto space-y-6">
               <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                 <div>
-                  <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                  <p className="text-xs font-semibold text-accent-emerald">
                     Overall Accuracy &amp; Depth Score
                   </p>
-                  <p className="text-2xl font-extrabold text-emerald-600 mt-0.5">
+                  <p className="text-2xl font-extrabold text-accent-emerald mt-0.5">
                     {selectedDrill.score}%
                   </p>
                 </div>
@@ -599,7 +595,7 @@ function CandidateReportsContent() {
                   selectedDrill.turns.map((t, idx) => (
                     <div key={idx} className="p-4 rounded-xl bg-canvas border border-line space-y-3">
                       <div>
-                        <span className="text-[10px] font-mono font-bold text-blue-600">TURN {t.turnIndex || idx + 1}</span>
+                        <span className="text-[10px] font-mono font-bold text-accent-cyan">TURN {t.turnIndex || idx + 1}</span>
                         <p className="text-xs font-bold text-ink mt-0.5">{t.question}</p>
                       </div>
 
@@ -612,17 +608,17 @@ function CandidateReportsContent() {
 
                       {t.scores && (
                         <div className="flex items-center gap-3 text-[11px] font-mono pt-1">
-                          <span className="text-emerald-600">Relevance: {t.scores.relevance ?? '-'}/10</span>
+                          <span className="text-accent-emerald">Relevance: {t.scores.relevance ?? '-'}/10</span>
                           <span>•</span>
-                          <span className="text-blue-600">Depth: {t.scores.depth ?? '-'}/10</span>
+                          <span className="text-accent-cyan">Depth: {t.scores.depth ?? '-'}/10</span>
                           <span>•</span>
-                          <span className="text-purple-600">Correctness: {t.scores.correctness ?? '-'}/10</span>
+                          <span className="text-accent-violet">Correctness: {t.scores.correctness ?? '-'}/10</span>
                         </div>
                       )}
 
                       {t.feedback && (
-                        <p className="text-xs text-ink-muted bg-blue-500/5 border border-blue-500/20 p-2.5 rounded-lg">
-                          <strong className="text-blue-600 font-semibold">AI Feedback:</strong> {t.feedback}
+                        <p className="text-xs text-ink-muted bg-accent-cyan/5 border border-accent-cyan/20 p-2.5 rounded-lg">
+                          <strong className="text-accent-cyan font-semibold">AI Feedback:</strong> {t.feedback}
                         </p>
                       )}
                     </div>

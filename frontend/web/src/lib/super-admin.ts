@@ -10,6 +10,7 @@ import {
   BookOpen,
   Briefcase,
   Building2,
+  Coins,
   CreditCard,
   Database,
   FileText,
@@ -63,6 +64,7 @@ export const SUPER_ADMIN_NAV: SuperAdminNavGroup[] = [
       { label: 'AI Configuration', href: '/super-admin/ai-config', icon: Sparkles, description: 'Providers, models and rubric governance' },
       { label: 'Skills & Practice Catalog', href: '/super-admin/catalog', icon: BookOpen, description: 'Manage candidate skill taxonomy and practice drills without deployment' },
       { label: 'Billing & Usage Center', href: '/super-admin/billing', icon: CreditCard, description: 'Enterprise wallets, metering, ledger & invoices' },
+      { label: 'Cost & Spend', href: '/super-admin/cost-insights', icon: Coins, description: 'Provider spend, LLM unit economics & rate card governance' },
       { label: 'Usage & Analytics', href: '/super-admin/usage', icon: BarChart3, description: 'Interview throughput and platform usage' },
       { label: 'System Health', href: '/super-admin/system-health', icon: Activity, description: 'Dependency availability and integrations' },
       { label: 'Platform Settings', href: '/super-admin/settings', icon: Settings, description: 'Feature flags, limits and security policy' },
@@ -203,6 +205,13 @@ export type UsageAnalytics = {
   roleBreakdown: Array<{ role: string; count: number }>;
   daily: Array<{ date: string; count: number }>;
   topOrganizations: Array<{ orgId: string; name: string; interviews: number; completed: number }>;
+  aptitude?: {
+    sessions: number;
+    completed: number;
+    avgScore: number | null;
+    avgAccuracy: number | null;
+    events: Array<{ name: string; count: number }>;
+  };
 };
 
 export type DataGovernance = {

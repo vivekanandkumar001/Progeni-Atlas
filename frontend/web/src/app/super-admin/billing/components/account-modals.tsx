@@ -250,7 +250,7 @@ export function AccountModals({
             </div>
 
             <div className="mt-4 space-y-4 text-xs">
-              <div className="rounded-xl bg-rose-500/10 p-3 text-accent-rose border border-rose-500/20">
+              <div className="rounded-xl bg-rose-500/10 p-3 text-accent-rose">
                 Refunds deduct from available wallet balance and record an immutable negative entry in
                 the ledger. Maximum refundable balance:{' '}
                 <span className="font-mono font-bold">
@@ -354,7 +354,7 @@ export function AccountModals({
                 </p>
               </div>
 
-              <div className="rounded-xl border border-line bg-surface-2 p-3 space-y-3">
+              <div className="rounded-xl bg-surface-2 p-3 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-ink">Authorized Auto-Recharge</span>
                   <input

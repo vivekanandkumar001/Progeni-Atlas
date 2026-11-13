@@ -25,7 +25,7 @@ export default function RootError({
     <main className="flex min-h-screen w-full items-center justify-center bg-canvas px-4 py-16">
       <Card className="w-full max-w-lg p-8 text-center sm:p-10">
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/10">
-          <AlertTriangle className="h-8 w-8 text-rose-400" aria-hidden="true" />
+          <AlertTriangle className="h-8 w-8 text-accent-rose" aria-hidden="true" />
         </div>
 
         <h1 className="text-xl font-bold text-ink sm:text-2xl">Something went wrong</h1>

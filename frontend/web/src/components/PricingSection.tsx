@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Check, ArrowRight } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 interface PricingPlan {
   id?: string;
@@ -232,12 +232,11 @@ export const PricingSection: React.FC = () => {
                 className={`w-full py-2.5 rounded-xl text-center text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                   plan.popular
                     ? 'btn-primary-gradient text-white shadow-md'
-                    : 'border border-[#072448] text-[#072448] hover:bg-slate-100'
+                    : 'border border-[#072448] text-[#072448] hover:bg-surface-2'
                 }`}
               >
                 <span>{plan.cta}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+                </Link>
             </motion.div>
           ))}
         </div>

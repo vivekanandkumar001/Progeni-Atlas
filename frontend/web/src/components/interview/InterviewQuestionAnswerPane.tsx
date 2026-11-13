@@ -144,14 +144,14 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
             <span className="text-xs font-mono font-medium text-cyan-800 ">Sarah is formulating the next question...</span>
           </div>
         ) : (
-          <div className="p-3.5 rounded-xl bg-inset border border-line text-xs sm:text-sm text-ink leading-relaxed font-sans font-medium">
+          <div className="p-3.5 rounded-xl bg-inset text-xs sm:text-sm text-ink leading-relaxed font-sans font-medium">
             {currentQuestion}
           </div>
         )}
 
         {/* Practice Feedback Banner */}
         {practiceFeedback && (
-          <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-xs text-indigo-900  space-y-1">
+          <div className="p-3.5 rounded-xl bg-indigo-500/10 text-xs text-indigo-900 space-y-1">
             <div className="flex items-center gap-1.5 font-bold text-indigo-700 ">
               <Sparkles className="w-4 h-4" />
               <span>Interviewer Notes:</span>
@@ -251,7 +251,7 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
           isSpeechRecognizing) &&
           !isUserEditingRef.current &&
           (liveTranscript || liveInterimTranscript) && (
-            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-xs font-mono text-cyan-950 ">
+            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-cyan-500/15 text-xs font-mono text-cyan-950">
               <span className="w-2 h-2 rounded-full bg-cyan-600  animate-ping shrink-0" />
               <span className="text-[11px] font-bold text-cyan-800  uppercase tracking-wider shrink-0">
                 Live Preview:
@@ -267,7 +267,7 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
 
         {/* Thinking & Silence Auto-Submit Reassurance Banner */}
         {autoSubmitPending && (
-          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs text-ink transition-all shadow-sm">
+          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-cyan-500/10 text-xs text-ink transition-all shadow-sm">
             <div className="flex items-center gap-2 min-w-0">
               <Clock className="w-4 h-4 text-cyan-400 shrink-0 animate-pulse" />
               <span className="truncate">
@@ -298,7 +298,7 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
         )}
 
         {isThinkingPaused && (
-          <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 transition-all">
+          <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-amber-500/10 text-xs text-amber-300 transition-all">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
               <span>Thinking buffer active — take your time. Auto-submit is paused.</span>
@@ -421,7 +421,7 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
 
           {/* Explicit Retry Banner on Evaluation Error */}
           {apiError && candidateAnswer.trim() && (
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-200">
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-500/10 text-xs text-rose-200">
               <span className="truncate flex-1">Submission error. Your answer is preserved.</span>
               <button
                 type="button"

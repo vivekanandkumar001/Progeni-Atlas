@@ -67,7 +67,7 @@ function getNotificationVisuals(type: string) {
   }
   return {
     icon: ShieldCheck,
-    badge: 'border-blue-500/30 bg-blue-500/10 text-blue-600',
+    badge: 'border-blue-500/30 bg-blue-500/10 text-accent-blue',
   };
 }
 
@@ -79,34 +79,46 @@ export const RecruiterHeader: React.FC = () => {
   const [notifications, setNotifications] = useState<RecruiterNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load user details
+  // Load user details — prefer cached profile; otherwise resolve from the
+  // server (never fall back to another person's name).
   useEffect(() => {
+    let cancelled = false;
+    const applyName = (raw: any) => {
+      const u = raw || {};
+      let name = String(u.fullName || u.name || u.full_name || '').trim();
+      if (!name && u.email) {
+        const prefix = String(u.email).split('@')[0].replace(/\d+/g, '').replace(/[._]/g, ' ').replace(/[-_]/g, ' ').trim();
+        name = prefix.replace(/\b\w/g, (c: string) => c.toUpperCase());
+      }
+      name = name || 'Recruiter';
+      if (cancelled) return;
+      setUserName(name);
+      const initials =
+        name
+          .split(' ')
+          .filter(Boolean)
+          .map((n: string) => n[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase() || 'RC';
+      setUserInitials(initials);
+    };
     try {
       const raw = typeof window !== 'undefined' ? window.localStorage.getItem('tp_user') : null;
       if (raw) {
-        const u = JSON.parse(raw);
-        let name = (u.fullName || u.name || '').trim();
-        name = name.replace(/\d+$/, '').trim();
-        if (name.toLowerCase() === 'vivekanandkumar') {
-          name = 'Vivekanand Kumar';
-        }
-        if (!name && u.email) {
-          const prefix = String(u.email).split('@')[0].replace(/\d+/g, '').replace(/[._]/g, ' ').trim();
-          name = prefix.toLowerCase().includes('vivekanand') ? 'Vivekanand Kumar' : prefix.replace(/\b\w/g, (c: string) => c.toUpperCase());
-        }
-        name = name || 'Vivekanand Kumar';
-        setUserName(name);
-        const initials =
-          name
-            .split(' ')
-            .filter(Boolean)
-            .map((n: string) => n[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase() || 'VK';
-        setUserInitials(initials);
+        applyName(JSON.parse(raw));
+        return () => { cancelled = true; };
       }
-    } catch {}
+    } catch { }
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' });
+        if (!res.ok) return;
+        const body = await res.json().catch(() => null);
+        applyName(body?.user ?? body);
+      } catch { }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Fetch real notifications from backend
@@ -204,7 +216,7 @@ export const RecruiterHeader: React.FC = () => {
               <button
                 type="button"
                 onClick={handleMarkAllRead}
-                className="text-[11px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                className="text-[11px] font-semibold text-accent-blue hover:underline cursor-pointer"
               >
                 Mark all as read
               </button>
@@ -240,7 +252,7 @@ export const RecruiterHeader: React.FC = () => {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-1">
-                      <p className="text-xs font-semibold text-ink group-hover:text-blue-600 transition-colors">
+                      <p className="text-xs font-semibold text-ink group-hover:text-accent-blue transition-colors">
                         {item.title}
                       </p>
                       {!item.is_read && (

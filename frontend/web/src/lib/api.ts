@@ -35,11 +35,8 @@ export function getActiveUserScope(): string {
       const idOrEmail = userObj?.id || userObj?._id || userObj?.email;
       if (idOrEmail) return String(idOrEmail).trim().toLowerCase();
     }
-    const emailCookie = document.cookie.match(/(?:^|;\s*)tp_email=([^;]+)/);
-    if (emailCookie && emailCookie[1]) {
-      return decodeURIComponent(emailCookie[1]).trim().toLowerCase();
-    }
   } catch { }
+  // 'anon' scope is NEVER cached (see apiJson) — a logged-out tab must never share a cache bucket
   return 'anon';
 }
 
@@ -58,11 +55,23 @@ export function clearSession(): void {
     try {
       window.localStorage.removeItem(USER_KEY);
       window.localStorage.removeItem('tp_token');
+      window.localStorage.removeItem('tp_email');
     } catch { }
     try {
       document.cookie = 'tp_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
       document.cookie = 'tp_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
       document.cookie = 'tp_refresh=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      document.cookie = 'tp_email=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    } catch { }
+    // Privileged support-grant marker must not leak into the next session in this tab
+    try {
+      window.sessionStorage.removeItem('tp_support_reason');
+      const audioKeys: string[] = [];
+      for (let i = 0; i < window.sessionStorage.length; i += 1) {
+        const k = window.sessionStorage.key(i);
+        if (k && (k.startsWith('tp_audio_unlocked_') || k.startsWith('tp_pending_uploads'))) audioKeys.push(k);
+      }
+      audioKeys.forEach((k) => window.sessionStorage.removeItem(k));
     } catch { }
     try { window.dispatchEvent(new Event('tp_auth_change')); } catch { }
   }
@@ -95,30 +104,18 @@ export function getAccessToken(): string | null {
 
 export function getRefreshToken(): string | null { return null; }
 
-/** Stores user display data and sets session cookies for Edge middleware. */
-export function persistSession(accessToken?: string, _refreshToken?: string, user?: Record<string, unknown>): void {
+/**
+ * Stores user *display* data. Session cookies are intentionally NOT (re)written from JS —
+ * the backend sets tp_session/tp_role as HttpOnly cookies, and re-writing them via
+ * document.cookie would strip the HttpOnly protection (XSS → token theft).
+ */
+export function persistSession(_accessToken?: string, _refreshToken?: string, user?: Record<string, unknown>): void {
   // Purge any stale cache from a previous session to prevent cross-user data leakage
   invalidateApiCache();
   if (typeof window !== 'undefined') {
     if (user) {
       try {
         window.localStorage.setItem(USER_KEY, JSON.stringify(user));
-        const email = (user as any)?.email;
-        if (email) {
-          document.cookie = `tp_email=${encodeURIComponent(String(email))}; path=/; max-age=604800; SameSite=Lax`;
-        }
-      } catch { }
-    }
-    const token = accessToken || (user as any)?.token || (user as any)?.access_token;
-    if (token) {
-      try {
-        document.cookie = `tp_session=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
-      } catch { }
-    }
-    const role = (user as any)?.role;
-    if (role) {
-      try {
-        document.cookie = `tp_role=${encodeURIComponent(String(role))}; path=/; max-age=604800; SameSite=Lax`;
       } catch { }
     }
     try { window.dispatchEvent(new Event('tp_auth_change')); } catch { }
@@ -174,7 +171,7 @@ async function retryAfterRefresh(
   const newToken = await refreshAccessToken();
   if (newToken) {
     const retryHeaders = new Headers(init.headers);
-    return fetch(getApiUrl(path), { ...init, headers: retryHeaders, credentials: 'include', cache });
+    return fetch(getApiUrl(path), { ...init, headers: retryHeaders, credentials: 'include', cache: cache ?? 'no-store' });
   }
 
   // Session expired: return a clear 401 Response object so callers can display an explicit error banner
@@ -213,7 +210,17 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
     }
   }
 
-  const response = await fetch(getApiUrl(path), { ...init, headers: reqHeaders, credentials: 'include' });
+  // Mutations invalidate the shared response cache so the UI never shows stale pre-mutation data
+  if (init.method && init.method.toUpperCase() !== 'GET') {
+    invalidateApiCache();
+  }
+
+  const response = await fetch(getApiUrl(path), {
+    credentials: 'include',
+    cache: 'no-store',
+    ...init,
+    headers: reqHeaders,
+  });
 
   const isAuthEntrypoint =
     path.includes('/api/auth/login') ||
@@ -576,6 +583,9 @@ function _loggerException(e: unknown) {
 const responseCache = loadPersistentCache();
 // In-memory active in-flight GET requests map (deduplicates concurrent requests across components)
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
+// Bumped by invalidateApiCache(); async completions check it so they never resurrect
+// entries that were purged while their fetch was in flight.
+let cacheGeneration = 0;
 
 function getTtlForPath(path: string): number {
   // Active interview / real-time endpoints -> NEVER CACHE (0 TTL)
@@ -594,6 +604,11 @@ function getTtlForPath(path: string): number {
     path.includes('/finish')
   ) {
     return 0;
+  }
+
+  // Wallet summary -> 60s (it's polled by the header; must not bypass the cache)
+  if (path.includes('/billing/wallet') && !path.includes('/transactions')) {
+    return 60_000;
   }
 
   // Profile & stable reference data -> 60s
@@ -620,6 +635,7 @@ function getTtlForPath(path: string): number {
 }
 
 export function invalidateApiCache(prefixOrPattern?: string): void {
+  cacheGeneration += 1;
   if (!prefixOrPattern) {
     responseCache.clear();
     try { sessionStorage.removeItem('api_cache'); } catch { }
@@ -650,7 +666,7 @@ export function invalidateApiCache(prefixOrPattern?: string): void {
  * Authenticated JSON request against the FastAPI backend.
  *
  * Resolves to `null` on any non-2xx response or transport failure. Callers MUST
- * treat `null` as "no data available" and render an empty state ΓÇö never as a
+ * treat `null` as "no data available" and render an empty state – never as a
  * reason to substitute invented values.
  */
 export async function apiJson<T>(
@@ -677,10 +693,12 @@ export async function apiJson<T>(
   }
 
   const userScope = getActiveUserScope();
+  // Logged-out tabs share no cache bucket — 'anon' responses are never reused across callers
+  const cacheable = userScope !== 'anon';
   const cacheKey = `${userScope}::${path}`;
 
   // 1. FAST-PATH FOR GET: Check in-memory / persistent cache FIRST before dispatching any fetch
-  if (isGet && !init.body && !options.skipCache) {
+  if (isGet && !init.body && !options.skipCache && cacheable) {
     const ttlMs = getTtlForPath(path);
     if (ttlMs > 0) {
       const cached = responseCache.get(cacheKey);
@@ -697,6 +715,7 @@ export async function apiJson<T>(
   }
 
   // 3. Initiate network fetch only when cache misses and no request is in-flight
+  const generationAtFetch = cacheGeneration;
   const fetchPromise = (async (): Promise<T | null> => {
     const headers = new Headers(init.headers);
     if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
@@ -708,22 +727,7 @@ export async function apiJson<T>(
         headers.set('Authorization', `Bearer ${token}`);
       }
     }
-    if (typeof window !== 'undefined') {
-      try {
-        const rawUser = window.localStorage.getItem(USER_KEY);
-        if (rawUser) {
-          const userObj = JSON.parse(rawUser);
-          if (userObj?.email && !headers.has('X-User-Email')) {
-            headers.set('X-User-Email', String(userObj.email).trim().toLowerCase());
-            headers.set('X-Candidate-Email', String(userObj.email).trim().toLowerCase());
-          }
-          if (userObj?.id && !headers.has('X-User-Id')) {
-            headers.set('X-User-Id', String(userObj.id).trim());
-            headers.set('X-Candidate-Id', String(userObj.id).trim());
-          }
-        }
-      } catch { }
-    }
+    // Identity is resolved server-side from the verified JWT — no client-supplied identity headers
 
     try {
       const res = await fetch(getApiUrl(path), { ...init, headers, credentials: 'include', cache: 'no-store' });
@@ -747,8 +751,9 @@ export async function apiJson<T>(
       if (!contentType.includes('application/json')) return null;
       const data = (await res.json()) as T;
 
-      // Cache successful GET responses strictly bound to active user scope
-      if (isGet && !init.body && data !== null && !options.skipCache) {
+      // Cache successful GET responses strictly bound to the active user scope,
+      // and only if the cache was not invalidated while this request was in flight.
+      if (isGet && !init.body && data !== null && !options.skipCache && cacheable && generationAtFetch === cacheGeneration) {
         const ttlMs = getTtlForPath(path);
         if (ttlMs > 0) {
           responseCache.set(cacheKey, {
@@ -774,7 +779,7 @@ export async function apiJson<T>(
     }
   })();
 
-  if (isGet && !init.body && !options.skipCache) {
+  if (isGet && !init.body && !options.skipCache && cacheable) {
     inFlightGetRequests.set(cacheKey, fetchPromise as Promise<unknown>);
   }
 
@@ -1129,7 +1134,7 @@ export async function runInterviewPreflight(
           : `HTTP ${res.status}`;
     // Surface every failed check, not just the summary line, so the room can
     // show the candidate the exact media reason preflight was rejected.
-    const message = failures.length > 0 ? `${base} ΓÇö ${failures.join('; ')}` : base;
+    const message = failures.length > 0 ? `${base} – ${failures.join('; ')}` : base;
     const errorObj = new Error(message) as Error & { status_code?: number; current_state?: string };
     errorObj.status_code = res.status;
     errorObj.current_state = typeof err.current_state === 'string' ? err.current_state : undefined;
@@ -1261,7 +1266,7 @@ export async function speakInterviewText(
     const err = await res.json().catch(() => ({}) as Record<string, unknown>);
     const serverMessage = typeof err.error === 'string' ? err.error : typeof err.detail === 'string' ? err.detail : '';
     const failure = new Error(
-      serverMessage || 'The interviewerΓÇÖs voice is temporarily unavailable. Please use Replay to try again.',
+      serverMessage || 'The interviewer’s voice is temporarily unavailable. Please use Replay to try again.',
     ) as VoiceFailure;
     failure.errorCode = typeof err.error_code === 'string' ? err.error_code : undefined;
     failure.retryable = typeof err.retryable === 'boolean' ? err.retryable : res.status !== 503;
@@ -1272,7 +1277,7 @@ export async function speakInterviewText(
   const contentType = res.headers.get('content-type') || '';
   if (!contentType.toLowerCase().startsWith('audio/')) {
     const failure = new Error(
-      'The interviewerΓÇÖs voice could not be loaded. Please use Replay to try again.',
+      'The interviewer’s voice could not be loaded. Please use Replay to try again.',
     ) as VoiceFailure;
     failure.errorCode = 'speech_invalid_content_type';
     failure.retryable = true;
@@ -1281,7 +1286,7 @@ export async function speakInterviewText(
 
   const blob = await res.blob();
   if (blob.size === 0) {
-    const failure = new Error('The interviewerΓÇÖs voice came back empty. Please use Replay to try again.') as VoiceFailure;
+    const failure = new Error('The interviewer’s voice came back empty. Please use Replay to try again.') as VoiceFailure;
     failure.errorCode = 'speech_empty_audio';
     failure.retryable = true;
     throw failure;
@@ -1439,9 +1444,7 @@ export interface CandidateEvaluationReport {
 }
 
 export async function fetchRecruiterLiveToken(sessionId: string): Promise<RecruiterLiveTokenResponse> {
-  const res = await apiFetch(`/api/v1/interview-sessions/${sessionId}/recruiter-viewer-token`, {
-    method: 'POST',
-  });
+  const res = await apiFetch(`/api/v1/interview-sessions/${sessionId}/recruiter-viewer-token`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const message = err.error || err.detail || `Failed to fetch live monitoring token (${res.status})`;
@@ -1622,8 +1625,17 @@ export interface AptitudeScorecard {
   unanswered: number;
   accuracyPercent: number;
   trustScore: number;
+  integrityVerdict?: 'clean' | 'review' | 'flagged';
   speedIndex: string;
+  avgSecondsPerQuestion?: number;
+  accuracyVsSpeed?: 'fast_accurate' | 'fast_careless' | 'slow_accurate' | 'slow_careless';
   sectionBreakdown: Record<string, { total: number; attempted: number; correct: number; timeSpent: number }>;
+  sectionalPercentile?: Record<string, number | null>;
+  benchmarkScore?: number;
+  radar?: Array<{ pillar: string; score: number; benchmark: number }>;
+  deltaVsPrevious?: number | null;
+  percentileBasis?: 'norm_pool' | 'insufficient_pool';
+  normPoolSize?: number;
   review: AptitudeReviewItem[];
   generatedAt: string;
 }
@@ -1637,6 +1649,7 @@ export interface AptitudeReportResponse {
   status: string;
   telemetry: Record<string, unknown>;
   scorecard: AptitudeScorecard;
+  abVariant?: 'A' | 'B';
 }
 
 export interface AptitudeAttemptHistory {
@@ -1646,9 +1659,13 @@ export interface AptitudeAttemptHistory {
   status: string;
   score: number;
   accuracy: number;
-  percentile: number;
+  percentile: number | null;
+  percentileBasis?: 'norm_pool' | 'insufficient_pool';
+  normPoolSize?: number;
   trustScore: number;
+  integrityVerdict?: 'clean' | 'review' | 'flagged';
   speedIndex: string;
+  deltaVsPrevious?: number | null;
 }
 
 export async function fetchAptitudeTemplates(): Promise<AptitudeTemplate[]> {
@@ -1739,6 +1756,18 @@ export async function submitAptitudeTest(sessionId: string): Promise<AptitudeSco
     return data.scorecard || null;
   } catch {
     return null;
+  }
+}
+
+export async function logAptitudeEvent(name: 'report_view' | 'retake_click' | 'share_click' | 'pdf_download', sessionId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch('/api/aptitude/events', {
+      method: 'POST',
+      body: JSON.stringify({ name, sessionId }),
+    });
+    return res.ok;
+  } catch {
+    return false;
   }
 }
 

@@ -644,7 +644,7 @@ export default function SuperAdminPackagesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-ink-muted mb-1">
                     Recruiter Seats
@@ -876,7 +876,7 @@ export default function SuperAdminPackagesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-ink-muted mb-1">
                     Recruiter Seats

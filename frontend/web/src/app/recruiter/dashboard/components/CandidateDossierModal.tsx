@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+﻿import type { Dispatch, SetStateAction } from 'react';
 import Link from 'next/link';
 import { Brain, Calendar, CheckCircle2, Download, Radio, Sparkles, Video, X } from 'lucide-react';
 import { formatInterviewDateTime, getStudentStatus, isPastUnconducted } from '@/lib/recruiter-dashboard';
@@ -80,7 +80,7 @@ export function CandidateDossierModal({
  </div>
 
  {/* OVERALL MATCH SCORE & SCORE SLIDERS */}
- <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 bg-inset p-5 rounded-2xl border border-line">
+ <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 bg-inset p-5 rounded-2xl">
  <div className="flex flex-col items-center justify-center border-b sm:border-b-0 sm:border-r border-line pb-4 sm:pb-0 pr-0 sm:pr-4">
  <span className="text-xs text-ink-muted font-medium">Overall Match Score</span>
  <div className="text-4xl font-extrabold text-accent-indigo font-mono mt-1">
@@ -133,7 +133,7 @@ export function CandidateDossierModal({
  </div>
 
  {/* COGNITIVE & APTITUDE SCREENING CARD */}
- <div className="bg-inset p-5 rounded-2xl border border-line space-y-3">
+ <div className="bg-inset p-5 rounded-2xl space-y-3">
    <div className="flex items-center justify-between">
      <div className="flex items-center gap-2">
        <Brain className="w-4 h-4 text-accent-cyan" />
@@ -152,21 +152,35 @@ export function CandidateDossierModal({
 
    {selectedCandidate.aptitudeScore ? (
      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-       <div className="p-3 rounded-xl bg-surface border border-line text-center">
+       <div className="p-3 rounded-xl bg-surface text-center">
          <span className="text-[10px] font-mono text-ink-muted uppercase block">Aptitude Score</span>
          <span className="text-xl font-extrabold text-accent-cyan font-mono">{selectedCandidate.aptitudeScore.overallScore}%</span>
        </div>
-       <div className="p-3 rounded-xl bg-surface border border-line text-center">
+       <div className="p-3 rounded-xl bg-surface text-center">
          <span className="text-[10px] font-mono text-ink-muted uppercase block">Cognitive Rank</span>
-         <span className="text-xl font-extrabold text-purple-400 font-mono">{selectedCandidate.aptitudeScore.percentile}th</span>
+         <span className="text-xl font-extrabold text-accent-violet font-mono">
+           {selectedCandidate.aptitudeScore.percentile != null ? `${selectedCandidate.aptitudeScore.percentile}th` : '—'}
+         </span>
+         <span className="text-[9px] text-ink-faint block mt-0.5">
+           {selectedCandidate.aptitudeScore.percentileBasis === 'norm_pool'
+             ? `vs ${selectedCandidate.aptitudeScore.normPoolSize ?? 0} attempts`
+             : 'Benchmarking — pool < 30'}
+         </span>
        </div>
-       <div className="p-3 rounded-xl bg-surface border border-line text-center">
+       <div className="p-3 rounded-xl bg-surface text-center">
          <span className="text-[10px] font-mono text-ink-muted uppercase block">Accuracy</span>
-         <span className="text-xl font-extrabold text-emerald-400 font-mono">{selectedCandidate.aptitudeScore.accuracy}%</span>
+         <span className="text-xl font-extrabold text-accent-emerald font-mono">{selectedCandidate.aptitudeScore.accuracy}%</span>
        </div>
-       <div className="p-3 rounded-xl bg-surface border border-line text-center">
+       <div className="p-3 rounded-xl bg-surface text-center">
          <span className="text-[10px] font-mono text-ink-muted uppercase block">Proctoring Trust</span>
-         <span className="text-xl font-extrabold text-teal-400 font-mono">{selectedCandidate.aptitudeScore.trustScore}%</span>
+         <span className="text-xl font-extrabold text-accent-emerald font-mono">{selectedCandidate.aptitudeScore.trustScore}%</span>
+         <span className="text-[9px] block mt-0.5">
+           {(() => {
+             const v = selectedCandidate.aptitudeScore.integrityVerdict;
+             const cls = v === 'flagged' ? 'text-accent-rose' : v === 'review' ? 'text-accent-amber' : 'text-accent-emerald';
+             return <span className={cls}>{v === 'flagged' ? 'Flagged' : v === 'review' ? 'Review' : 'Clean'}</span>;
+           })()}
+         </span>
        </div>
      </div>
    ) : (
@@ -182,7 +196,7 @@ export function CandidateDossierModal({
  <Sparkles className="w-4 h-4 text-accent-indigo"/>
  AI Evaluation Executive Summary
  </h3>
- <p className="text-xs text-ink leading-relaxed bg-inset p-4 rounded-xl border border-line">
+ <p className="text-xs text-ink leading-relaxed bg-inset p-4 rounded-xl">
  {selectedCandidate.summary ||'Not evaluated yet'}
  </p>
  </div>
@@ -231,7 +245,7 @@ export function CandidateDossierModal({
  {(selectedCandidate.status?.toLowerCase().includes('progress') || selectedCandidate.status?.toLowerCase().includes('live')) ? (
  <Link
  href={`/recruiter/interview/${selectedCandidate.sessionId || selectedCandidate.id}/live`}
- className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition-all shadow-md"
+ className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-accent-rose border border-rose-500/40 text-xs font-bold transition-all shadow-md"
  >
  <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping"/>
  <span>Open Live Monitor</span>
@@ -278,7 +292,7 @@ export function CandidateDossierModal({
  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink text-xs font-semibold cursor-pointer border border-line"
  title="Download verified PDF Candidate Dossier"
  >
- <Download className="w-4 h-4 text-emerald-400"/>
+ <Download className="w-4 h-4 text-accent-emerald"/>
  <span>Download PDF Dossier</span>
  </button>
 
@@ -302,7 +316,7 @@ export function CandidateDossierModal({
  }}
  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-400 hover:to-cyan-400 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 cursor-pointer transition-all"
  >
- <span>Shortlist & Advance to Panel →</span>
+ <span>Shortlist & Advance to Panel </span>
  </button>
 </div>
  </div>

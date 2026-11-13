@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Share2, Download, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Share2, Download, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { USER_KEY } from '@/lib/api';
 
 interface ReportHeaderToolbarProps {
@@ -58,7 +58,6 @@ export const ReportHeaderToolbar: React.FC<ReportHeaderToolbarProps> = ({
           href={dashboardHref}
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-2 border border-line text-xs font-medium text-ink-muted hover:text-accent-cyan transition-all group"
         >
-          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
           <span>Return to Dashboard</span>
         </Link>
 
@@ -86,11 +85,11 @@ export const ReportHeaderToolbar: React.FC<ReportHeaderToolbarProps> = ({
         </div>
 
         {/* Right Toolbar Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <button
             type="button"
             onClick={handleShareLink}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface hover:bg-surface-2 border border-line text-ink text-xs font-medium transition-colors cursor-pointer"
+            className="inline-flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-surface hover:bg-surface-2 border border-line text-ink text-xs font-medium transition-colors cursor-pointer"
           >
             <Share2 className="w-4 h-4 text-accent-cyan" />
             <span>Share This Report</span>
@@ -100,7 +99,7 @@ export const ReportHeaderToolbar: React.FC<ReportHeaderToolbarProps> = ({
             type="button"
             onClick={onDownloadPdf}
             disabled={isDownloadingPdf}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-medium text-xs transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
+            className="inline-flex flex-1 sm:flex-none items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-medium text-xs transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
           >
             <Download className="w-4 h-4" />
             <span>{isDownloadingPdf ? 'Preparing…' : 'Print / Save as PDF'}</span>

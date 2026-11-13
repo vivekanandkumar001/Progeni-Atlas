@@ -105,7 +105,7 @@ export function LedgerTab({
         </div>
 
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full min-w-[900px] text-left text-xs">
             <thead>
               <tr className="border-b border-line text-ink-muted">
                 <th className="pb-3 font-semibold">Tx Reference</th>

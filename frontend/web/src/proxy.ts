@@ -82,6 +82,7 @@ function redirectToLogin(request: NextRequest, expired: boolean): NextResponse {
   response.cookies.delete('tp_session');
   response.cookies.delete('tp_role');
   response.cookies.delete('tp_refresh');
+  response.cookies.delete('tp_email');
   return response;
 }
 
@@ -166,9 +167,9 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const rawRole = request.cookies.get('tp_role')?.value;
-  const cookieRole = rawRole ? decodeURIComponent(rawRole).replace(/^"|"$/g, '').toLowerCase().trim() : null;
-  const effectiveRole = (payload?.role ? String(payload.role) : (cookieRole || '')).toLowerCase().trim() || null;
+  // Role is taken ONLY from the session token payload — never from the JS-writable tp_role cookie.
+  // (The backend enforces the real role on every API request from the database; this layer is UX routing.)
+  const effectiveRole = (payload?.role ? String(payload.role) : '').toLowerCase().trim() || null;
 
   // A session is truly authenticated ONLY if we have a parsed payload, valid role, and not expired
   const isAuthenticated = Boolean(
@@ -205,6 +206,7 @@ export async function proxy(request: NextRequest) {
       res.cookies.delete('tp_session');
       res.cookies.delete('tp_role');
       res.cookies.delete('tp_refresh');
+      res.cookies.delete('tp_email');
     }
     for (const c of newSetCookies) res.headers.append('set-cookie', c);
     return res;
@@ -254,6 +256,7 @@ export async function proxy(request: NextRequest) {
       response.cookies.delete('tp_session');
       response.cookies.delete('tp_role');
       response.cookies.delete('tp_refresh');
+      response.cookies.delete('tp_email');
       return response;
     }
   }

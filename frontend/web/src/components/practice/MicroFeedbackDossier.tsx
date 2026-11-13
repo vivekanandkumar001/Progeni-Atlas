@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { MicroFeedbackReport } from '@/types/practice';
-import { CheckCircle2, AlertTriangle, BookOpen, RotateCcw, ArrowLeft, Award } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, BookOpen, RotateCcw, Award } from 'lucide-react';
 
 interface MicroFeedbackDossierProps {
   report: MicroFeedbackReport;
@@ -101,7 +101,6 @@ export const MicroFeedbackDossier: React.FC<MicroFeedbackDossierProps> = ({
           onClick={onReturnToDrills}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-medium text-xs transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" />
           <span>Save & Return to Drills</span>
         </button>
       </div>

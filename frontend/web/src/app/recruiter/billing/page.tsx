@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { RecruiterHeader } from '@/components/dashboard/RecruiterHeader';
@@ -6,8 +6,6 @@ import { apiFetch } from '@/lib/api';
 import {
  Wallet,
  CreditCard,
- ArrowUpRight,
- ArrowDownLeft,
  RefreshCw,
  Plus,
  ShieldCheck,
@@ -205,21 +203,21 @@ export default function RecruiterBillingPage() {
 
 
    return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-inset text-ink font-sans selection:bg-blue-600 selection:text-white">
       <RecruiterHeader />
 
       <main className="max-w-7xl xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-7">
         {/* Page Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-line pb-6">
           <div>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/80 shadow-xs">
+              <div className="p-2 rounded-xl bg-blue-50 text-accent-blue border border-blue-200/80 shadow-xs">
                 <Wallet className="h-5 w-5" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Organization Wallet & Billing</h1>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                  Prepaid credit accounting convention: <strong className="text-slate-700">₹1.00 = 1 Credit</strong>. Transparent, duration-based billing.
+                <h1 className="text-2xl font-bold tracking-tight text-ink">Organization Wallet & Billing</h1>
+                <p className="text-xs sm:text-sm text-ink-faint mt-0.5">
+                  Prepaid credit accounting convention: <strong className="text-ink-muted">₹1.00 = 1 Credit</strong>. Transparent, duration-based billing.
                 </p>
               </div>
             </div>
@@ -229,9 +227,9 @@ export default function RecruiterBillingPage() {
             <button
               onClick={() => void loadWallet()}
               disabled={loading}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs transition cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-line bg-surface hover:bg-inset text-ink-muted shadow-xs transition cursor-pointer"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-accent-blue' : 'text-ink-faint'}`} />
               Refresh
             </button>
             <button
@@ -261,7 +259,7 @@ export default function RecruiterBillingPage() {
               )}
               <span>{message.text}</span>
             </div>
-            <button onClick={() => setMessage(null)} className="p-1 hover:opacity-75 text-slate-400 hover:text-slate-600">
+            <button onClick={() => setMessage(null)} className="p-1 hover:opacity-75 text-ink-muted hover:text-ink-muted">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -271,19 +269,19 @@ export default function RecruiterBillingPage() {
         {wallet?.demoQuota && wallet.demoQuota.remaining > 0 && (
           <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100 text-blue-700 shrink-0">
+              <div className="p-2 rounded-lg bg-blue-100 text-accent-blue shrink-0">
                 <Gift className="h-4 w-4" />
               </div>
               <div>
                 <span className="font-semibold text-xs sm:text-sm text-blue-900 block">
                   Complimentary AI Screening Trial Active
                 </span>
-                <p className="text-xs text-blue-700 mt-0.5">
+                <p className="text-xs text-accent-blue mt-0.5">
                   Your organization has <strong className="font-bold text-blue-900">{wallet.demoQuota.remaining} free screening round(s)</strong> remaining (up to 10 minutes each) with zero wallet deduction.
                 </p>
               </div>
             </div>
-            <span className="self-start sm:self-auto px-2.5 py-1 rounded-md text-xs font-bold bg-white text-blue-700 border border-blue-200 shadow-2xs whitespace-nowrap">
+            <span className="self-start sm:self-auto px-2.5 py-1 rounded-md text-xs font-bold bg-surface text-accent-blue border border-blue-200 shadow-2xs whitespace-nowrap">
               {wallet.demoQuota.remaining} of {wallet.demoQuota.totalAllowed} Left
             </span>
           </div>
@@ -292,121 +290,121 @@ export default function RecruiterBillingPage() {
         {/* Balance Overview Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Card 1: Available Balance */}
-          <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+          <div className="p-5 rounded-xl border border-line bg-surface shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center justify-between text-xs text-ink-faint">
                 <span className="font-medium uppercase tracking-wider text-[11px]">Available Balance</span>
                 <span className="font-mono text-[10px] uppercase font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                   Active
                 </span>
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-ink">
                   ₹{wallet?.availableCredits?.toFixed(2) ?? '0.00'}
                 </span>
-                <span className="text-xs font-semibold text-slate-500">
+                <span className="text-xs font-semibold text-ink-faint">
                   ({wallet?.availableCredits?.toFixed(0) ?? 0} Credits)
                 </span>
               </div>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+            <div className="mt-4 pt-3 border-t border-line text-xs text-ink-faint flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-accent-blue shrink-0" />
               <span>
-                ≈ <strong className="text-slate-800 font-semibold">{Math.floor((wallet?.availableCredits ?? 0) / (wallet?.ratePerMinuteCredits || 0.5))} mins</strong> screening time
+                ≈ <strong className="text-ink-2 font-semibold">{Math.floor((wallet?.availableCredits ?? 0) / (wallet?.ratePerMinuteCredits || 0.5))} mins</strong> screening time
               </span>
             </div>
           </div>
 
           {/* Card 2: Reserved Holds */}
-          <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+          <div className="p-5 rounded-xl border border-line bg-surface shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center justify-between text-xs text-ink-faint">
                 <span className="font-medium uppercase tracking-wider text-[11px]">Active Reserved Hold</span>
                 <Clock className="h-4 w-4 text-amber-500" />
               </div>
               <div className="mt-3 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-ink">
                   {wallet?.reservedCredits?.toFixed(2) ?? '0.00'}
                 </span>
-                <span className="text-xs font-semibold text-slate-500">Credits</span>
+                <span className="text-xs font-semibold text-ink-faint">Credits</span>
               </div>
             </div>
-            <p className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
+            <p className="mt-4 pt-3 border-t border-line text-xs text-ink-faint leading-relaxed">
               Atomic preflight hold during live interviews. Auto-releases on finish.
             </p>
           </div>
 
           {/* Card 3: Consumed Credits */}
-          <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+          <div className="p-5 rounded-xl border border-line bg-surface shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center justify-between text-xs text-ink-faint">
                 <span className="font-medium uppercase tracking-wider text-[11px]">Total Consumed</span>
-                <Zap className="h-4 w-4 text-blue-600" />
+                <Zap className="h-4 w-4 text-accent-blue" />
               </div>
               <div className="mt-3 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-ink">
                   ₹{wallet?.consumedCredits?.toFixed(2) ?? '0.00'}
                 </span>
-                <span className="text-xs font-semibold text-slate-500">Credits</span>
+                <span className="text-xs font-semibold text-ink-faint">Credits</span>
               </div>
             </div>
-            <p className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
+            <p className="mt-4 pt-3 border-t border-line text-xs text-ink-faint leading-relaxed">
               Settled screening minutes across all completed candidate interviews.
             </p>
           </div>
 
           {/* Card 4: Active Rate Card */}
-          <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
+          <div className="p-5 rounded-xl border border-line bg-surface shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center justify-between text-xs text-ink-faint">
                 <span className="font-medium uppercase tracking-wider text-[11px]">Active Rate Card</span>
-                <span className="font-mono text-[10px] uppercase font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                <span className="font-mono text-[10px] uppercase font-bold text-accent-blue bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
                   Standard
                 </span>
               </div>
               <div className="mt-3 flex items-baseline gap-1.5">
-                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-blue-600">
+                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-accent-blue">
                   {(wallet?.ratePerMinuteCredits ?? 0.5).toFixed(2)}
                 </span>
-                <span className="text-xs font-semibold text-slate-500">Credits / min</span>
+                <span className="text-xs font-semibold text-ink-faint">Credits / min</span>
               </div>
             </div>
-            <p className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
+            <p className="mt-4 pt-3 border-t border-line text-xs text-ink-faint leading-relaxed">
               ₹0.50 per minute (1 Rupee = 2 Minutes) with server ceiling-to-whole-minute rounding.
             </p>
           </div>
         </div>
 
         {/* Clean Process Strip: How Duration-Based Billing Works */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
-          <div className="border-b border-slate-100 pb-3 mb-5">
-            <h2 className="text-base font-bold text-slate-900">How Duration-Based Billing Operates</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+        <div className="rounded-xl border border-line bg-surface p-6 shadow-xs">
+          <div className="border-b border-line pb-3 mb-5">
+            <h2 className="text-base font-bold text-ink">How Duration-Based Billing Operates</h2>
+            <p className="text-xs text-ink-faint mt-0.5">
               Transparent, double-entry ledger calculation governed by server-authoritative timestamps.
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+          <div className="grid gap-6 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-line">
             <div className="pt-4 md:pt-0 md:pr-6 space-y-1.5">
-              <span className="text-xs font-mono font-bold text-blue-600 block">01 · Preflight Hold</span>
-              <h3 className="text-xs font-bold text-slate-800">Atomic Reservation</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <span className="text-xs font-mono font-bold text-accent-blue block">01 · Preflight Hold</span>
+              <h3 className="text-xs font-bold text-ink-2">Atomic Reservation</h3>
+              <p className="text-xs text-ink-muted leading-relaxed">
                 When live charging is active, the server reserves a temporary 10 Credit hold (5 mins @ 2 Credits/min) to prevent mid-answer disconnection.
               </p>
             </div>
 
             <div className="pt-4 md:pt-0 md:px-6 space-y-1.5">
-              <span className="text-xs font-mono font-bold text-blue-600 block">02 · Authoritative Meter</span>
-              <h3 className="text-xs font-bold text-slate-800">Precision Server Timing</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <span className="text-xs font-mono font-bold text-accent-blue block">02 · Authoritative Meter</span>
+              <h3 className="text-xs font-bold text-ink-2">Precision Server Timing</h3>
+              <p className="text-xs text-ink-muted leading-relaxed">
                 Duration is measured strictly by WebSocket server connection intervals with industry-standard ceiling-to-minute rounding (e.g. 18m 15s = 19 billable mins).
               </p>
             </div>
 
             <div className="pt-4 md:pt-0 md:pl-6 space-y-1.5">
-              <span className="text-xs font-mono font-bold text-blue-600 block">03 · Instant Settlement</span>
-              <h3 className="text-xs font-bold text-slate-800">Immediate Unused Refund</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <span className="text-xs font-mono font-bold text-accent-blue block">03 · Instant Settlement</span>
+              <h3 className="text-xs font-bold text-ink-2">Immediate Unused Refund</h3>
+              <p className="text-xs text-ink-muted leading-relaxed">
                 Upon interview completion, the exact consumed duration is deducted and any excess reserved hold is released back to your available balance in real time.
               </p>
             </div>
@@ -414,19 +412,19 @@ export default function RecruiterBillingPage() {
         </div>
 
         {/* Recent Transactions Table */}
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
-          <div className="px-6 py-4 border-b border-slate-200/80 flex items-center justify-between">
+        <div className="rounded-xl border border-line bg-surface overflow-hidden shadow-xs">
+          <div className="px-6 py-4 border-b border-line flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Transaction History</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Immutable Double-Entry Accounting Ledger</p>
+              <h2 className="text-base font-bold text-ink">Transaction History</h2>
+              <p className="text-xs text-ink-faint mt-0.5">Immutable Double-Entry Accounting Ledger</p>
             </div>
-            <span className="text-[11px] font-mono text-slate-400">Currency: INR (₹)</span>
+            <span className="text-[11px] font-mono text-ink-muted">Currency: INR (₹)</span>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+            <table className="w-full min-w-[640px] text-xs text-left">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200/80 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                <tr className="bg-inset border-b border-line text-ink-muted font-semibold uppercase tracking-wider text-[11px]">
                   <th className="py-3 px-4">Date & Time</th>
                   <th className="py-3 px-4">Transaction Ref</th>
                   <th className="py-3 px-4">Type</th>
@@ -435,17 +433,17 @@ export default function RecruiterBillingPage() {
                   <th className="py-3 px-4 text-center">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line">
                 {transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-500 text-xs">
+                    <td colSpan={6} className="py-12 text-center text-ink-faint text-xs">
                       No billing transactions recorded yet.
                     </td>
                   </tr>
                 ) : (
                   transactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-slate-50/60 transition">
-                      <td className="py-3.5 px-4 text-slate-600 font-medium whitespace-nowrap">
+                    <tr key={tx.id} className="hover:bg-inset/60 transition">
+                      <td className="py-3.5 px-4 text-ink-muted font-medium whitespace-nowrap">
                         {new Date(tx.createdAt).toLocaleString('en-IN', {
                           day: 'numeric',
                           month: 'short',
@@ -454,7 +452,7 @@ export default function RecruiterBillingPage() {
                           minute: '2-digit',
                         })}
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-[11px] text-slate-700 whitespace-nowrap">
+                      <td className="py-3.5 px-4 font-mono text-[11px] text-ink-muted whitespace-nowrap">
                         {tx.txRef}
                       </td>
                       <td className="py-3.5 px-4 whitespace-nowrap">
@@ -463,16 +461,16 @@ export default function RecruiterBillingPage() {
                             tx.entryType === 'recharge_paid'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : tx.entryType === 'service_debit'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              ? 'bg-blue-50 text-accent-blue border border-blue-200'
                               : tx.entryType === 'service_hold'
                               ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              : 'bg-surface-2 text-ink-muted border border-line'
                           }`}
                         >
                           {tx.entryType.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-slate-700 max-w-xs truncate">
+                      <td className="py-3.5 px-4 text-ink-muted max-w-xs truncate">
                         {tx.reason || 'General ledger mutation'}
                       </td>
                       <td
@@ -498,28 +496,28 @@ export default function RecruiterBillingPage() {
 
       {/* Recharge Modal */}
       {rechargeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-canvas/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg rounded-2xl border border-line bg-surface p-6 shadow-xl space-y-5">
+            <div className="flex items-center justify-between border-b border-line pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-200/80">
+                <div className="p-2 rounded-lg bg-blue-50 text-accent-blue border border-blue-200/80">
                   <CreditCard className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Add Wallet Credits</h3>
-                  <p className="text-[11px] text-slate-500">Official UPI Instant Payment Gateway</p>
+                  <h3 className="text-base font-bold text-ink">Add Wallet Credits</h3>
+                  <p className="text-[11px] text-ink-faint">Official UPI Instant Payment Gateway</p>
                 </div>
               </div>
               <button
                 onClick={() => setRechargeModalOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-surface-2 text-ink-muted hover:text-ink-muted transition cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="space-y-4">
-              <label className="text-xs font-semibold text-slate-700 block">
+              <label className="text-xs font-semibold text-ink-muted block">
                 Select Credit Package (₹1.00 = 1 Credit)
               </label>
 
@@ -531,20 +529,20 @@ export default function RecruiterBillingPage() {
                       setSelectedPack(pack.credits);
                       setCustomAmount('');
                     }}
-                    className={`cursor-pointer p-4 rounded-xl border text-center transition-all ${
+                    className={`cursor-pointer p-4 rounded-xl border-0 text-center transition-all ${
                       selectedPack === pack.credits && !customAmount
-                        ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-600/20 shadow-xs'
-                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/60'
+                        ? 'bg-blue-50/60 ring-2 ring-blue-600/20 shadow-xs'
+                        : 'bg-surface hover:bg-surface-2'
                     }`}
                   >
-                    <span className="block text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-accent-blue">
                       {pack.badge}
                     </span>
-                    <span className="text-xl font-extrabold text-slate-900 block mt-1">₹{pack.inr}</span>
-                    <span className="text-xs text-slate-600 font-medium block mt-0.5">
+                    <span className="text-xl font-extrabold text-ink block mt-1">₹{pack.inr}</span>
+                    <span className="text-xs text-ink-muted font-medium block mt-0.5">
                       {pack.credits} Credits
                     </span>
-                    <span className="text-[11px] text-slate-400 block mt-2">
+                    <span className="text-[11px] text-ink-muted block mt-2">
                       ~{pack.minutes} mins screening
                     </span>
                   </div>
@@ -553,13 +551,13 @@ export default function RecruiterBillingPage() {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-slate-700">
+                  <label className="text-xs font-semibold text-ink-muted">
                     Or Enter Any Custom Amount (Minimum ₹1)
                   </label>
-                  <span className="text-[11px] font-bold text-blue-600">₹1 = 1 Credit</span>
+                  <span className="text-[11px] font-bold text-accent-blue">₹1 = 1 Credit</span>
                 </div>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₹</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-ink-muted">₹</span>
                   <input
                     type="number"
                     min="1"
@@ -567,12 +565,12 @@ export default function RecruiterBillingPage() {
                     placeholder="Enter any amount (even ₹1)"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
-                    className="w-full pl-8 pr-3.5 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/15 transition"
+                    className="w-full pl-8 pr-3.5 py-2 rounded-lg border border-line bg-inset/50 text-sm font-semibold text-ink focus:outline-none focus:border-blue-600 focus:bg-surface focus:ring-2 focus:ring-blue-600/15 transition"
                   />
                 </div>
                 {/* Quick select chips */}
                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                  <span className="text-[11px] text-slate-400">Quick select:</span>
+                  <span className="text-[11px] text-ink-muted">Quick select:</span>
                   {[1, 10, 50, 100, 500, 1000].map((amt) => (
                     <button
                       key={amt}
@@ -581,7 +579,7 @@ export default function RecruiterBillingPage() {
                       className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
                         customAmount === String(amt)
                           ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                          : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400'
+                          : 'bg-surface border-line text-ink-muted hover:border-blue-400'
                       }`}
                     >
                       ₹{amt}
@@ -590,10 +588,10 @@ export default function RecruiterBillingPage() {
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80 text-xs">
-                <div className="flex items-center justify-between font-bold text-slate-900">
+              <div className="p-3.5 rounded-xl bg-blue-50/70 text-xs">
+                <div className="flex items-center justify-between font-bold text-ink">
                   <span>Total Payable:</span>
-                  <span className="text-base text-blue-700">
+                  <span className="text-base text-accent-blue">
                     ₹{customAmount ? parseFloat(customAmount) || 0 : selectedPack}.00
                   </span>
                 </div>
@@ -603,12 +601,12 @@ export default function RecruiterBillingPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 pt-4">
+            <div className="flex items-center justify-end gap-2.5 border-t border-line pt-4">
               <button
                 type="button"
                 disabled={recharging}
                 onClick={() => setRechargeModalOpen(false)}
-                className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-line text-ink-muted hover:bg-inset transition cursor-pointer"
               >
                 Cancel
               </button>

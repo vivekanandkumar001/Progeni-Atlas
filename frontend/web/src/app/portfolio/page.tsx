@@ -13,7 +13,6 @@ import {
   Award,
   Users,
   Compass,
-  ArrowRight,
   Sparkles,
   ShieldCheck,
   Star,
@@ -21,8 +20,7 @@ import {
   Terminal,
   Database,
   Layers,
-  Code2,
-} from 'lucide-react';
+  Code2 } from 'lucide-react';
 
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState<'interview' | 'code' | 'dossier'>('interview');
@@ -104,8 +102,7 @@ export default function PortfolioPage() {
               prefetch={false}
               className="inline-flex items-center gap-2 rounded-xl bg-[#185adb] hover:bg-[#154bb7] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition-all"
             >
-              Launch Practice Drills <ArrowRight className="w-4 h-4" />
-            </Link>
+              Launch Practice Drills </Link>
             <Link
               href="#tracks"
               className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-6 py-3.5 text-sm font-semibold text-ink hover:bg-surface-2 transition-all"
@@ -185,7 +182,7 @@ export default function PortfolioPage() {
                   <p className="text-sm text-ink-muted leading-relaxed">
                     The AI interviewer listens to candidate verbal explanations, evaluates conceptual clarity, and dynamically probes follow-up tradeoffs.
                   </p>
-                  <div className="p-4 rounded-2xl bg-surface border border-line space-y-2">
+                  <div className="p-4 rounded-2xl bg-surface space-y-2">
                     <p className="text-xs font-mono text-accent-cyan font-bold">Sample Interviewer Question:</p>
                     <p className="text-sm text-ink italic">
                       &quot;You mentioned using Redis for cache invalidation. How would you handle cache stampede if 50,000 requests hit simultaneously on an expired key?&quot;
@@ -196,8 +193,7 @@ export default function PortfolioPage() {
                     prefetch={false}
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#185adb] text-white font-bold text-xs shadow-md hover:bg-[#154bb7] transition-all"
                   >
-                    Try This Drill Live <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                    Try This Drill Live </Link>
                 </div>
 
                 <div className="rounded-2xl border border-line-strong bg-inset p-4 space-y-4 shadow-lg">
@@ -208,9 +204,9 @@ export default function PortfolioPage() {
                     </span>
                     <span className="font-mono text-ink-muted">Question 3 of 7</span>
                   </div>
-                  <div className="h-56 sm:h-64 rounded-xl bg-gradient-to-br from-slate-900 to-indigo-950 flex flex-col items-center justify-center text-white space-y-3 relative overflow-hidden">
+                  <div className="h-56 sm:h-64 rounded-xl bg-gradient-to-br from-surface to-indigo-950 flex flex-col items-center justify-center text-white space-y-3 relative overflow-hidden">
                     <div className="w-20 h-20 rounded-full border-2 border-cyan-400 bg-cyan-500/20 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.3)]">
-                      <Sparkles className="w-8 h-8 text-cyan-300 animate-pulse" />
+                      <Sparkles className="w-8 h-8 text-accent-cyan animate-pulse" />
                     </div>
                     <p className="text-xs font-mono text-cyan-200">AI Interviewer Speaking...</p>
                   </div>
@@ -243,12 +239,12 @@ export default function PortfolioPage() {
                   </ul>
                 </div>
 
-                <div className="rounded-2xl border border-line-strong bg-slate-950 p-4 font-mono text-xs text-slate-200 shadow-2xl">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-[11px]">
-                    <span className="text-cyan-400 font-bold">solution.py</span>
-                    <span className="text-emerald-400">All Tests Passed (4/4)</span>
+                <div className="rounded-2xl border border-line-strong bg-canvas p-4 font-mono text-xs text-ink shadow-2xl">
+                  <div className="flex items-center justify-between pb-3 border-b border-line text-[11px]">
+                    <span className="text-accent-cyan font-bold">solution.py</span>
+                    <span className="text-accent-emerald">All Tests Passed (4/4)</span>
                   </div>
-                  <pre className="py-4 text-[12px] leading-relaxed text-slate-300 overflow-x-auto">
+                  <pre className="py-4 text-[12px] leading-relaxed text-ink-muted overflow-x-auto">
 {`def find_median_sorted_arrays(nums1, nums2):
     # Binary search partitioning O(log(min(m, n)))
     if len(nums1) > len(nums2):
@@ -258,7 +254,7 @@ export default function PortfolioPage() {
     ...
     return median # Verified 0.04ms runtime`}
                   </pre>
-                  <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-[11px]">
+                  <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-accent-emerald text-[11px]">
                     ✓ Passed: Test cases (Empty, Even-Length, Duplicates, Negative Values)
                   </div>
                 </div>
@@ -390,8 +386,7 @@ export default function PortfolioPage() {
                     prefetch={false}
                     className="text-xs font-bold text-[#185adb] hover:underline inline-flex items-center gap-1"
                   >
-                    Start Drill <ArrowRight className="w-3 h-3" />
-                  </Link>
+                    Start Drill </Link>
                 </div>
               </div>
             ))}

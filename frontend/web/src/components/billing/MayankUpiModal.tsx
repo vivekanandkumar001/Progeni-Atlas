@@ -14,9 +14,7 @@ import {
   Sparkles,
   RefreshCw,
   AlertCircle,
-  Clock,
-  ArrowRight,
-} from 'lucide-react';
+  Clock } from 'lucide-react';
 import {
   MayankUpiOrderResponse,
   checkMayankUpiStatus,
@@ -166,23 +164,23 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn font-sans">
-      <div className="relative w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden transition-all text-slate-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-canvas/60 backdrop-blur-xs animate-fadeIn font-sans">
+      <div className="relative w-full max-w-md rounded-2xl bg-surface border border-line shadow-xl overflow-hidden transition-all text-ink">
 
         {/* Top Header */}
-        <div className="relative px-5 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between bg-white">
+        <div className="relative px-5 pt-5 pb-4 border-b border-line flex items-center justify-between bg-surface">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-200/80 shadow-xs">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-accent-blue border border-blue-200/80 shadow-xs">
               <QrCode className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
+              <h3 className="text-base font-bold text-ink flex items-center gap-1.5">
                 Scan &amp; Pay with UPI
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold border border-blue-200">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 text-accent-blue font-bold border border-blue-200">
                   Instant
                 </span>
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-ink-faint mt-0.5">
                 Google Pay · PhonePe · Paytm · BHIM · Any UPI
               </p>
             </div>
@@ -190,7 +188,7 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-ink-muted hover:text-ink-muted hover:bg-surface-2 transition-colors cursor-pointer"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -201,23 +199,23 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
         <div className="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
 
           {/* Order Details Banner */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-inset border border-line">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total Payable</p>
-              <p className="text-2xl font-black text-slate-900 tracking-tight">₹{displayAmount}.00</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Total Payable</p>
+              <p className="text-2xl font-black text-ink tracking-tight">₹{displayAmount}.00</p>
             </div>
             <div className="text-right">
-              <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+              <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-md bg-blue-50 text-accent-blue border border-blue-200">
                 <Sparkles className="w-3.5 h-3.5" />
                 +{orderData?.amount_credits || displayAmount} Credits
               </span>
-              <p className="text-[11px] text-slate-500 font-mono mt-1">Ref: {orderRef.slice(-8)}</p>
+              <p className="text-[11px] text-ink-faint font-mono mt-1">Ref: {orderRef.slice(-8)}</p>
             </div>
           </div>
 
           {/* QR Code Canvas */}
           <div className="flex flex-col items-center justify-center space-y-2.5 py-1">
-            <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-center">
+            <div className="p-3 rounded-xl bg-surface border border-line shadow-xs flex items-center justify-center">
               <QRCodeSVG
                 value={qrValue}
                 size={176}
@@ -225,20 +223,20 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
                 includeMargin={false}
               />
             </div>
-            <p className="text-xs font-medium text-slate-600 text-center">
+            <p className="text-xs font-medium text-ink-muted text-center">
               Scan with any UPI app on your mobile phone to complete payment
             </p>
           </div>
 
           {/* Real-time Listening Pulse */}
-          <div className="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 text-xs font-medium">
+          <div className="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-inset border border-line text-xs font-medium">
             {pollingStatus === 'verified' ? (
               <span className="flex items-center gap-2 text-emerald-700 font-bold">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 Payment Confirmed! Adding credits...
               </span>
             ) : (
-              <span className="flex items-center gap-2 text-slate-600">
+              <span className="flex items-center gap-2 text-ink-muted">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600" />
@@ -259,15 +257,15 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
           </button>
 
           {/* UPI ID Copy Field */}
-          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+          <div className="p-3 rounded-lg bg-inset border border-line flex items-center justify-between text-xs">
             <div>
-              <span className="text-[10px] text-slate-500 uppercase block font-medium">Payee: {payeeName}</span>
-              <span className="font-mono font-bold text-slate-900 text-xs sm:text-sm">{upiId}</span>
+              <span className="text-[10px] text-ink-faint uppercase block font-medium">Payee: {payeeName}</span>
+              <span className="font-mono font-bold text-ink text-xs sm:text-sm">{upiId}</span>
             </div>
             <button
               type="button"
               onClick={handleCopyUpi}
-              className="px-2.5 py-1 rounded-md border border-slate-200 bg-white hover:bg-slate-100 transition text-xs font-medium text-slate-700 flex items-center gap-1 cursor-pointer shadow-2xs"
+              className="px-2.5 py-1 rounded-md border border-line bg-surface hover:bg-surface-2 transition text-xs font-medium text-ink-muted flex items-center gap-1 cursor-pointer shadow-2xs"
             >
               {copiedUpi ? (
                 <>
@@ -282,18 +280,17 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
           </div>
 
           {/* Fallback UTR Submission Accordion */}
-          <div className="border-t border-slate-100 pt-3">
+          <div className="border-t border-line pt-3">
             {!showUtrField ? (
               <button
                 type="button"
                 onClick={() => setShowUtrField(true)}
-                className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-semibold flex items-center justify-center gap-1 w-full text-center cursor-pointer"
+                className="text-xs text-accent-blue hover:text-blue-800 hover:underline font-semibold flex items-center justify-center gap-1 w-full text-center cursor-pointer"
               >
-                Already paid on your app? Submit 12-digit UTR <ArrowRight className="w-3 h-3" />
-              </button>
+                Already paid on your app? Submit 12-digit UTR </button>
             ) : (
               <form onSubmit={handleUtrSubmit} className="space-y-2 animate-fadeIn">
-                <label className="text-[11px] font-semibold text-slate-600 uppercase block">
+                <label className="text-[11px] font-semibold text-ink-muted uppercase block">
                   Enter 12-digit UPI Reference (UTR) No.
                 </label>
                 <div className="flex gap-2">
@@ -303,7 +300,7 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
                     onChange={(e) => setUtrInput(e.target.value)}
                     placeholder="e.g. 431289102934"
                     maxLength={24}
-                    className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50/50 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-1 focus:ring-blue-600"
+                    className="flex-1 px-3 py-1.5 rounded-lg border border-line bg-inset/50 text-xs font-mono text-ink focus:outline-none focus:border-blue-600 focus:bg-surface focus:ring-1 focus:ring-blue-600"
                   />
                   <button
                     type="submit"
@@ -324,12 +321,12 @@ export const MayankUpiModal: React.FC<MayankUpiModalProps> = ({
         </div>
 
         {/* Footer Security Strip */}
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600">
+        <div className="px-5 py-3 bg-inset border-t border-line flex items-center justify-between text-[11px] text-ink-muted">
           <span className="flex items-center gap-1.5 font-medium text-emerald-700">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             Verified UPI Gateway
           </span>
-          <span className="font-mono text-[10px] text-slate-400">Instant Automated Credit</span>
+          <span className="font-mono text-[10px] text-ink-muted">Instant Automated Credit</span>
         </div>
       </div>
     </div>

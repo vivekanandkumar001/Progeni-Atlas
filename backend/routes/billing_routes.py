@@ -70,7 +70,9 @@ def get_billing_wallet():
 
             if not wallet_doc:
                 now_str = datetime.now(timezone.utc).isoformat()
-                init_credits = 10.0 if acc_type == "CANDIDATE" else 0.0
+                # Free credits come ONLY from the admin-configured one-time signup grant
+                # (core.wallet.grant_signup_free_credits). Wallets always start at 0 here.
+                init_credits = 0.0
 
                 # If org has a billing account with balance, inherit that
                 if org_id:
@@ -163,90 +165,12 @@ def get_billing_wallet_transactions():
             return jsonify({"success": False, "error": "Authentication required"}), 401
 
         user_id = str(user.get("id") or user.get("_id"))
-        user_email = (user and user.get("email")) or ""
+
 
         db = get_mongo_db()
         if db is not None:
-            # 1. Check for completed interview sessions that require ledger entries
-            filter_q = {"status": {"$in": ["completed", "COMPLETED"]}}
-            or_conds = []
-            if user_id:
-                or_conds.extend([{"candidate_id": user_id}, {"candidate_id": str(user_id)}])
-            if user_email:
-                or_conds.append({"candidate_email": user_email})
-            if or_conds:
-                filter_q["$or"] = or_conds
-
-            completed_sessions = list(db.interview_sessions.find(filter_q).sort("created_at", 1))
-            for session in completed_sessions:
-                s_id = str(session.get("id") or session.get("session_id") or session.get("_id"))
-                existing_entry = db.wallet_transactions.find_one({
-                    "$or": [
-                        {"sessionId": s_id},
-                        {"id": f"tx-interview-{s_id[:8]}"},
-                        {"id": f"tx-demo-{s_id[:8]}"}
-                    ]
-                })
-                if not existing_entry:
-                    role_name = session.get("job_title") or session.get("role_title") or "Technical Screening"
-                    started = session.get("started_at")
-                    finished = session.get("finished_at")
-                    duration_mins = 4
-                    if started and finished:
-                        try:
-                            s_dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
-                            f_dt = datetime.fromisoformat(finished.replace("Z", "+00:00"))
-                            diff_sec = (f_dt - s_dt).total_seconds()
-                            if 30 <= diff_sec <= 7200:
-                                duration_mins = max(1, int(round(diff_sec / 60)))
-                        except Exception:
-                            pass
-                    elif session.get("duration_minutes"):
-                        duration_mins = min(int(session.get("duration_minutes")), 15)
-
-                    is_demo = (session.get("session_type") == "demo") or (s_id == "7f0b6c2f-29b9-4317-8e99-39e7894422b5")
-                    if is_demo:
-                        db.wallet_transactions.insert_one({
-                            "id": f"tx-demo-{s_id[:8]}",
-                            "userId": user_id,
-                            "sessionId": s_id,
-                            "txRef": f"TXN-DEMO-{s_id[:8].upper()}",
-                            "entryType": "free_demo",
-                            "category": "DEMO",
-                            "title": f"Practice Interview: {role_name}",
-                            "reason": f"Free Demo Quota Used (1 of 2) • 100% Discounted ({duration_mins} mins)",
-                            "amountCredits": 0.0,
-                            "amountInr": 0.0,
-                            "roleTitle": role_name,
-                            "durationMinutes": duration_mins,
-                            "ratePerMinute": 0.0,
-                            "status": "COMPLETED",
-                            "createdAt": finished or session.get("created_at") or datetime.now(timezone.utc).isoformat()
-                        })
-                    else:
-                        rate = 2.0
-                        cost = round(duration_mins * rate, 2)
-                        db.wallet_transactions.insert_one({
-                            "id": f"tx-interview-{s_id[:8]}",
-                            "userId": user_id,
-                            "sessionId": s_id,
-                            "txRef": f"TXN-PRACTICE-{s_id[:8].upper()}",
-                            "entryType": "interview_debit",
-                            "category": "OUT",
-                            "title": f"Practice Interview: {role_name}",
-                            "reason": f"AI Technical Practice Screening ({duration_mins} mins @ 2 cr/min)",
-                            "amountCredits": -cost,
-                            "amountInr": -cost,
-                            "roleTitle": role_name,
-                            "durationMinutes": duration_mins,
-                            "ratePerMinute": rate,
-                            "status": "COMPLETED",
-                            "createdAt": finished or session.get("created_at") or datetime.now(timezone.utc).isoformat()
-                        })
-
+            # Personal ledger only — the org-wide ledger is intentionally NOT exposed here
             tx_query_parts = [{"userId": user_id}, {"userId": str(user_id)}, {"candidate_id": user_id}]
-            if user and user.get("org_id"):
-                tx_query_parts.extend([{"orgId": user.get("org_id")}, {"orgId": str(user.get("org_id"))}])
 
             # 3. Fetch all transactions and compute chronological running balances.
             # Projection keeps the wire payload small; (userId|orgId)+createdAt
@@ -364,11 +288,33 @@ def get_billing_wallet_transactions():
 # ==============================================================================
 # MAYANK SINGH MULTI-MERCHANT UPI PAYMENT GATEWAY (Repo: mynkdev-21/upi-gateway)
 # ==============================================================================
+# Secrets MUST come from the environment — never ship default live keys in source.
 MAYANK_UPI_GATEWAY_URL = os.environ.get("UPI_GATEWAY_URL", "https://pay.progeni.live").rstrip("/")
-MAYANK_UPI_KEY = os.environ.get("UPI_GATEWAY_KEY", "live_key_mayank_upi_progeni")
-MAYANK_UPI_SECRET = os.environ.get("UPI_GATEWAY_SECRET", "sec_mayank_upi_signed_secret_2026")
+MAYANK_UPI_KEY = (os.environ.get("UPI_GATEWAY_KEY") or "").strip()
+MAYANK_UPI_SECRET = (os.environ.get("UPI_GATEWAY_SECRET") or "").strip()
 MAYANK_UPI_VPA = os.environ.get("UPI_MERCHANT_VPA", "progeniatlas@ptaxis")
 MAYANK_UPI_PAYEE = os.environ.get("UPI_PAYEE_NAME", "Progeni Atlas")
+
+
+def _resolve_credits_for_inr(db, amount_inr: float) -> float:
+    """
+    Server-authoritative credit grant for a given INR amount.
+    1 INR = 1 credit; published individual packages with a matching price earn their catalog credits.
+    Client-supplied credit counts are NEVER trusted.
+    """
+    amount_inr = max(0.0, float(amount_inr))
+    try:
+        if db is not None:
+            pkg = db.packages.find_one(
+                {"status": "published", "price": amount_inr,
+                 "target_audience": {"$in": ["individual", "both"]}},
+                {"credits": 1},
+            )
+            if pkg and pkg.get("credits"):
+                return float(pkg["credits"])
+    except Exception:
+        pass
+    return float(int(amount_inr))
 
 
 def _complete_paid_order(db, order_rec, payment_ref, reason_title):
@@ -457,15 +403,25 @@ def create_wallet_order():
         email = user.get("email") or "candidate@progeni.live"
         phone = user.get("phone") or ""
 
-        data = request.get_json(silent=True) or {}
-        raw_credits = data.get("amount_credits") or data.get("credits") or data.get("amount")
-        raw_inr = data.get("amount_inr") or data.get("inr") or data.get("amount") or raw_credits
+        if not MAYANK_UPI_KEY or not MAYANK_UPI_SECRET:
+            return jsonify({"success": False, "error": "Payment gateway is not configured on this server."}), 503
 
-        amount_credits = float(raw_credits) if raw_credits is not None else 70.0
-        amount_inr = float(raw_inr) if raw_inr is not None else amount_credits
+        data = request.get_json(silent=True) or {}
+        raw_inr = data.get("amount_inr") or data.get("inr") or data.get("amount") or data.get("amount_credits")
+
+        try:
+            amount_inr = float(raw_inr) if raw_inr is not None else 70.0
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "error": "Invalid recharge amount."}), 400
 
         if amount_inr < 1.0:
-            return jsonify({"success": False, "error": "Minimum recharge amount is ₹1.00"}), 400
+            return jsonify({"success": False, "error": "Minimum recharge amount is 1 INR."}), 400
+        if amount_inr > 1000000.0:
+            return jsonify({"success": False, "error": "Recharge amount exceeds the allowed limit."}), 400
+
+        # Server-side authoritative credit grant — never trust client-supplied credits
+        db = get_mongo_db()
+        amount_credits = _resolve_credits_for_inr(db, amount_inr)
 
         amount_inr_formatted = f"{amount_inr:.2f}"
 
@@ -587,10 +543,12 @@ def check_order_status():
         if not order_rec:
             return jsonify({"success": False, "error": "Order not found"}), 404
 
-        # Enforce account ownership check
+        # Enforce account ownership check — orders without a userId are unusable
         caller_id = str(user.get("id") or user.get("_id"))
         order_user_id = str(order_rec.get("userId") or "")
-        if order_user_id and order_user_id != caller_id and str(user.get("role", "")).lower() not in ("super_admin", "admin"):
+        if not order_user_id:
+            return jsonify({"success": False, "error": "This order record is missing account ownership and cannot be accessed."}), 400
+        if order_user_id != caller_id and str(user.get("role", "")).lower() not in ("super_admin", "admin"):
             return jsonify({"success": False, "error": "Unauthorized: Order does not belong to your account"}), 403
 
         status = order_rec.get("status") or "pending"
@@ -660,7 +618,9 @@ def submit_wallet_utr():
             return jsonify({"success": False, "error": "Order not found"}), 404
 
         order_user_id = str(order_rec.get("userId") or "")
-        if order_user_id and order_user_id != user_id:
+        if not order_user_id:
+            return jsonify({"success": False, "error": "This order record is missing account ownership and cannot be accessed."}), 400
+        if order_user_id != user_id:
             return jsonify({"success": False, "error": "Unauthorized: Order does not belong to your account"}), 403
 
         if order_rec.get("status") == "paid":
@@ -802,7 +762,9 @@ def verify_wallet_payment():
             return jsonify({"success": False, "error": "Order not found"}), 404
 
         order_user_id = str(order_rec.get("userId") or "")
-        if order_user_id and order_user_id != user_id:
+        if not order_user_id:
+            return jsonify({"success": False, "error": "This order record is missing account ownership and cannot be accessed."}), 400
+        if order_user_id != user_id:
             return jsonify({"success": False, "error": "Unauthorized: Order does not belong to your account"}), 403
 
         if order_rec.get("status") == "paid":

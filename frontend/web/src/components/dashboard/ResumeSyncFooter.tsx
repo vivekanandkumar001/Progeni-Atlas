@@ -111,7 +111,7 @@ export const ResumeSyncFooter: React.FC = () => {
   })();
 
   return (
-    <div className="relative bg-surface backdrop-blur-md border border-line rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="relative border-t border-line pt-5 flex flex-col md:flex-row items-center justify-between gap-4">
       {message && (
         <div className="absolute right-4 top-3 z-10 rounded-lg border border-cyan-400/20 bg-inset px-3 py-2 text-xs text-accent-cyan shadow-xl">
           {message}
@@ -131,7 +131,7 @@ export const ResumeSyncFooter: React.FC = () => {
 
       {/* Resume Status — reflects the resume actually stored for this candidate */}
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-accent-cyan shrink-0">
+        <div className="p-2.5 rounded-xl bg-cyan-500/10 text-accent-cyan shrink-0">
           <FileText className="w-5 h-5" />
         </div>
         <div>

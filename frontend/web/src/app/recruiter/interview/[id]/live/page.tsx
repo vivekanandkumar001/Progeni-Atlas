@@ -24,7 +24,6 @@ import {
   VolumeX,
   Maximize2,
   Minimize2,
-  ArrowLeft,
   ShieldCheck,
   Clock,
   FileText,
@@ -375,7 +374,7 @@ export default function RecruiterLiveMonitorPage() {
     return (
       <div className="min-h-screen bg-canvas text-ink flex flex-col items-center justify-center p-6">
         <div className="max-w-md w-full p-8 rounded-xl bg-surface border border-line text-center space-y-5 shadow-2xl">
-          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center mx-auto text-rose-400">
+          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center mx-auto text-accent-rose">
             <AlertTriangle className="w-7 h-7" />
           </div>
           <div className="space-y-1">
@@ -388,7 +387,6 @@ export default function RecruiterLiveMonitorPage() {
             href="/recruiter/dashboard"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink text-xs font-semibold transition-all"
           >
-            <ArrowLeft className="w-4 h-4" />
             <span>Return to Recruiter Dashboard</span>
           </Link>
         </div>
@@ -401,7 +399,7 @@ export default function RecruiterLiveMonitorPage() {
     return (
       <div className="min-h-screen bg-canvas text-ink flex flex-col items-center justify-center gap-3">
         <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin" />
-        <p className="text-sm font-mono text-ink-muted">Establishing secure LiveKit monitoring transportΓÇª</p>
+        <p className="text-sm font-mono text-ink-muted">Establishing secure LiveKit monitoring transport...</p>
       </div>
     );
   }
@@ -425,7 +423,7 @@ export default function RecruiterLiveMonitorPage() {
             className="p-2 rounded-xl bg-surface-2 hover:bg-surface-3 text-ink-muted hover:text-ink transition-colors cursor-pointer shrink-0"
             title="Leave Monitoring"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <span className="text-xs font-semibold">Back</span>
           </button>
 
           <div className="min-w-0">
@@ -433,13 +431,13 @@ export default function RecruiterLiveMonitorPage() {
               <h1 className="text-sm sm:text-base font-bold text-ink truncate">
                 {sessionData?.candidateName || 'Candidate'}
               </h1>
-              <span className="text-xs text-ink-muted font-mono hidden sm:inline">ΓÇó</span>
+              <span className="text-xs text-ink-muted font-mono hidden sm:inline"> · </span>
               <span className="text-xs text-accent-cyan font-medium truncate hidden sm:inline">
                 {sessionData?.jobTitle}
               </span>
             </div>
             <p className="text-[11px] text-ink-muted font-mono truncate">
-              {sessionData?.companyName} ΓÇó Stage: {sessionData?.currentStage}
+              {sessionData?.companyName}  ·  Stage: {sessionData?.currentStage}
             </p>
           </div>
         </div>
@@ -448,12 +446,12 @@ export default function RecruiterLiveMonitorPage() {
         <div className="flex items-center gap-3 shrink-0">
           {/* Status Badge */}
           {isCompleted ? (
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-semibold">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-accent-emerald text-xs font-mono font-semibold">
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Interview Concluded</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono font-semibold shadow-sm">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-accent-rose text-xs font-mono font-semibold shadow-sm">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
@@ -490,7 +488,7 @@ export default function RecruiterLiveMonitorPage() {
           <button
             type="button"
             onClick={handleLeaveMonitoring}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-rose-500/20 text-ink hover:text-rose-300 border border-line text-xs font-medium transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-rose-500/20 text-ink hover:text-accent-rose border border-line text-xs font-medium transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Leave Monitor</span>
@@ -503,7 +501,7 @@ export default function RecruiterLiveMonitorPage() {
         {/* COLUMN 1: LIVE VIDEO STREAMS (Candidate Camera & AI Interviewer Viewport) */}
         <div className="w-full lg:w-[420px] xl:w-[460px] shrink-0 flex flex-col gap-4">
           {/* VIEW 1: CANDIDATE LIVE VIDEO FEED */}
-          <div className="relative w-full h-[220px] sm:h-[260px] rounded-2xl border border-line bg-slate-950 overflow-hidden shadow-xl flex items-center justify-center group">
+          <div className="relative w-full h-[220px] sm:h-[260px] rounded-2xl border border-line bg-canvas overflow-hidden shadow-xl flex items-center justify-center group">
             <video
               ref={candidateVideoRef}
               autoPlay
@@ -522,8 +520,8 @@ export default function RecruiterLiveMonitorPage() {
                 <div className="space-y-1">
                   <p className="text-xs font-semibold text-ink">
                     {roomState === 'reconnecting'
-                      ? 'Reconnecting to Candidate FeedΓÇª'
-                      : 'Waiting for Candidate StreamΓÇª'}
+                      ? 'Reconnecting to Candidate Feed...'
+                      : 'Waiting for Candidate Stream...'}
                   </p>
                   <p className="text-[11px] text-ink-muted font-mono">
                     Candidate video will stream live via LiveKit SFU once camera is active.
@@ -533,21 +531,21 @@ export default function RecruiterLiveMonitorPage() {
             )}
 
             {/* Candidate Stream Tag & Audio Playout Status */}
-            <div className="absolute top-3 left-3 flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-950/85 border border-slate-800 text-[11px] font-mono text-slate-200 backdrop-blur-md">
+            <div className="absolute top-3 left-3 flex items-center gap-2 px-2.5 py-1 rounded-full bg-canvas/85 border border-line text-[11px] font-mono text-ink backdrop-blur-md">
               <span className={`w-2 h-2 rounded-full ${hasCandidateVideo ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
               <span>Candidate Feed</span>
             </div>
 
             {/* Audio Volume & Mute Controls Overlay */}
             <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 z-10 pointer-events-auto">
-              <div className="flex items-center gap-2 bg-slate-950/85 px-2.5 py-1.5 rounded-xl border border-slate-800 backdrop-blur-md">
+              <div className="flex items-center gap-2 bg-canvas/85 px-2.5 py-1.5 rounded-xl border border-line backdrop-blur-md">
                 <button
                   type="button"
                   onClick={handleToggleMute}
-                  className="p-1 rounded text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  className="p-1 rounded text-ink-muted hover:text-white transition-colors cursor-pointer"
                   title={isAudioMuted ? 'Unmute Audio' : 'Mute Audio'}
                 >
-                  {isAudioMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-cyan-400" />}
+                  {isAudioMuted ? <VolumeX className="w-4 h-4 text-accent-rose" /> : <Volume2 className="w-4 h-4 text-accent-cyan" />}
                 </button>
                 <input
                   type="range"
@@ -561,7 +559,7 @@ export default function RecruiterLiveMonitorPage() {
                 />
               </div>
 
-              <span className="text-[10px] font-mono text-slate-400 bg-slate-950/85 px-2 py-1 rounded-lg border border-slate-800">
+              <span className="text-[10px] font-mono text-ink-muted bg-canvas/85 px-2 py-1 rounded-lg border border-line">
                 LiveKit SFU Connected
               </span>
             </div>
@@ -590,14 +588,14 @@ export default function RecruiterLiveMonitorPage() {
                   Observer View
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs font-mono text-emerald-400">
+              <div className="flex items-center gap-1.5 text-xs font-mono text-accent-emerald">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Candidate Uninterrupted</span>
               </div>
             </div>
 
             {/* Silent Mode Explanatory Notice */}
-            <div className="p-3 rounded-xl bg-inset border border-line flex items-start gap-3 text-xs text-ink-muted">
+            <div className="p-3 rounded-xl bg-inset flex items-start gap-3 text-xs text-ink-muted">
               <Eye className="w-4 h-4 text-accent-indigo shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-ink">Silent Real-Time Observation</p>
@@ -610,23 +608,23 @@ export default function RecruiterLiveMonitorPage() {
 
             {/* Candidate & Job Telemetry Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-inset border border-line">
+              <div className="p-3 rounded-xl bg-inset">
                 <span className="text-[11px] text-ink-muted block font-mono">Position</span>
                 <span className="font-bold text-ink truncate block mt-0.5">{sessionData?.jobTitle}</span>
               </div>
-              <div className="p-3 rounded-xl bg-inset border border-line">
+              <div className="p-3 rounded-xl bg-inset">
                 <span className="text-[11px] text-ink-muted block font-mono">Stage</span>
                 <span className="font-bold text-accent-cyan truncate block mt-0.5">{sessionData?.currentStage}</span>
               </div>
-              <div className="p-3 rounded-xl bg-inset border border-line">
+              <div className="p-3 rounded-xl bg-inset">
                 <span className="text-[11px] text-ink-muted block font-mono">Candidate Audio</span>
-                <span className={`font-bold block mt-0.5 ${hasCandidateAudio ? 'text-emerald-400' : 'text-amber-400'}`}>
+                <span className={`font-bold block mt-0.5 ${hasCandidateAudio ? 'text-accent-emerald' : 'text-accent-amber'}`}>
                   {hasCandidateAudio ? 'Streaming' : 'Waiting'}
                 </span>
               </div>
-              <div className="p-3 rounded-xl bg-inset border border-line">
+              <div className="p-3 rounded-xl bg-inset">
                 <span className="text-[11px] text-ink-muted block font-mono">Proctoring</span>
-                <span className="font-bold text-emerald-400 flex items-center gap-1 mt-0.5">
+                <span className="font-bold text-accent-emerald flex items-center gap-1 mt-0.5">
                   <ShieldCheck className="w-3.5 h-3.5" /> Active
                 </span>
               </div>
@@ -646,12 +644,12 @@ export default function RecruiterLiveMonitorPage() {
             </div>
 
             {/* Current Active Question Callout */}
-            <div className="mt-3 p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 shrink-0">
+            <div className="mt-3 p-3.5 rounded-xl bg-cyan-500/10 shrink-0">
               <span className="text-[10px] font-mono uppercase tracking-wider text-accent-cyan font-bold block mb-1">
                 CURRENT PROMPT / QUESTION
               </span>
               <p className="text-xs sm:text-sm text-ink font-medium leading-relaxed">
-                {sessionData?.currentQuestion || 'Loading interview questionΓÇª'}
+                {sessionData?.currentQuestion || 'Loading interview question...'}
               </p>
             </div>
 
@@ -662,14 +660,14 @@ export default function RecruiterLiveMonitorPage() {
               </span>
 
               {(!sessionData?.history || sessionData.history.length === 0) ? (
-                <div className="p-6 text-center text-xs text-ink-muted italic bg-inset/50 rounded-xl border border-line">
+                <div className="p-6 text-center text-xs text-ink-muted italic bg-inset/50 rounded-xl">
                   Candidate is currently on the opening turn. Responses will record and appear here in real time.
                 </div>
               ) : (
                 sessionData.history.map((item, idx) => (
-                  <div key={idx} className="p-3.5 rounded-xl bg-inset border border-line space-y-2 text-xs">
+                  <div key={idx} className="p-3.5 rounded-xl bg-inset space-y-2 text-xs">
                     <div className="flex items-center justify-between text-[11px] font-mono text-ink-muted">
-                      <span className="text-accent-cyan font-bold">Turn {item.turn_index > 0 ? item.turn_index : 1} ΓÇó {item.stage}</span>
+                      <span className="text-accent-cyan font-bold">Turn {item.turn_index > 0 ? item.turn_index : 1}  ·  {item.stage}</span>
                       <span>Answered</span>
                     </div>
                     <p className="font-semibold text-ink">{item.question}</p>
@@ -688,12 +686,12 @@ export default function RecruiterLiveMonitorPage() {
             {/* Concluded Quick Link */}
             {isCompleted && (
               <div className="mt-3 pt-3 border-t border-line flex items-center justify-between shrink-0">
-                <span className="text-xs text-emerald-400 font-medium">Session has ended.</span>
+                <span className="text-xs text-accent-emerald font-medium">Session has ended.</span>
                 <Link
                   href={`/recruiter/interview/${sessionId}/recording`}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-bold shadow-md cursor-pointer"
                 >
-                  <span>View Recording & Scorecard ΓåÆ</span>
+                  <span>View Recording & Scorecard -></span>
                 </Link>
               </div>
             )}

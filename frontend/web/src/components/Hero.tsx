@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import Link from 'next/link';
@@ -53,7 +53,7 @@ export const Hero: React.FC = () => {
           prefetch={false}
           className="w-full sm:w-auto px-7 py-3.5 rounded-full text-sm font-bold text-on-brand btn-primary-gradient shadow-xl flex items-center justify-center space-x-2 group cursor-pointer"
         >
-          <span>Try Candidate Mock Interview →</span>
+          <span>Try Candidate Mock Interview </span>
         </Link>
 
         {/* Secondary CTA */}
@@ -62,7 +62,7 @@ export const Hero: React.FC = () => {
           prefetch={false}
           className="w-full sm:w-auto px-7 py-3.5 rounded-full text-sm font-semibold text-ink bg-surface border border-line-strong hover:border-[#0ea5e9]/50 hover:bg-surface-3 transition-all flex items-center justify-center space-x-2"
         >
-          <span>Recruiter Portal & Dossiers →</span>
+          <span>Recruiter Portal & Dossiers </span>
         </Link>
       </motion.div>
     </section>

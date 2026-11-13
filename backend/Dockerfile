@@ -33,4 +33,4 @@ HEALTHCHECK --interval=30s \
     --retries=3 \
     CMD curl -fsS http://127.0.0.1:8406/health || exit 1
 
-CMD ["gunicorn", "wsgi:app", "--worker-class", "sync", "--workers", "2", "--timeout", "300", "--graceful-timeout", "60", "--bind", "0.0.0.0:8406", "--access-logfile", "-", "--error-logfile", "-"]
+CMD ["gunicorn", "wsgi:app", "--worker-class", "gthread", "--threads", "8", "--workers", "2", "--timeout", "300", "--graceful-timeout", "60", "--bind", "0.0.0.0:8406", "--access-logfile", "-", "--error-logfile", "-"]

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Check, Layers, Lock, ShieldCheck, ShieldHalf, Table2 } from 'lucide-react';
@@ -189,7 +189,6 @@ export default function SuperAdminRolesPage() {
                     <p className="mt-2 text-xs text-ink-muted leading-relaxed">{role.scope}</p>
                     <div className="mt-3 flex items-center justify-between pt-2 border-t border-current/15 text-[11px] font-medium">
                       <span>{isSelected ? 'Click to show all roles' : 'Click to filter matrix'}</span>
-                      <span className="group-hover:translate-x-0.5 transition-transform font-bold">→</span>
                     </div>
                   </button>
                 );
@@ -364,7 +363,7 @@ export default function SuperAdminRolesPage() {
             />
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {data.superAdminModules.map((mod, i) => (
-                <div key={mod.id} className="flex flex-col rounded-2xl border border-line bg-surface-2 p-4">
+                <div key={mod.id} className="flex flex-col rounded-2xl bg-surface-2 p-4">
                   <div className="flex items-center gap-2">
                     <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-500/20 bg-cyan-500/10 text-[11px] font-bold text-accent-cyan">
                       {i + 1}
@@ -381,7 +380,7 @@ export default function SuperAdminRolesPage() {
                     ))}
                   </ul>
                   {mod.guardrails.length > 0 && (
-                    <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5">
+                    <div className="mt-3 rounded-xl bg-amber-500/5 p-2.5">
                       {mod.guardrails.map((g, gi) => (
                         <p key={gi} className="flex gap-1.5 text-[11px] text-accent-amber">
                           <Lock className="mt-0.5 h-3 w-3 shrink-0" />

@@ -43,7 +43,7 @@ export const NetworkJitterGauge: React.FC<NetworkJitterGaugeProps> = ({ autoStar
     });
 
     // Five tiny, rate-limit-exempt probes to a route that does no database work,
-    // so the measured RTT is the browserΓåöAPI path only.
+    // so the measured RTT is the browser→API path only.
     const PING_COUNT = 5;
     const PING_TIMEOUT_MS = 2500;
     // Max allowable RTT threshold (3500ms allows mobile networks & Cloudflare tunnels to operate reliably)
@@ -61,8 +61,8 @@ export const NetworkJitterGauge: React.FC<NetworkJitterGaugeProps> = ({ autoStar
       const passed = avg <= MAX_ALLOWABLE_RTT_MS;
       const finalStatus: NetworkCheckStatus = passed ? 'PASSED' : 'FAILED';
       const msg = passed
-        ? `Network test complete ΓÇö ${avg} ms RTT (Quality acceptable)`
-        : `Network latency too high ΓÇö ${avg} ms RTT (Exceeds ${MAX_ALLOWABLE_RTT_MS} ms limit)`;
+        ? `Network test complete – ${avg} ms RTT (Quality acceptable)`
+        : `Network latency too high – ${avg} ms RTT (Exceeds ${MAX_ALLOWABLE_RTT_MS} ms limit)`;
 
       setStatus(finalStatus);
 

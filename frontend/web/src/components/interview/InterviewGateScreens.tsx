@@ -19,7 +19,7 @@ export const SessionExpiredScreen: React.FC<SessionExpiredScreenProps> = ({
     : '/login';
 
   return (
-    <div className="h-screen w-screen flex flex-col items-center justify-center bg-canvas text-ink p-8">
+    <div className="min-h-dvh w-full overflow-y-auto flex flex-col items-center justify-center bg-canvas text-ink p-8">
       <div className="max-w-xl text-center p-8 rounded-2xl bg-surface border border-line shadow-2xl space-y-4 backdrop-blur-xl">
         <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 text-accent-amber flex items-center justify-center mx-auto">
           <Lock className="w-6 h-6" />
@@ -62,7 +62,7 @@ interface InvalidSessionScreenProps {
 }
 
 export const InvalidSessionScreen: React.FC<InvalidSessionScreenProps> = ({ onReturnDashboard }) => (
-  <div className="h-screen w-screen flex flex-col items-center justify-center bg-canvas text-ink p-8">
+  <div className="min-h-dvh w-full overflow-y-auto flex flex-col items-center justify-center bg-canvas text-ink p-8">
     <div className="max-w-xl text-center p-8 rounded-2xl bg-surface border border-line shadow-2xl space-y-4 backdrop-blur-xl">
       <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto">
         <AlertTriangle className="w-6 h-6" />
@@ -94,7 +94,7 @@ export const MediaPreparingScreen: React.FC<MediaPreparingScreenProps> = ({
   mediaStatus,
   onRetry,
 }) => (
-  <div className="h-screen w-screen flex flex-col items-center justify-center bg-canvas text-ink p-8">
+  <div className="min-h-dvh w-full overflow-y-auto flex flex-col items-center justify-center bg-canvas text-ink p-8">
     <video ref={bindProctoringVideo} muted playsInline autoPlay className="hidden" aria-hidden="true" />
     <div className="max-w-xl text-center">
       <div className="text-lg font-black">Preparing your interview media…</div>
@@ -130,7 +130,7 @@ export const ProctoringWaitingScreen: React.FC<ProctoringWaitingScreenProps> = (
   proctoringUnavailable,
   onRetry,
 }) => (
-  <div className="h-screen w-screen flex flex-col items-center justify-center bg-canvas text-ink p-8">
+  <div className="min-h-dvh w-full overflow-y-auto flex flex-col items-center justify-center bg-canvas text-ink p-8">
     <video ref={bindProctoringVideo} muted playsInline autoPlay className="hidden" aria-hidden="true" />
     <div className="max-w-xl text-center">
       <div className="text-lg font-black">Proctoring preflight is not ready</div>
@@ -179,7 +179,7 @@ export const FullscreenStartGateScreen: React.FC<FullscreenStartGateScreenProps>
   apiError,
   onBeginInterview,
 }) => (
-  <div className="h-screen w-screen flex flex-col items-center justify-center bg-canvas text-ink p-8">
+  <div className="min-h-dvh w-full overflow-y-auto flex flex-col items-center justify-center bg-canvas text-ink p-8">
     <video ref={bindProctoringVideo} muted playsInline autoPlay className="hidden" aria-hidden="true" />
     <div className="max-w-xl text-center p-8 rounded-2xl bg-surface border border-line shadow-2xl space-y-4 backdrop-blur-xl">
       <div className="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-accent-cyan flex items-center justify-center mx-auto">

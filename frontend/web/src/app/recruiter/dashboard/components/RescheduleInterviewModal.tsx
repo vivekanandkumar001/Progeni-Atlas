@@ -26,7 +26,7 @@ export function RescheduleInterviewModal({
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
                 <Calendar className="w-5 h-5" />
               </div>
               <div>
@@ -47,7 +47,7 @@ export function RescheduleInterviewModal({
         </div>
 
         {/* CANDIDATE SUMMARY CARD */}
-        <div className="p-4 rounded-2xl bg-inset border border-line space-y-3">
+        <div className="p-4 rounded-2xl bg-inset space-y-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-500 flex items-center justify-center font-bold text-white text-sm shrink-0 shadow-md">
               {rescheduleCandidate.name.substring(0, 2).toUpperCase()}
@@ -127,7 +127,7 @@ export function RescheduleInterviewModal({
             />
           </div>
 
-          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/15">
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-indigo-500/5">
             <input
               type="checkbox"
               id="notifyCandidateCheckbox"
@@ -141,10 +141,10 @@ export function RescheduleInterviewModal({
           </div>
 
           {isZeroBalance && (
-            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-xs">
-              <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 flex items-start gap-3 text-xs">
+              <AlertCircle className="w-5 h-5 text-accent-amber shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-semibold text-amber-300">Insufficient Wallet Balance (0 Credits)</p>
+                <p className="font-semibold text-accent-amber">Insufficient Wallet Balance (0 Credits)</p>
                 <p className="text-ink-muted">
                   Your balance is zero. You cannot reschedule interviews until credits are added to your wallet.
                 </p>

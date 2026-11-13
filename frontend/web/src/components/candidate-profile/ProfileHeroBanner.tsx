@@ -24,7 +24,7 @@ export function ProfileHeroBanner({
   onSave,
 }: ProfileHeroBannerProps) {
   return (
-    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-surface via-surface to-indigo-950/40 border border-line p-6 sm:p-8 backdrop-blur-md shadow-2xl">
+    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-accent-cyan/5 via-surface to-accent-indigo/5 border border-line p-6 sm:p-8">
       <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">

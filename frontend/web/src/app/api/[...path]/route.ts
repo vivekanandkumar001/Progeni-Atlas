@@ -11,6 +11,36 @@ function getBackendBase(): string {
   return base.replace(/\/+$/, '');
 }
 
+/** Credentialed CORS is restricted to first-party origins. */
+function isAllowedOrigin(origin: string): boolean {
+  try {
+    const { hostname, protocol } = new URL(origin);
+    if (protocol !== 'https:' && protocol !== 'http:') return false;
+    const allowed = (process.env.CORS_ORIGINS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (allowed.includes(origin)) return true;
+    // First-party progeni.live subdomains (https only in production)
+    if (hostname === 'progeni.live' || hostname.endsWith('.progeni.live')) {
+      return process.env.NODE_ENV !== 'production' || protocol === 'https:';
+    }
+    // Local development
+    if (process.env.NODE_ENV !== 'production' && (hostname === 'localhost' || hostname === '127.0.0.1')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** Headers the browser must never be able to spoof (identity is JWT-only). */
+const SPOOFABLE_HEADERS = new Set([
+  'x-user-email',
+  'x-user-id',
+  'x-candidate-email',
+  'x-candidate-id',
+]);
+
 async function proxyRequest(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     const { path } = await params;
@@ -20,18 +50,21 @@ async function proxyRequest(request: NextRequest, { params }: { params: Promise<
     const targetUrl = `${backendBase}/api${subPath}${search}`;
 
     const forwardHeaders = new Headers();
-    // Copy incoming headers except host
+    // Copy incoming headers except host, framing, browser-spoofable identity
+    // headers, and the Expect header (undici/native fetch rejects it → proxy 502).
     request.headers.forEach((value, key) => {
       const lower = key.toLowerCase();
-      if (lower !== 'host' && lower !== 'content-length') {
-        forwardHeaders.set(key, value);
-      }
+      if (lower === 'host' || lower === 'content-length') return;
+      if (SPOOFABLE_HEADERS.has(lower)) return;
+      if (lower === 'expect') return;
+      forwardHeaders.set(key, value);
     });
 
     const init: RequestInit = {
       method: request.method,
       headers: forwardHeaders,
       redirect: 'manual',
+      cache: 'no-store',
     };
 
     if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -70,12 +103,16 @@ async function proxyRequest(request: NextRequest, { params }: { params: Promise<
       }
     }
 
-    // Ensure CORS headers for browser compatibility
+    // Credentialed CORS only for first-party origins
     const origin = request.headers.get('origin');
-    if (origin) {
+    if (origin && isAllowedOrigin(origin)) {
       resHeaders.set('Access-Control-Allow-Origin', origin);
       resHeaders.set('Access-Control-Allow-Credentials', 'true');
+      resHeaders.append('Vary', 'Origin');
     }
+
+    // API responses are user-specific — never let them be cached
+    resHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
     return new Response(backendRes.body, {
       status: backendRes.status,
@@ -88,7 +125,6 @@ async function proxyRequest(request: NextRequest, { params }: { params: Promise<
       {
         error: 'API Gateway Connection Error',
         message: 'Could not reach backend service. Please try again shortly.',
-        detail: err instanceof Error ? err.message : String(err),
       },
       { status: 502 }
     );

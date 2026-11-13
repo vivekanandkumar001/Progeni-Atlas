@@ -113,13 +113,13 @@ export function DashboardControlBar({
  <option value="all"className="bg-surface text-ink">
  All Statuses ({candidates.length})
  </option>
- <option value="selected"className="bg-surface text-emerald-400 font-semibold">
+ <option value="selected"className="bg-surface text-accent-emerald font-semibold">
  Selected ({statusCounts.selected})
  </option>
- <option value="rejected"className="bg-surface text-rose-400 font-semibold">
+ <option value="rejected"className="bg-surface text-accent-rose font-semibold">
  Rejected ({statusCounts.rejected})
  </option>
- <option value="inprocess"className="bg-surface text-blue-400 font-semibold">
+ <option value="inprocess"className="bg-surface text-accent-blue font-semibold">
  In-Process ({statusCounts.inprocess})
  </option>
  <option value="backout"className="bg-surface text-amber-800 font-semibold">
@@ -168,7 +168,7 @@ export function DashboardControlBar({
  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-md shadow-purple-500/20 transition-all flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer"
  title="Bulk upload candidate resumes & generate AI-assisted interview schedules"
  >
- <Sparkles className="w-3.5 h-3.5 text-amber-300"/>
+ <Sparkles className="w-3.5 h-3.5 text-accent-amber"/>
  <span>Bulk Upload &amp; Auto-Schedule</span>
  </button>
  {activeTab === 'dossiers'&& (
@@ -179,7 +179,7 @@ export function DashboardControlBar({
  className="px-3.5 py-1.5 rounded-xl bg-surface hover:bg-surface-elevated border border-line text-ink text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer disabled:opacity-50"
  title="Export candidate dossiers and scorecards to Microsoft Excel (.xlsx)"
  >
- <Download className="w-3.5 h-3.5 text-emerald-400"/>
+ <Download className="w-3.5 h-3.5 text-accent-emerald"/>
  <span>{isExporting ? 'Exporting...': 'Export Excel'}</span>
  </button>
  )}

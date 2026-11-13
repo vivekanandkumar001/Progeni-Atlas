@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { PracticeDrillItem, MicroFeedbackReport, DrillTurnEvaluation } from '@/types/practice';
@@ -212,7 +212,7 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
           ) : (
             <>
               {/* AI Question Prompt Card */}
-              <div className="p-5 rounded-xl bg-inset border border-line space-y-3">
+              <div className="p-5 rounded-xl bg-inset space-y-3">
                 <div className="flex items-center justify-between border-b border-line pb-2">
                   <div className="flex items-center gap-2 text-accent-cyan">
                     <Sparkles className="w-4 h-4 text-accent-cyan" />
@@ -247,7 +247,7 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
               />
 
               {turnError && (
-                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-accent-amber/10 border border-accent-amber/25 text-accent-amber text-xs">
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-accent-amber/10 text-accent-amber text-xs">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
                   <span>{turnError}</span>
                 </div>
@@ -269,7 +269,7 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      <span>{currentTurnIndex < 2 ? 'Submit & Proceed to Turn 2 →' : 'Finalize & View Micro-Feedback'}</span>
+                      <span>{currentTurnIndex < 2 ? 'Submit & Proceed to Turn 2 ' : 'Finalize & View Micro-Feedback'}</span>
                     </>
                   )}
                 </button>

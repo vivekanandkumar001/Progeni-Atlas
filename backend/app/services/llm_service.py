@@ -4,7 +4,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
+import contextvars
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import Any
 
 import httpx
@@ -13,6 +16,85 @@ from app.config import settings
 from app.models import ActionDecision, InterviewStage
 
 logger = logging.getLogger("progeni_atlas.llm")
+
+# --- Shadow metering (admin cost/insights) ---------------------------------
+# Every chat/completion call is metered into platform_shadow_usage_events with
+# provider-reported token usage. Never raises into the request path. Uses
+# contextvars so each Flask request thread gets its own operation context.
+_current_operation: contextvars.ContextVar[str] = contextvars.ContextVar("llm_operation", default="llm_chat")
+_last_usage: contextvars.ContextVar[dict] = contextvars.ContextVar("llm_last_usage", default={})
+
+
+def set_operation(name: str) -> None:
+    """Tag the current logical operation for cost attribution (e.g. 'scorecard')."""
+    try:
+        _current_operation.set(str(name or "llm_chat").strip().lower()[:64])
+    except Exception:
+        pass
+
+
+def _current_operation() -> str:
+    try:
+        return _current_operation.get()
+    except Exception:
+        return "llm_chat"
+
+
+def _timed(provider: str, model: str, fn):
+    """Time one provider attempt and emit exactly one shadow-metering event."""
+    start = time.time()
+    try:
+        result = fn()
+        _record_attempt(provider=provider, model=model, duration_ms=int((time.time() - start) * 1000), ok=True, usage=_consume_usage())
+        return result
+    except Exception as exc:
+        _record_attempt(provider=provider, model=model, duration_ms=int((time.time() - start) * 1000), ok=False, usage={}, error_code=type(exc).__name__)
+        raise
+
+
+def _record_usage(usage: dict) -> None:
+    try:
+        _last_usage.set(dict(usage or {}))
+    except Exception:
+        pass
+
+
+def _consume_usage() -> dict:
+    try:
+        u = _last_usage.get()
+        _last_usage.set({})
+        return dict(u or {})
+    except Exception:
+        return {}
+
+
+def _usage_obj(usage: dict) -> SimpleNamespace:
+    return SimpleNamespace(
+        input_tokens=usage.get("input_tokens"),
+        output_tokens=usage.get("output_tokens"),
+        cached_tokens=usage.get("cached_tokens"),
+        reasoning_tokens=usage.get("reasoning_tokens"),
+    )
+
+
+def _record_attempt(*, provider: str, model: str, duration_ms: int, ok: bool, usage: dict, error_code: str | None = None) -> None:
+    """Emit exactly one shadow-metering event; best-effort, never raises."""
+    try:
+        from core.shadow_metering import SERVICE_LLM, MeterContext, cost_for_llm, emit
+        ctx = MeterContext(
+            service_category=SERVICE_LLM,
+            operation=_current_operation(),
+            provider=provider,
+            model=model,
+            usage_measured=bool(usage),
+        )
+        if ok:
+            cost = cost_for_llm(provider=provider, model=model, usage=_usage_obj(usage), usage_measured=bool(usage))
+            emit(ctx, measured_usage=usage or None, usage_unit="tokens", cost=cost, duration_ms=duration_ms, status="success")
+        else:
+            emit(ctx, measured_usage=None, usage_unit="tokens", cost=None, duration_ms=duration_ms, status="error", error_code=error_code)
+    except Exception:
+        logger.warning("[LLM] metering emit failed (request unaffected)", exc_info=True)
 
 _shared_http_client: httpx.Client | None = None
 
@@ -112,6 +194,15 @@ def _call_openai(
 
     try:
         data = resp.json()
+        if isinstance(data, dict):
+            u = data.get("usage") or {}
+            _record_usage({
+                "input_tokens": u.get("prompt_tokens"),
+                "output_tokens": u.get("completion_tokens"),
+                "cached_tokens": (u.get("prompt_tokens_details") or {}).get("cached_tokens"),
+                "reasoning_tokens": (u.get("completion_tokens_details") or {}).get("reasoning_tokens"),
+                "total_tokens": u.get("total_tokens"),
+            })
         content = data["choices"][0]["message"]["content"]
         return content, settings.LLM_MODEL
     except (ValueError, KeyError, IndexError) as exc:
@@ -166,6 +257,15 @@ def _call_openrouter(
 
     try:
         data = resp.json()
+        if isinstance(data, dict):
+            u = data.get("usage") or {}
+            _record_usage({
+                "input_tokens": u.get("prompt_tokens"),
+                "output_tokens": u.get("completion_tokens"),
+                "cached_tokens": (u.get("prompt_tokens_details") or {}).get("cached_tokens"),
+                "reasoning_tokens": (u.get("completion_tokens_details") or {}).get("reasoning_tokens"),
+                "total_tokens": u.get("total_tokens"),
+            })
         content = data["choices"][0]["message"]["content"]
         return content, f"openrouter/{settings.OPENROUTER_MODEL}"
     except (ValueError, KeyError, IndexError) as exc:
@@ -219,6 +319,17 @@ def _call_gemini(
 
     try:
         data = resp.json()
+        try:
+            um = data.get("usageMetadata") or {}
+            _record_usage({
+                "input_tokens": um.get("promptTokenCount"),
+                "output_tokens": um.get("candidatesTokenCount"),
+                "cached_tokens": um.get("cachedContentTokenCount"),
+                "reasoning_tokens": um.get("thoughtsTokenCount"),
+                "total_tokens": um.get("totalTokenCount"),
+            })
+        except Exception:
+            _record_usage({})
         candidates = data.get("candidates") or []
         if not candidates:
             raise _LLMFallbackTrigger(f"Gemini returned no candidates: {resp.text[:300]}")
@@ -253,6 +364,7 @@ def _call_ollama(
         if resp.status_code != 200:
             raise _LLMFallbackTrigger(f"Ollama returned HTTP {resp.status_code}: {resp.text[:300]}")
         data = resp.json()
+        _record_usage({})  # local Ollama — zero marginal cloud cost
         return data["choices"][0]["message"]["content"], f"ollama/{settings.OLLAMA_MODEL}"
     except Exception as exc:
         raise _LLMFallbackTrigger(f"Ollama connection error: {exc}") from exc
@@ -269,26 +381,42 @@ def _chat(
     # 1. Primary: Google Gemini (high speed, conversational reasoning)
     if settings.effective_gemini_key or settings.LLM_PROVIDER.lower() in ("gemini", "google"):
         try:
-            return _call_gemini(system, user, max_tokens=max_tokens, temperature=temperature)
+            return _timed(
+                "google",
+                settings.GEMINI_MODEL or "gemini-2.0-flash",
+                lambda: _call_gemini(system, user, max_tokens=max_tokens, temperature=temperature),
+            )
         except _LLMFallbackTrigger as gemini_err:
             logger.warning("Primary LLM provider (Gemini) failed: %s. Falling back...", gemini_err)
             errors.append(f"Gemini: {gemini_err}")
 
     # 2. Secondary: OpenAI
     try:
-        return _call_openai(system, user, max_tokens=max_tokens, temperature=temperature)
+        return _timed(
+            "openai",
+            settings.LLM_MODEL,
+            lambda: _call_openai(system, user, max_tokens=max_tokens, temperature=temperature),
+        )
     except _LLMFallbackTrigger as openai_err:
         errors.append(f"OpenAI: {openai_err}")
 
     # 3. Tertiary: OpenRouter
     try:
-        return _call_openrouter(system, user, max_tokens=max_tokens, temperature=temperature)
+        return _timed(
+            "openrouter",
+            settings.OPENROUTER_MODEL,
+            lambda: _call_openrouter(system, user, max_tokens=max_tokens, temperature=temperature),
+        )
     except _LLMFallbackTrigger as openrouter_err:
         errors.append(f"OpenRouter: {openrouter_err}")
 
     # 4. Final: Ollama
     try:
-        return _call_ollama(system, user, max_tokens=max_tokens, temperature=temperature)
+        return _timed(
+            "ollama",
+            settings.OLLAMA_MODEL,
+            lambda: _call_ollama(system, user, max_tokens=max_tokens, temperature=temperature),
+        )
     except _LLMFallbackTrigger as ollama_err:
         errors.append(f"Ollama: {ollama_err}")
 
@@ -485,6 +613,7 @@ def generate_question(
     previous_qa: list[dict[str, str]],
     turn_index: int,
 ) -> GeneratedQuestion:
+    set_operation("question")
     context_bits = [
         f"Candidate: {candidate_name}",
         f"Target Role: {job_title or 'Software Engineer'}",
@@ -550,6 +679,7 @@ def evaluate_answer(
     job_description: str | None,
     turn_index: int,
 ) -> AnswerEvaluation:
+    set_operation("evaluate")
     user = "\n\n".join(
         part
         for part in [
@@ -618,6 +748,7 @@ def generate_scorecard(
     evaluations: list[dict[str, Any]],
     proctoring_summary: dict[str, Any],
 ) -> GeneratedScorecard:
+    set_operation("scorecard")
     convo = "\n\n".join(
         f"Q: {t.get('question', '')}\nA: {t.get('answer', '')}" for t in transcript
     )

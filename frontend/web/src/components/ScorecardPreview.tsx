@@ -68,7 +68,7 @@ export const ScorecardPreview: React.FC = () => {
           </div>
 
           {/* Quoted Answer with Timestamp */}
-          <div className="p-4 rounded-xl bg-surface-deep border border-line space-y-2">
+          <div className="p-4 rounded-xl bg-surface-deep space-y-2">
             <div className="flex items-center justify-between text-xs font-mono text-ink-muted">
               <span>VERBATIM TRANSCRIPT</span>
               <span className="text-accent-cyan">From completed interview</span>

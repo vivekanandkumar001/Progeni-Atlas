@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { apiFetch, persistSession } from '@/lib/api';
+import { apiFetch, apiJson, persistSession } from '@/lib/api';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,8 +16,6 @@ import {
   CheckCircle,
   ShieldCheck,
   Zap,
-  ArrowRight,
-  ArrowLeft,
   Loader2,
   GraduationCap,
   BookOpen,
@@ -375,9 +373,7 @@ const FormStepHeader = ({ title, roleLabel, icon: Icon, onBack, isRecruiter = fa
           type="button"
           onClick={onBack}
           className={`inline-flex items-center space-x-1 text-xs ${accent} font-semibold cursor-pointer transition-colors`}
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Change Account Type</span>
+        >          <span>Change Account Type</span>
         </button>
         <span className={`px-2.5 py-1 rounded-full border text-[11px] font-mono font-semibold flex items-center space-x-1 ${badgeClass}`}>
           <Icon className="w-3 h-3 mr-1" />
@@ -507,23 +503,22 @@ export default function RegisterPage() {
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Option 1: If user is already logged in, redirect directly to their dashboard
-    try {
-      const stored = localStorage.getItem('tp_user');
-      if (stored) {
-        const u = JSON.parse(stored);
-        if (u && (u.id || u.email)) {
-          const role = String(u.role || 'candidate').toLowerCase().trim();
+    // Option 1: If user is already logged in, redirect directly to their dashboard.
+    // Verify the session server-side — stale localStorage alone must not trigger a redirect.
+    void (async () => {
+      try {
+        const me = await apiJson<{ role?: string; user?: { role?: string } } | null>('/api/auth/me', {}, { skipCache: true });
+        const role = String(me?.user?.role || me?.role || '').toLowerCase().trim();
+        if (me && role) {
           const target = role === 'super_admin'
             ? '/super-admin'
-            : (role === 'recruiter' || role === 'admin' || role === 'hr')
+            : (role === 'recruiter' || role === 'admin' || role === 'hr' || role === 'employer')
               ? '/recruiter/dashboard'
               : '/candidate/dashboard';
           router.replace(target);
-          return;
         }
-      }
-    } catch {}
+      } catch { /* stay on register page */ }
+    })();
 
     const urlParams = new URLSearchParams(window.location.search);
     if (
@@ -840,7 +835,7 @@ export default function RegisterPage() {
     );
 
   return (
-    <div className="h-screen bg-canvas text-ink font-sans flex flex-col relative overflow-hidden">
+    <div className="h-dvh bg-canvas text-ink font-sans flex flex-col relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full ambient-glow-cyan pointer-events-none z-0" />
       <div className="absolute bottom-0 right-0 w-full h-full ambient-glow-indigo pointer-events-none z-0" />
 
@@ -899,7 +894,7 @@ export default function RegisterPage() {
                             </p>
                           </div>
                           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-cyan mt-5 group-hover:translate-x-1 transition-transform">
-                            Continue as Candidate →
+                            Continue as Candidate 
                           </span>
                         </div>
 
@@ -917,7 +912,7 @@ export default function RegisterPage() {
                             </p>
                           </div>
                           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-indigo mt-5 group-hover:translate-x-1 transition-transform">
-                            Continue as Recruiter →
+                            Continue as Recruiter 
                           </span>
                         </div>
                       </div>
@@ -1158,7 +1153,7 @@ export default function RegisterPage() {
                                       {parsedSkills.map((skill) => (
                                         <span
                                           key={skill}
-                                          className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold bg-white text-slate-800 border border-slate-200 shadow-xs hover:border-sky-300 transition-colors"
+                                          className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold bg-surface text-ink-2 border border-line shadow-xs hover:border-sky-300 transition-colors"
                                         >
                                           {skill}
                                         </span>
@@ -1216,7 +1211,7 @@ export default function RegisterPage() {
                             termsText="I agree to the Candidate Terms of Service and Privacy Policy."
                             isSubmitting={isSubmitting}
                             loadingText="Creating profile..."
-                            submitText="Complete Registration & Launch Interview →"
+                            submitText="Complete Registration & Launch Interview "
                             idPrefix="candidate"
                           />
                         </div>
@@ -1394,7 +1389,7 @@ export default function RegisterPage() {
                             termsText="I agree to the Enterprise Services Agreement and Evaluation Terms."
                             isSubmitting={isSubmitting}
                             loadingText="Setting up enterprise account..."
-                            submitText="Complete Registration & Access Dashboard →"
+                            submitText="Complete Registration & Access Dashboard "
                             isRecruiter
                             idPrefix="recruiter"
                           />

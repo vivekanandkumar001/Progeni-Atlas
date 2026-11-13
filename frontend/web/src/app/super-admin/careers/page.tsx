@@ -404,7 +404,7 @@ export default function SuperAdminCareersPage() {
               icon={Briefcase}
             />
           ) : (
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="border-b border-line text-xs font-semibold text-ink-muted">
                 <tr>
                   <th className="pb-3 pl-2">Role Title & Experience</th>

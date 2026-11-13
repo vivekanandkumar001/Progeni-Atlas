@@ -1,5 +1,5 @@
 """
-Progeni Atlas — Interview Engine Blueprint
+Progeni Atlas â€” Interview Engine Blueprint
 ===========================================
 Interactive interview sessions, question tree sequencing, scorecard synthesis,
 speech/TTS audio generation, proctoring events, room data, report dossier, and code execution.
@@ -16,12 +16,13 @@ import sys
 import tempfile
 import shutil
 import traceback
+import logging
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, request, jsonify, g, send_file, Response
 
 from core.db import get_mongo_db
 from core.security import (
-    _authenticate_request, resolve_user, require_auth, send_interview_completion_email_smtp
+    _authenticate_request, resolve_user, require_auth, require_session_access, send_interview_completion_email_smtp
 )
 from core.context import get_current_candidate, get_current_recruiter
 from core.constants import BASE_DIR, RECORDING_DIR
@@ -29,8 +30,10 @@ from core.interview_params import generate_dynamic_interview_parameters
 from core.wallet import get_user_wallet_balance, settle_interview_billing_completion
 
 interview_bp = Blueprint("interview_bp", __name__)
+logger = logging.getLogger("progeni_atlas.interview_routes")
 
 @interview_bp.route("/api/evaluator/dynamic-parameters", methods=["POST"])
+@require_auth
 def api_generate_dynamic_parameters():
     """
     Dynamic Interview Parameter Generator Endpoint.
@@ -106,7 +109,7 @@ def generate_dynamic_session_questions(session_id: str, session_doc: dict | None
             "You are Sarah Chen, a warm, experienced Staff Systems Engineer and Technical Hiring Lead. "
             "Generate a realistic, progressive 4-turn technical interview that feels like an authentic, collegial 1-on-1 video call. "
             "Output ONLY a valid JSON array of 4 question objects without preamble or markdown fences. "
-            "Every question must sound spoken aloud by a real human engineer — no dry exam prompts or robotic phrasing. "
+            "Every question must sound spoken aloud by a real human engineer â€” no dry exam prompts or robotic phrasing. "
             f"Turn 1 must start with a warm personal greeting (e.g., 'Hi {cand_name}, great to meet you! I'm Sarah, lead on this evaluation...'). "
             "Keep each question focused, natural, and under 42 words. "
             + interviewer_policy.question_authoring_rules()
@@ -181,7 +184,7 @@ JSON format:
         c2 = [s2, "Bundle Optimization", "Async Race Prevention"]
         t3 = f"Let's imagine you're architecting a real-time web application integrating {s3} with live WebSocket streams under a sudden 50,000-user spike. How do you design the edge rendering and backpressure so the clients stay responsive?"
         c3 = [s3, "WebSockets", "Edge Rendering", "Load Balancing"]
-        t4 = f"Once everything is running in production with {s4}, what telemetry — like Core Web Vitals, error boundary logs, or client-side distributed tracing — do you watch closely to spot memory leaks before users notice?"
+        t4 = f"Once everything is running in production with {s4}, what telemetry â€” like Core Web Vitals, error boundary logs, or client-side distributed tracing â€” do you watch closely to spot memory leaks before users notice?"
         c4 = [s4, "Core Web Vitals", "Telemetry", "Client Error Budgets"]
     elif any(k in lower_s1 for k in ["python", "fastapi", "django", "flask", "backend"]):
         t1 = f"Hi {cand_name}, great to meet you! I'm Sarah, leading our technical session today for {job_title}. To start us off, could you walk me through how you designed a recent backend service using {s1} and structured your domain boundaries?"
@@ -374,7 +377,7 @@ def build_interview_contract(session_id, session_doc=None, current_turn=1, state
     stages = [q.get("stage", f"Stage {i+1}").replace("_", " ").title() for i, q in enumerate(questions)]
     curr_stage = current_q.get("stage", "intro").replace("_", " ").title() if not is_finished else "Completed"
     if probe_active:
-        curr_stage = f"{curr_stage} · Follow-up"
+        curr_stage = f"{curr_stage} Â· Follow-up"
 
     return {
         "session_id": session_id,
@@ -674,6 +677,7 @@ def generate_dynamic_scorecard(session_id, session_doc=None, req=None):
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/questions", methods=["GET"])
+@require_session_access
 def get_interview_session_questions(session_id):
     """Fetch session questions with candidate's actual answers, scores, and feedback."""
     try:
@@ -738,6 +742,7 @@ def get_interview_session_questions(session_id):
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/scorecard", methods=["GET"])
+@require_session_access
 def get_interview_session_scorecard(session_id):
     """Fetch dynamic evaluation scorecard and competency pillars for a completed session."""
     try:
@@ -758,6 +763,7 @@ def get_interview_session_scorecard(session_id):
 # ------------------------------------------------------------------------------
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/lobby-info", methods=["GET"])
+@require_session_access
 def get_interview_lobby_info(session_id):
     """Fetch session metadata, job role, company name, resume highlights & evaluation rubrics."""
     try:
@@ -836,12 +842,13 @@ def get_interview_lobby_info(session_id):
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/lobby-check", methods=["POST"])
+@require_session_access
 def log_lobby_preflight_check(session_id):
     """Log hardware readiness check before candidate enters live interview room."""
     try:
         data = request.get_json() or {}
-        user, _, _ = get_current_candidate(request)
-        cand_email = data.get("email") or (user and user.get("email")) or "candidate@progeni.atlas"
+        user = getattr(g, "user", None) or {}
+        cand_email = (user.get("email") or "").strip().lower()
 
         doc = {
             "sessionId": session_id,
@@ -854,17 +861,12 @@ def log_lobby_preflight_check(session_id):
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
-        if MONGO_URI:
+        db = get_mongo_db()
+        if db is not None:
             try:
-                from core.db import CERTIFI_CA
-                kwargs = {"serverSelectionTimeoutMS": 5000}
-                if CERTIFI_CA:
-                    kwargs["tlsCAFile"] = CERTIFI_CA
-                client = pymongo.MongoClient(MONGO_URI, **kwargs)
-                db = client.get_database("swami_db")
                 db.lobby_checks.insert_one(doc)
             except Exception as mongo_err:
-                print(f"[Lobby Check] MongoDB log warning: {mongo_err}")
+                logger.warning(f"[Lobby Check] MongoDB log warning: {mongo_err}")
 
         return jsonify({
             "success": True,
@@ -872,11 +874,12 @@ def log_lobby_preflight_check(session_id):
             "readyToEnter": True,
             "roomUrl": f"/candidate/interview/{session_id}/room"
         }), 200
-    except Exception as e:
+    except Exception:
         return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/lobby-checkin", methods=["POST"])
+@require_session_access
 def log_lobby_checkin(session_id):
     """
     Candidate Pre-Flight Checkin Endpoint:
@@ -892,8 +895,8 @@ def log_lobby_checkin(session_id):
         raw_media_source = diag.get("mediaSource", "local")
         mediaSource = raw_media_source if raw_media_source in ("local", "phone") else "local"
 
-        user, _, _ = get_current_candidate(request)
-        cand_email = data.get("email") or (user and user.get("email")) or "candidate@progeni.atlas"
+        user = getattr(g, "user", None) or {}
+        cand_email = (user.get("email") or "").strip().lower()
 
         doc = {
             "sessionId": session_id,
@@ -930,12 +933,12 @@ def log_lobby_checkin(session_id):
 
             try:
                 db.interview_sessions.update_one(
-                    {"$or": [{"id": session_id}, {"_id": session_id}]},
+                    {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
                     {"$set": {"status": "in_progress", "started_at": datetime.now(timezone.utc).isoformat()}},
-                    upsert=True
+                    upsert=False
                 )
             except Exception as mongo_err:
-                print(f"[Lobby Checkin] MongoDB update warning: {mongo_err}")
+                logger.warning(f"[Lobby Checkin] MongoDB update warning: {mongo_err}")
 
         return jsonify({
             "success": True,
@@ -952,6 +955,7 @@ def log_lobby_checkin(session_id):
 # ------------------------------------------------------------------------------
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/candidate-media-token", methods=["POST"])
+@require_session_access
 def get_candidate_media_token(session_id):
     """Provide LiveKit WebRTC credentials or signal local mock mode cleanly."""
     try:
@@ -999,6 +1003,7 @@ def get_candidate_media_token(session_id):
 
 
 @interview_bp.route("/api/interview/<session_id>/state", methods=["GET"])
+@require_session_access
 def get_interview_state_route(session_id):
     """Server-authoritative interview contract state."""
     try:
@@ -1018,6 +1023,7 @@ def get_interview_state_route(session_id):
 
 
 @interview_bp.route("/api/interview/<session_id>/preflight", methods=["POST"])
+@require_session_access
 def interview_preflight_route(session_id):
     """Candidate hardware & proctoring preflight verification."""
     try:
@@ -1062,6 +1068,7 @@ def interview_preflight_route(session_id):
 
 
 @interview_bp.route("/api/interview/<session_id>/start", methods=["POST"])
+@require_session_access
 def interview_start_route(session_id):
     """Initialize interview questions and begin first turn."""
     try:
@@ -1125,7 +1132,7 @@ def synthesize_conversational_next_question(
         from app.services import llm_service
         sys_msg = (
             "You are Sarah Chen, Staff Systems Engineer and Technical Hiring Lead, in a live 1-on-1 technical conversation on video. "
-            "You are collegial, sharp, engaged, and warm — speaking naturally to an engineering peer. "
+            "You are collegial, sharp, engaged, and warm â€” speaking naturally to an engineering peer. "
             "Never use robotic transition phrases like 'Moving to stage 2', 'Now for the next question', or 'I have recorded your answer'. "
             "Your question must sound spoken aloud (under 38 words), bridging organically from what the candidate just discussed into the next focus."
         )
@@ -1151,6 +1158,7 @@ def synthesize_conversational_next_question(
 
 
 @interview_bp.route("/api/interview/<session_id>/answer", methods=["POST"])
+@require_session_access
 def interview_answer_route(session_id):
     """Submit a candidate turn, assess it, optionally probe, then advance.
 
@@ -1298,7 +1306,7 @@ def interview_answer_route(session_id):
                             },
                             "$push": {"history": clarification_turn_item}
                         },
-                        upsert=True,
+                        upsert=False,
                     )
                     session_doc = db.interview_sessions.find_one(session_query)
 
@@ -1458,7 +1466,7 @@ def interview_answer_route(session_id):
                     "$set": update_fields,
                     "$push": {"history": turn_history_item}
                 },
-                upsert=True
+                upsert=False
             )
             session_doc = db.interview_sessions.find_one(session_query)
 
@@ -1489,6 +1497,7 @@ def interview_answer_route(session_id):
 
 
 @interview_bp.route("/api/interview/<session_id>/finish", methods=["POST"])
+@require_session_access
 def interview_finish_route(session_id):
     """Mark session as completed and dynamically calculate final assessment scorecard."""
     try:
@@ -1513,7 +1522,7 @@ def interview_finish_route(session_id):
                     "state": "COMPLETED",
                     "finished_at": now_iso
                 }},
-                upsert=True
+                upsert=False
             )
             try:
                 db.interview_invitations.update_many(
@@ -1526,7 +1535,7 @@ def interview_finish_route(session_id):
             session_doc = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
             if session_doc:
                 cand_id = str(session_doc.get("candidate_id") or "")
-                cand_email = str(session_doc.get("candidate_email") or "")
+                cand_email = str(session_doc.get("candidate_email") or "").strip().lower()
                 cand_name = str(session_doc.get("candidate_name") or session_doc.get("name") or "Candidate")
                 job_title = session_doc.get("job_title") or session_doc.get("target_position") or session_doc.get("role_title") or "Technical Assessment"
                 rec_id = str(session_doc.get("recruiter_id") or session_doc.get("recruiterId") or "")
@@ -1616,7 +1625,7 @@ def interview_finish_route(session_id):
                     }}
                 )
             except Exception as update_err:
-                print(f"⚠️ [SCORECARD PERSIST WARNING] {update_err}")
+                print(f"âš ï¸ [SCORECARD PERSIST WARNING] {update_err}")
             if rec_id or rec_email:
                 try:
                     rec_notif = {
@@ -1663,6 +1672,7 @@ def interview_finish_route(session_id):
 
 
 @interview_bp.route("/api/interview/<session_id>/retry", methods=["POST"])
+@require_session_access
 def interview_retry_route(session_id):
     """Replay current question turn."""
     try:
@@ -1678,6 +1688,7 @@ def interview_retry_route(session_id):
 
 
 @interview_bp.route("/api/interview/<session_id>/question-timeout", methods=["POST"])
+@require_session_access
 def interview_question_timeout_route(session_id):
     """Handle candidate question timer expiration and auto-advance."""
     try:
@@ -1690,6 +1701,7 @@ def interview_question_timeout_route(session_id):
 
 
 @interview_bp.route("/api/interview/<session_id>/media-state", methods=["POST"])
+@require_session_access
 def interview_media_state_route(session_id):
     """Heartbeat endpoint for ongoing audio/video health."""
     try:
@@ -1704,7 +1716,7 @@ def interview_media_state_route(session_id):
                     "last_media_state": data,
                     "media_heartbeat_at": datetime.now(timezone.utc).isoformat()
                 }},
-                upsert=True
+                upsert=False
             )
         contract = build_interview_contract(session_id, None, 1, "QUESTION_READY")
         return jsonify(contract), 200
@@ -1723,7 +1735,7 @@ def _sanitize_text_for_speech(text: str) -> str:
     t = re.sub(r"\*\*([^*]+)\*\*", r"\1", t)
     t = re.sub(r"\*([^*]+)\*", r"\1", t)
     t = re.sub(r"__([^_]+)__", r"\1", t)
-    t = re.sub(r"^\s*[-*•]\s+", "", t, flags=re.MULTILINE)
+    t = re.sub(r"^\s*[-*â€¢]\s+", "", t, flags=re.MULTILINE)
     t = re.sub(r"^\s*\d+\.\s+", "", t, flags=re.MULTILINE)
     t = re.sub(r"^\s*#+\s+", "", t, flags=re.MULTILINE)
     t = re.sub(r"\s+", " ", t).strip()
@@ -1892,6 +1904,7 @@ def generate_speech_audio(text: str, voice: str = "default") -> tuple[bytes, str
 
 
 @interview_bp.route("/api/interview/<session_id>/speak", methods=["POST"])
+@require_session_access
 def interview_speak_route(session_id):
     """Generate high-definition natural voice audio stream for interviewer dialogue."""
     try:
@@ -1909,6 +1922,7 @@ def interview_speak_route(session_id):
 
 
 @interview_bp.route("/api/interview/<session_id>/whiteboard/critique", methods=["POST"])
+@require_session_access
 def interview_whiteboard_critique(session_id):
     """
     Multimodal System Design Architecture Critique powered by Gemini 2.5 Flash.
@@ -1936,7 +1950,7 @@ def interview_whiteboard_critique(session_id):
         for c in connections:
             from_name = node_map.get(c.get("fromId"), c.get("fromId"))
             to_name = node_map.get(c.get("toId"), c.get("toId"))
-            topology_lines.append(f"  - {from_name} ➔ {to_name}")
+            topology_lines.append(f"  - {from_name} âž” {to_name}")
 
         topology_text = "\n".join(topology_lines) if topology_lines else "  - No active connections drawn yet."
         all_nodes_text = ", ".join([f"{n.get('label')} [{n.get('type')}]" for n in nodes])
@@ -2001,6 +2015,7 @@ Return ONLY a valid JSON object in this exact schema:
 
 
 @interview_bp.route("/api/interview/<session_id>/transcribe", methods=["POST"])
+@require_session_access
 def interview_transcribe_route(session_id):
     """Audio speech-to-text transcription powered by OpenAI Whisper."""
     try:
@@ -2057,12 +2072,14 @@ def interview_transcribe_route(session_id):
 
 
 @interview_bp.route("/api/interview/<session_id>/reset-listening", methods=["POST"])
+@require_session_access
 def interview_reset_listening_route(session_id):
     """Reset speech recognition listening window."""
     return jsonify({"success": True, "state": "LISTENING"}), 200
 
 
 @interview_bp.route("/api/interview/<session_id>/proctoring/events", methods=["GET", "POST"])
+@require_session_access
 def interview_proctoring_events_route(session_id):
     """Collect and monitor candidate integrity and proctoring telemetry."""
     try:
@@ -2112,12 +2129,61 @@ def interview_proctoring_events_route(session_id):
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/recruiter-viewer-token", methods=["GET"])
+@require_session_access
 def recruiter_viewer_token(session_id):
-    """Recruiter live observation token."""
-    return jsonify({"token": f"recruiter_live_token_{session_id[:8]}", "session_id": session_id}), 200
+    """Recruiter live observation token.
+
+    Issues a subscribe-only LiveKit JWT so an authorized recruiter can silently
+    observe the candidate's live room. Never publish grants. Matches the
+    candidate media room naming (room == session_id).
+    """
+    try:
+        livekit_enabled = os.environ.get("LIVEKIT_ENABLED", "true").strip().lower() not in ("false", "0", "off", "disable", "no")
+        livekit_url = (os.environ.get("LIVEKIT_URL") or "").strip()
+        livekit_api_key = (os.environ.get("LIVEKIT_API_KEY") or "").strip()
+        livekit_secret = (os.environ.get("LIVEKIT_API_SECRET") or "").strip()
+
+        is_placeholder = any(
+            ph in livekit_api_key.lower() or ph in livekit_secret.lower()
+            for ph in ("placeholder", "your-api-key", "your-secret", "sk-proj-your", "none")
+        )
+
+        if not (livekit_enabled and livekit_url and livekit_api_key and livekit_secret and not is_placeholder):
+            return jsonify({
+                "error": "Live monitoring is not configured on this server (LiveKit credentials missing).",
+                "livekitUrl": None,
+                "jwt": None,
+            }), 503
+
+        user = getattr(g, "user", None) or {}
+        recruiter_id = str(user.get("id") or user.get("_id") or "recruiter")
+
+        from livekit import api as lk_api
+        token = lk_api.AccessToken(livekit_api_key, livekit_secret) \
+            .with_identity(f"recruiter-{recruiter_id[:8]}-{session_id[:8]}") \
+            .with_name("Recruiter Observer") \
+            .with_grants(lk_api.VideoGrants(
+                room_join=True,
+                room=session_id,
+                can_publish=False,
+                can_subscribe=True,
+            )).to_jwt()
+
+        return jsonify({
+            "livekitUrl": livekit_url,
+            "jwt": token,
+            "room": session_id,
+            "sessionId": session_id,
+            "role": "recruiter",
+        }), 200
+    except Exception as lk_err:
+        print(f"[RecruiterViewerToken] Live token generation failed for session {session_id}: {lk_err}")
+        traceback.print_exc()
+        return jsonify({"error": "Failed to issue monitoring token. Please retry in a few seconds."}), 500
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/recording", methods=["GET", "POST"])
+@require_session_access
 def interview_recording(session_id):
     """Interview video recording metadata and ingestion."""
     return jsonify({
@@ -2277,6 +2343,7 @@ Respond ONLY with JSON:
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/room-data", methods=["GET"])
+@require_session_access
 def get_interview_room_data(session_id):
     """Fetch live interview room initial state, stage stepper, and problem context."""
     try:
@@ -2434,6 +2501,7 @@ def validate_code_security(code: str, language: str) -> tuple[bool, str | None]:
 
 
 @interview_bp.route("/api/v1/interview-sessions/<session_id>/code-run", methods=["POST"])
+@require_session_access
 def run_interview_code(session_id):
     """Execute candidate code submission in real isolated sandbox."""
     try:
@@ -2537,7 +2605,7 @@ def run_interview_code(session_id):
                     return jsonify({
                         "success": False,
                         "stdout": "",
-                        "stderr": "⚡ Execution Timeout: Code ran longer than 5.0 seconds. Check for infinite loops or non-terminating recursion.",
+                        "stderr": "âš¡ Execution Timeout: Code ran longer than 5.0 seconds. Check for infinite loops or non-terminating recursion.",
                         "executionTimeMs": 5000,
                         "time": "5.00s",
                         "passedCount": 0,
@@ -2605,7 +2673,7 @@ def run_interview_code(session_id):
                     return jsonify({
                         "success": False,
                         "stdout": "",
-                        "stderr": "⚡ Execution Timeout: Code ran longer than 5.0 seconds. Check for infinite loops or non-terminating recursion.",
+                        "stderr": "âš¡ Execution Timeout: Code ran longer than 5.0 seconds. Check for infinite loops or non-terminating recursion.",
                         "executionTimeMs": 5000,
                         "time": "5.00s",
                         "passedCount": 0,
@@ -2679,7 +2747,7 @@ def run_interview_code(session_id):
                     return jsonify({
                         "success": False,
                         "stdout": "",
-                        "stderr": "⚡ Execution Timeout: C++ binary ran longer than 5.0 seconds.",
+                        "stderr": "âš¡ Execution Timeout: C++ binary ran longer than 5.0 seconds.",
                         "executionTimeMs": 5000,
                         "time": "5.00s",
                         "passedCount": 0,
@@ -2753,7 +2821,7 @@ def run_interview_code(session_id):
                     return jsonify({
                         "success": False,
                         "stdout": "",
-                        "stderr": "⚡ Execution Timeout: Java program ran longer than 5.0 seconds.",
+                        "stderr": "âš¡ Execution Timeout: Java program ran longer than 5.0 seconds.",
                         "executionTimeMs": 5000,
                         "time": "5.00s",
                         "passedCount": 0,
@@ -2811,8 +2879,9 @@ def get_candidate_evaluation_report(session_id):
             "interviewDate": datetime.now(timezone.utc).strftime("%B %d, %Y"),
             "durationMinutes": 45
         }
-        total_score = 91.4
-        recommendation = "STRONG_HIRE"
+        # No stored scores => stay honest and unscored (never fabricate a verdict).
+        total_score = None
+        recommendation = None
 
         db = get_mongo_db()
         if db is not None:
@@ -2872,12 +2941,12 @@ def get_candidate_evaluation_report(session_id):
                 ts_sec = idx * 180
                 m, s = divmod(ts_sec, 60)
                 formatted_time = f"{m:02d}:{s:02d}"
-                raw_score = float(h_item.get("relevance_score") or h_item.get("score") or 8.5)
-                rel_score = raw_score if raw_score <= 10.0 else raw_score / 10.0
-                raw_depth = float(h_item.get("depth_score") or rel_score)
-                depth_score = raw_depth if raw_depth <= 10.0 else raw_depth / 10.0
-                raw_corr = float(h_item.get("correctness_score") or rel_score)
-                corr_score = raw_corr if raw_corr <= 10.0 else raw_corr / 10.0
+                raw_score = float(h_item.get("relevance_score") or h_item.get("score")) if (h_item.get("relevance_score") or h_item.get("score")) is not None else None
+                rel_score = raw_score if (raw_score is None or raw_score <= 10.0) else raw_score / 10.0
+                raw_depth = float(h_item.get("depth_score")) if h_item.get("depth_score") is not None else rel_score
+                depth_score = raw_depth if (raw_depth is None or raw_depth <= 10.0) else raw_depth / 10.0
+                raw_corr = float(h_item.get("correctness_score")) if h_item.get("correctness_score") is not None else rel_score
+                corr_score = raw_corr if (raw_corr is None or raw_corr <= 10.0) else raw_corr / 10.0
 
                 turns.append({
                     "turnIndex": h_item.get("turn_index") or (idx + 1),
@@ -2889,92 +2958,36 @@ def get_candidate_evaluation_report(session_id):
                     "candidate_code": h_item.get("candidate_code") or "",
                     "code_language": h_item.get("code_language") or "python",
                     "scores": {
-                        "relevance": round(rel_score * 10, 1),
-                        "depth": round(depth_score * 10, 1),
-                        "correctness": round(corr_score * 10, 1),
+                        "relevance": round(rel_score * 10, 1) if rel_score is not None else None,
+                        "depth": round(depth_score * 10, 1) if depth_score is not None else None,
+                        "correctness": round(corr_score * 10, 1) if corr_score is not None else None,
                     },
                     "keyConceptsCovered": h_item.get("covered_concepts") or [],
                     "missingConcepts": h_item.get("missing_concepts") or [],
-                    "isWeakAnswer": bool(rel_score < 7.0 or h_item.get("decision") in ("INSUFFICIENT", "WEAK")),
+                    "isWeakAnswer": bool((rel_score is not None and rel_score < 7.0) or h_item.get("decision") in ("INSUFFICIENT", "WEAK")),
                     "evaluatorFeedback": h_item.get("feedback") or "Evaluated against role standards."
                 })
         else:
-            turns = [
-                {
-                    "turnIndex": 1,
-                    "timestampSec": 0,
-                    "formattedTime": "00:00",
-                    "stage": "introduction",
-                    "questionAsked": f"Could you provide a brief overview of your background in {s1} and high-throughput systems?",
-                    "candidateAnswerSummary": f"Candidate outlined practical hands-on experience building systems with {', '.join(skills[:3]) if skills else 'modern frameworks and databases'}.",
-                    "candidate_code": "",
-                    "code_language": "python",
-                    "scores": {"relevance": 9.5, "depth": 9.0, "correctness": 9.2},
-                    "keyConceptsCovered": [f"{s1} Architecture", f"{s2} Integration", "API Design"],
-                    "missingConcepts": [],
-                    "isWeakAnswer": False,
-                    "evaluatorFeedback": "Articulate introduction displaying strong technical domain ownership."
-                },
-                {
-                    "turnIndex": 2,
-                    "timestampSec": 185,
-                    "formattedTime": "03:05",
-                    "stage": "resume_probe",
-                    "questionAsked": f"Walk me through how you implemented {s2} and the core architectural decisions in your resume projects.",
-                    "candidateAnswerSummary": f"Explained concurrency handling, state management, and reliable data flow under high traffic.",
-                    "candidate_code": "",
-                    "code_language": "python",
-                    "scores": {"relevance": 9.2, "depth": 9.4, "correctness": 9.0},
-                    "keyConceptsCovered": [s2, "Concurrency Control", "Fault-Tolerant Architecture"],
-                    "missingConcepts": ["Consistent Hashing for Sharding"],
-                    "isWeakAnswer": False,
-                    "evaluatorFeedback": "Deep understanding of concurrency primitives and fault-tolerant fallback design."
-                },
-                {
-                    "turnIndex": 3,
-                    "timestampSec": 435,
-                    "formattedTime": "07:15",
-                    "stage": "technical_depth",
-                    "questionAsked": f"How do you handle memory overhead and latency bottlenecks when scaling {s3}?",
-                    "candidateAnswerSummary": f"Proposed using optimal indexing and bucketized buffers, but hesitated when probed on worst-case garbage collection pauses and distributed cache invalidation.",
-                    "candidate_code": "",
-                    "code_language": "python",
-                    "scores": {"relevance": 6.8, "depth": 6.4, "correctness": 6.9},
-                    "keyConceptsCovered": [s3, "Memory Footprint Bounding"],
-                    "missingConcepts": ["GC Pause Bounding", "Cache Invalidation Locks"],
-                    "isWeakAnswer": True,
-                    "evaluatorFeedback": "Sub-threshold response: Struggled to articulate lock-free concurrency and GC overhead under high-frequency writes."
-                },
-                {
-                    "turnIndex": 4,
-                    "timestampSec": 760,
-                    "formattedTime": "12:40",
-                    "stage": "system_architecture",
-                    "questionAsked": f"Draw and explain your system design topology for a resilient application cluster powered by {s4}.",
-                    "candidateAnswerSummary": f"Designed an edge load balancer feeding into stateless microservices with telemetry sidecars and asynchronous event streams.",
-                    "candidate_code": "",
-                    "code_language": "python",
-                    "scores": {"relevance": 9.4, "depth": 9.0, "correctness": 9.1},
-                    "keyConceptsCovered": [s4, "Stateless Microservices", "Async Telemetry"],
-                    "missingConcepts": ["Multi-Region Disaster Recovery"],
-                    "isWeakAnswer": False,
-                    "evaluatorFeedback": "Production-grade system topology with clear separation of control and data planes."
-                }
-            ]
+            # No turns recorded yet — never invent an interview that did not happen.
+            turns = []
 
+        has_real_data = bool(turns)
         top_skills_str = ", ".join(skills[:4]) if skills else "software engineering"
         role_label = job_info.get("roleTitle", "Software Engineer")
-        executive_summary = (
-            f"Candidate {candidate_info['fullName']} demonstrated exceptional technical competence during the 45-minute AI technical screening. "
-            f"Showcased strong mastery over {top_skills_str}, distributed systems design, and modular code architecture. "
-            f"Highly recommended for {role_label} placement."
-        )
-
-        verified_strengths = [
-            f"Mastery over {s1} and robust software design patterns.",
-            f"Production-ready hands-on experience with {', '.join(skills[1:4]) if len(skills) > 1 else 'modern web and backend frameworks'}.",
-            "Clear technical communication with articulate architecture diagrams and structured code style."
-        ]
+        if has_real_data:
+            executive_summary = (
+                f"Candidate {candidate_info['fullName']} demonstrated technical competence during the 45-minute AI technical screening. "
+                f"Key strengths: {top_skills_str}."
+            )
+            verified_strengths = [
+                f"Keyword coverage: {', '.join(skills[:4]) if len(skills) > 1 else top_skills_str}.",
+                "Evaluated against role-specific competency rubric.",
+            ]
+            growth_areas = [f"Deepen depth on: {', '.join(skills[:2]) if skills else 'core role areas'}."]
+        else:
+            executive_summary = None
+            verified_strengths = []
+            growth_areas = []
 
         # Audit proctoring events from database or synthesize realistic audit moments
         suspicious_events = []
@@ -3002,26 +3015,9 @@ def get_candidate_evaluation_report(session_id):
                 print(f"[Report] Proctoring lookup error: {pe_err}")
 
         if not suspicious_events:
-            suspicious_events = [
-                {
-                    "id": "proc-ev-1",
-                    "title": "Secondary Peripheral Face Detected",
-                    "timestampSec": 395,
-                    "formattedTime": "06:35",
-                    "severity": "medium",
-                    "reason": "Secondary face entered webcam field of view momentarily."
-                },
-                {
-                    "id": "proc-ev-2",
-                    "title": "Browser Lost Focus / Tab Departure",
-                    "timestampSec": 680,
-                    "formattedTime": "11:20",
-                    "severity": "low",
-                    "reason": "Candidate switched away from assessment window for 2 seconds."
-                }
-            ]
-            warning_count = 2
-            event_counts = {"multiple_faces": 1, "tab_switch": 1}
+            suspicious_events = []
+            warning_count = 0
+            event_counts = {}
 
         return jsonify({
             "sessionId": session_id,
@@ -3029,18 +3025,11 @@ def get_candidate_evaluation_report(session_id):
             "jobContext": job_info,
             "overallScore": total_score,
             "hiringRecommendation": recommendation,
-            "percentileRank": 88,
-            "competencyPillars": {
-                "algorithmicProblemSolving": 92,
-                "systemArchitecture": 90,
-                "codeQualityAndSyntax": 88,
-                "communicationAndClarity": 95
-            },
+            "percentileRank": None,
+            "competencyPillars": None,
             "executiveSummary": executive_summary,
             "verifiedStrengths": verified_strengths,
-            "targetedGrowthAreas": [
-                f"Explore multi-region consistent hashing topologies and advanced clustering with {s4}."
-            ],
+            "targetedGrowthAreas": growth_areas,
             "proctoringIntegritySummary": {
                 "totalEvents": warning_count,
                 "warningCount": warning_count,
@@ -3054,8 +3043,8 @@ def get_candidate_evaluation_report(session_id):
                 "suspiciousEvents": suspicious_events
             },
             "turnReviews": turns,
-            "reportStatus": "completed",
-            "transcriptStatus": "available",
+            "reportStatus": "completed" if has_real_data else "pending",
+            "transcriptStatus": "available" if has_real_data else "pending",
             "verificationDossierId": f"TP-2026-{session_id[:6].upper()}"
         }), 200
     except Exception as e:
@@ -3094,9 +3083,10 @@ def export_report_pdf(session_id):
         cand_name = sess.get("candidate_name") or sess.get("name") or "Candidate"
         cand_email = sess.get("candidate_email") or ""
         job_title = sess.get("job_title") or sess.get("target_position") or "Software Engineer"
-        score = round(float(sess.get("total_score") or 88))
-        rec = str(sess.get("final_recommendation") or ("STRONG_HIRE" if score >= 90 else "HIRE" if score >= 80 else "LEAN_HIRE")).upper().replace("_", " ")
-        summary = sess.get("summary") or "Technical screening evaluation successfully recorded."
+        raw_score = sess.get("total_score")
+        score = round(float(raw_score)) if raw_score is not None else None
+        rec = str(sess.get("final_recommendation") or ("STRONG_HIRE" if score is not None and score >= 90 else "HIRE" if score is not None and score >= 80 else "LEAN_HIRE" if score is not None and score >= 60 else "REJECT" if score is not None else "PENDING EVALUATION")).upper().replace("_", " ")
+        summary = sess.get("summary") or ("Technical screening evaluation recorded." if score is not None else "Interview not yet completed — no evaluation data exists for this candidate.")
 
         if request.args.get("format") == "json":
             return jsonify({
@@ -3109,6 +3099,12 @@ def export_report_pdf(session_id):
                 "recommendation": rec,
                 "summary": summary
             }), 200
+
+        # Unscored interview => honest placeholder output in the PDF
+        score_display = f"{score}%" if score is not None else "—"
+        score_width = score if score is not None else 0
+        bar_label = score_display if score is not None else "Pending"
+        assess_status = "Completed" if score is not None else "Pending Evaluation"
 
         now_str = datetime.now(timezone.utc).strftime('%b %d, %Y')
         short_id = session_id[:8].upper()
@@ -3173,10 +3169,10 @@ def export_report_pdf(session_id):
     <div>
       <h1 class="name">{safe_name}</h1>
       <p class="meta">{safe_email} &bull; {safe_title}</p>
-      <p class="meta" style="margin-top: 4px;">Assessment Status: Completed &bull; Multi-Modal Verified</p>
+      <p class="meta" style="margin-top: 4px;">Assessment Status: {assess_status} &bull; Multi-Modal Verified</p>
     </div>
     <div class="score-box">
-      <div class="score-num">{score}%</div>
+      <div class="score-num">{score_display}</div>
       <div class="badge">{safe_rec}</div>
     </div>
   </div>
@@ -3192,20 +3188,20 @@ def export_report_pdf(session_id):
   <div class="section-title">4-Pillar Competency Breakdown</div>
   <div class="grid">
     <div class="bar-box">
-      <div class="bar-head"><span>Technical Depth</span><span>{score}%</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width: {score}%;"></div></div>
+      <div class="bar-head"><span>Technical Depth</span><span>{bar_label}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width: {score_width}%;"></div></div>
     </div>
     <div class="bar-box">
-      <div class="bar-head"><span>System Architecture</span><span>{score}%</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width: {score}%; background: #06b6d4;"></div></div>
+      <div class="bar-head"><span>System Architecture</span><span>{bar_label}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width: {score_width}%; background: #06b6d4;"></div></div>
     </div>
     <div class="bar-box">
-      <div class="bar-head"><span>Problem Solving</span><span>{score}%</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width: {score}%; background: #10b981;"></div></div>
+      <div class="bar-head"><span>Problem Solving</span><span>{bar_label}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width: {score_width}%; background: #10b981;"></div></div>
     </div>
     <div class="bar-box">
-      <div class="bar-head"><span>Communication</span><span>{score}%</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width: {score}%; background: #f59e0b;"></div></div>
+      <div class="bar-head"><span>Communication</span><span>{bar_label}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width: {score_width}%; background: #f59e0b;"></div></div>
     </div>
   </div>
 

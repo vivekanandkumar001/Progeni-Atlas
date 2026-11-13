@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,6 @@ import {
   UploadCloud,
   CheckCircle2,
   AlertCircle,
-  ArrowRight,
   Sparkles,
   Loader2,
   X,
@@ -24,8 +23,7 @@ import {
   Cpu,
   Clock,
   Layers,
-  ChevronDown,
-} from 'lucide-react';
+  ChevronDown } from 'lucide-react';
 import {
   apiFetch,
   fetchCandidateResumes,
@@ -38,6 +36,9 @@ import {
 } from '@/lib/api';
 
 type JdMode = 'paste' | 'upload';
+
+// Practice sessions are fixed-length (matches "10-Minute Fixed Drill" copy everywhere).
+const PRACTICE_MINUTES = 10;
 
 // Only used if the backend dropdown source (live postings + past roles) returns
 // nothing, so the picker is never empty. The list itself is data-driven.
@@ -87,6 +88,7 @@ export function PracticeInterviewSetup() {
 
   // Wallet / Balance State
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [ratePerMinCredits, setRatePerMinCredits] = useState(0.5);
   const [loadingWallet, setLoadingWallet] = useState(true);
   const [isLowBalance, setIsLowBalance] = useState(false);
 
@@ -107,16 +109,21 @@ export function PracticeInterviewSetup() {
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data.success && data.wallet) {
-            // Default to 40 credits for candidates if no wallet record exists
-            const defaultCredits = 40.0;
-            const storedBalance = Number(data.wallet.availableCredits ?? defaultCredits);
+            // Rate is read from the live wallet payload — never hardcode what we charge.
+            const rate = Number(
+              data.wallet.ratePerMinuteCredits ?? data.wallet.rate_per_minute_credits ?? 0.5
+            );
+            if (Number.isFinite(rate) && rate > 0) setRatePerMinCredits(rate);
+            const storedBalance = Number(data.wallet.availableCredits ?? 0);
             setWalletBalance(storedBalance <= 0 ? 0 : storedBalance);
-            setIsLowBalance(storedBalance <= 10);
+            setIsLowBalance(storedBalance > 0 && storedBalance < rate * PRACTICE_MINUTES);
           }
         }
       } catch (err) {
         console.error('[PracticeSetup] Wallet API error:', err);
-        setWalletBalance(40); // Fallback: new candidates get 40 credits
+        // Do not fabricate a balance on failure — the server enforces the
+        // real balance at session creation (402 INSUFFICIENT_CREDITS).
+        setWalletBalance(null);
       } finally {
         if (isMounted) setLoadingWallet(false);
       }
@@ -187,6 +194,11 @@ export function PracticeInterviewSetup() {
 
   const activeRoleIndex =
     roleHighlight >= 0 && roleHighlight < filteredRoles.length ? roleHighlight : -1;
+
+  // Derived billing figures — driven by the live wallet rate, never hardcoded.
+  const costPerInterview = Math.max(0, ratePerMinCredits * PRACTICE_MINUTES);
+  const affordableCount =
+    walletBalance === null ? null : Math.floor(walletBalance / (costPerInterview || 1));
 
   // Determine active parsed resume
   const activeResume = resumes?.find(
@@ -676,7 +688,7 @@ export function PracticeInterviewSetup() {
                     </p>
                   </label>
                 ) : (
-                  <div className="p-4 rounded-2xl bg-canvas border border-line flex items-center justify-between gap-3">
+                  <div className="p-4 rounded-2xl bg-canvas flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-accent-emerald/10 border border-accent-emerald/20 text-accent-emerald flex items-center justify-center">
                         <FileCheck className="w-5 h-5" />
@@ -725,12 +737,12 @@ export function PracticeInterviewSetup() {
                 href="/candidate/profile"
                 className="text-xs text-accent-cyan hover:underline font-semibold flex flex-shrink-0 items-center gap-1"
               >
-                Manage Profile →
+                Manage Profile 
               </Link>
             </div>
 
             {loadingResume ? (
-              <div className="p-4 rounded-2xl bg-canvas border border-line flex items-center gap-3 animate-pulse">
+              <div className="p-4 rounded-2xl bg-canvas flex items-center gap-3 animate-pulse">
                 <div className="w-9 h-9 rounded-xl bg-surface-3" />
                 <div className="space-y-1.5 flex-1">
                   <div className="h-4 bg-surface-3 rounded w-1/3" />
@@ -738,7 +750,7 @@ export function PracticeInterviewSetup() {
                 </div>
               </div>
             ) : hasUsableResume && activeResume ? (
-              <div className="p-4 rounded-2xl bg-canvas border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="p-4 rounded-2xl bg-canvas flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-accent-emerald/10 border border-accent-emerald/20 text-accent-emerald flex items-center justify-center flex-shrink-0">
                     <ShieldCheck className="w-5 h-5" />
@@ -757,7 +769,7 @@ export function PracticeInterviewSetup() {
                 </div>
               </div>
             ) : (
-              <div className="p-4 rounded-2xl bg-accent-cyan/10 border border-accent-cyan/20 text-ink flex items-start gap-3">
+              <div className="p-4 rounded-2xl bg-accent-cyan/10 text-ink flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-accent-cyan flex-shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
                   <p className="font-bold text-accent-cyan">Standard Profile Context Active</p>
@@ -809,7 +821,7 @@ export function PracticeInterviewSetup() {
                   </h4>
                 </div>
                 <p className="text-xs text-ink-muted leading-relaxed">
-                  Your wallet balance is low. You have enough credits for {Math.max(1, Math.floor((walletBalance ?? 0) / 2))} more practice interview(s). Please recharge your wallet to continue.
+                  Your wallet balance is low. One 10-minute session costs {costPerInterview} credits, so you have enough for {affordableCount ?? 0} more practice interview(s). Please recharge your wallet to continue.
                 </p>
                 <div className="pt-1">
                   <Link
@@ -853,18 +865,13 @@ export function PracticeInterviewSetup() {
               ) : (
                 <>
                   <span>Start Practice Interview</span>
-                  <ArrowRight className="w-5 h-5" />
-                </>
+                  </>
               )}
             </button>
 
-            {!canStart && !isSubmitting && (
+            {!canStart && !isSubmitting && !isLowBalance && !isZeroBalance && (
               <p className="text-xs text-accent-amber font-medium text-center">
-                {isZeroBalance
-                  ? '⚠️ Wallet balance is 0 credits. Please recharge in Wallet to enable practice interviews.'
-                  : isLowBalance
-                  ? `⚠️ Wallet balance is low (${walletBalance ?? 0} credits). You have enough for ${Math.max(1, Math.floor((walletBalance ?? 0) / 2))} more practice interview(s). Please recharge to continue.`
-                  : !isRoleValid
+                {!isRoleValid
                   ? '⚠️ Enter or select a Target Job Role above to unlock interview setup.'
                   : !isJdValid
                   ? '⚠️ Provide at least 20 characters of Job Description (or upload a file) to unlock.'
@@ -896,15 +903,23 @@ export function PracticeInterviewSetup() {
                 </span>
                 <span className="font-semibold text-accent-emerald text-right">10 Minutes (Fixed)</span>
               </div>
-              <div className="flex items-center justify-between gap-3 py-2 border-b border-line">
+              <div className="flex items-center justify-between gap-3 py-2">
                 <span className="text-ink-muted flex flex-shrink-0 items-center gap-1.5">
                   <Target className="w-3.5 h-3.5 text-accent-violet" /> Evaluation
                 </span>
                 <span className="font-semibold text-ink text-right">Rubric Scorecard</span>
               </div>
+              <div className="flex items-center justify-between gap-3 py-2 border-t border-line">
+                <span className="text-ink-muted flex flex-shrink-0 items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-accent-amber" /> Cost
+                </span>
+                <span className="font-semibold text-ink text-right">
+                  {costPerInterview} credits <span className="text-ink-muted font-normal">({PRACTICE_MINUTES} min @ {ratePerMinCredits} cr/min)</span>
+                </span>
+              </div>
             </div>
 
-            <div className="pt-2 rounded-2xl bg-canvas p-3 border border-line text-[11px] text-ink-muted leading-relaxed">
+            <div className="pt-2 rounded-2xl bg-canvas p-3 text-[11px] text-ink-muted leading-relaxed">
               💡 Your interview will adaptively probe technical competencies, system design, and behavioral scenarios tailored to your role.
             </div>
           </div>

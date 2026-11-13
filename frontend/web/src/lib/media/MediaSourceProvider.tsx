@@ -177,7 +177,7 @@ export function MediaSourceProvider({ sessionId, children }: MediaSourceProvider
       let targetStream: MediaStream | null = null;
       // Fresh permission results for THIS invocation. The state setters above
       // don't update this closure, and the state values captured when the
-      // callback was created may be stale ΓÇö so the publish guard below must
+      // callback was created may be stale – so the publish guard below must
       // read these locals, not `cameraError`/`micError` state.
       let latestCameraError = cameraError;
       let latestMicError = micError;

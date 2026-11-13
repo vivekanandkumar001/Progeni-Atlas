@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { TrendingUp, Play, Award, Zap, Loader2, CheckCircle2, X } from 'lucide-react';
+import { TrendingUp, Play, Award, Zap, Loader2, CheckCircle2, X, Lock } from 'lucide-react';
 import { fetchCandidateDashboard, fetchCandidateProfile, type CandidateDashboard, type CandidateProfile } from '@/lib/api';
 import { LOADING_RESUME_STATUS } from '@/constants/ui_strings';
 
@@ -116,8 +116,11 @@ export const ReadinessBanner: React.FC = () => {
         </h1>
 
         <p className="text-sm text-ink leading-relaxed">
-          {interviewLine} An interview readiness score is not available yet — it is
-          calculated after your first completed interview session.
+          {interviewLine}{' '}
+          {dashboard != null &&
+            (upcomingCount === 0
+              ? 'Complete a practice interview to build your readiness profile — we will score it on delivery, depth and clarity.'
+              : 'Your readiness score is calculated once you complete a scored interview.')}
         </p>
 
         <div className="pt-1 flex items-center space-x-3 text-xs text-ink-muted font-mono">
@@ -134,25 +137,24 @@ export const ReadinessBanner: React.FC = () => {
       </div>
 
       {/* Right Readiness Score Card & CTA */}
-      <div className="w-full lg:w-auto flex flex-col sm:flex-row items-center gap-4 bg-inset/80 p-4 rounded-xl border border-line z-10 shrink-0">
+      <div className="w-full lg:w-auto flex flex-col sm:flex-row items-center gap-4 bg-inset/80 p-4 rounded-xl z-10 shrink-0">
         {/* Score Ring / Display */}
         <div className="flex items-center space-x-4">
           <div className="relative w-16 h-16 rounded-full bg-surface-2 p-0.5 flex items-center justify-center border border-line">
             <div className="w-full h-full bg-inset rounded-full flex flex-col items-center justify-center">
-              <span className="text-xl font-extrabold text-ink-faint leading-none">--</span>
-              <span className="text-[9px] font-mono text-ink-muted uppercase mt-0.5">/ 100</span>
+              <Lock className="w-5 h-5 text-ink-faint" />
             </div>
           </div>
 
           <div className="flex flex-col">
             <span className="text-xs font-bold text-ink">Interview Readiness Score</span>
-            <span className="text-xs text-ink-muted flex items-center mt-1">
+            <span className="text-xs text-ink-muted flex items-center mt-1 max-w-[11rem] leading-snug">
               {loading ? (
                 <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
               ) : (
-                <TrendingUp className="w-3.5 h-3.5 mr-1" />
+                <TrendingUp className="w-3.5 h-3.5 mr-1 shrink-0" />
               )}
-              Not available yet
+              Locked — unlocks after your first scored interview
             </span>
           </div>
         </div>
@@ -167,7 +169,7 @@ export const ReadinessBanner: React.FC = () => {
                   {dashboard.demo_allowance.freeDemosRemaining} of {dashboard.demo_allowance.freeDemosTotal} Free Demos Available (10m limit)
                 </span>
               ) : (
-                <span className="text-amber-400">
+                <span className="text-accent-amber">
                   Free Demos Used ({dashboard.demo_allowance.freeDemosTotal}/{dashboard.demo_allowance.freeDemosTotal}) • Paid Access Active
                 </span>
               )}
@@ -181,8 +183,8 @@ export const ReadinessBanner: React.FC = () => {
             <Play className="w-3.5 h-3.5 fill-current" />
             <span>
               {dashboard?.demo_allowance && dashboard.demo_allowance.freeDemosRemaining > 0
-                ? `Start Free Demo Interview (${dashboard.demo_allowance.freeDemosRemaining} Left) →`
-                : 'Start Practice Interview →'}
+                ? `Start Free Demo Interview (${dashboard.demo_allowance.freeDemosRemaining} Left) `
+                : 'Start Practice Interview '}
             </span>
           </Link>
         </div>

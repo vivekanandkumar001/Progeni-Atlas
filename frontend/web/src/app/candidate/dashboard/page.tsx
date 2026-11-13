@@ -1,58 +1,72 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { ReadinessBanner } from '@/components/dashboard/ReadinessBanner';
-import { UpcomingInterviewCard } from '@/components/dashboard/UpcomingInterviewCard';
-import { CompetencyCard } from '@/components/dashboard/CompetencyCard';
-import { FeedbackDossier } from '@/components/dashboard/FeedbackDossier';
+import { HeroStrip } from '@/components/dashboard/HeroStrip';
+import { QuickStartColumns } from '@/components/dashboard/QuickStartColumns';
+import { SnapshotStrip } from '@/components/dashboard/SnapshotStrip';
+import { RecentActivity } from '@/components/dashboard/RecentActivity';
+import { CompetencyMap } from '@/components/dashboard/CompetencyMap';
+import { FeedbackSummary } from '@/components/dashboard/FeedbackSummary';
 import { PracticeDrillList } from '@/components/dashboard/PracticeDrillList';
+import { PrepChecklist } from '@/components/dashboard/PrepChecklist';
 import { ResumeSyncFooter } from '@/components/dashboard/ResumeSyncFooter';
 
 export const metadata: Metadata = {
-  title: 'Candidate Dashboard | Progeni Atlas',
-  description: 'Track your AI interview readiness, practice technical drills, view competency breakdowns, and access scheduled live video screening rooms.',
+  title: 'Candidate Home | Progeni Atlas',
+  description:
+    'Your placement preparation command center — interviews, aptitude assessments, competency map, recent activity and practice drills in one flat workspace.',
 };
 
-export default function CandidateDashboardPage() {
+export default function CandidateHomePage() {
   return (
-    <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans relative overflow-x-clip selection:bg-cyan-500/30 selection:text-accent-cyan">
-      {/* Background ambient glows */}
-      <div className="fixed top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="fixed top-1/3 right-1/4 w-[30rem] h-[30rem] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="fixed bottom-10 left-1/3 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
-
-      {/* Top Fixed Header Shell */}
+    <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans overflow-x-clip selection:bg-cyan-500/30 selection:text-accent-cyan">
       <DashboardHeader />
 
-      {/* Main Dashboard Canvas - 12 Column Grid */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* Section A: Hero Banner (Span 12 Columns) */}
-        <section id="overview" className="w-full">
-          <ReadinessBanner />
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+        {/* Hero — dense, flat, no card */}
+        <section id="overview" className="pt-5 pb-5 border-b border-line">
+          <HeroStrip />
         </section>
 
-        {/* Section B & C: Active Interview (Span 7) & Competency Scorecard (Span 5) */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
-          <div id="interviews" className="lg:col-span-7">
-            <UpcomingInterviewCard />
+        {/* START HERE — two equal, side-by-side tracks */}
+        <section id="start-here" className="pt-5 pb-5 border-b border-line">
+          <div className="flex items-baseline justify-between gap-4 mb-3">
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-ink-faint">Start Here</h2>
+            <span className="text-[10px] text-ink-muted font-mono">Either track · equal weight</span>
           </div>
-          <div id="insights" className="lg:col-span-5">
-            <CompetencyCard />
+          <QuickStartColumns />
+        </section>
+
+        {/* Dense snapshot rail */}
+        <section id="snapshot" className="py-5 border-b border-line">
+          <SnapshotStrip />
+        </section>
+
+        {/* Body grid — recent activity + competency map + checklist */}
+        <section id="progress" className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-5 border-b border-line pb-5">
+          <div className="lg:col-span-7">
+            <RecentActivity />
+          </div>
+          <div className="lg:col-span-5">
+            <CompetencyMap />
           </div>
         </section>
 
-        {/* Section D & E: Verified Feedback Dossier (Span 6) & Practice Drills (Span 6) */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
-          <div className="lg:col-span-6">
-            <FeedbackDossier />
+        {/* Feedback + drills + checklist */}
+        <section id="feedback" className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-5">
+          <div className="lg:col-span-5">
+            <FeedbackSummary />
           </div>
-          <div id="drills" className="lg:col-span-6">
+          <div id="drills" className="lg:col-span-4">
             <PracticeDrillList />
           </div>
+          <div id="checklist" className="lg:col-span-3">
+            <PrepChecklist />
+          </div>
         </section>
 
-        {/* Section F: Quick Resume & Profile Sync Bar (Span 12 Columns) */}
-        <section className="w-full pt-2">
+        {/* Slim resume sync */}
+        <section id="resume" className="pt-6">
           <ResumeSyncFooter />
         </section>
       </main>

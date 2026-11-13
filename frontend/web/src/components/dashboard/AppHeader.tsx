@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { BrandLogo } from '@/components/common/BrandLogo';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export interface AppHeaderNavLink {
   name: string;
@@ -145,10 +146,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
           {/* ================= LEFT SECTION: LOGO + PILL NAV ================= */}
           <div className="flex items-center gap-3 sm:gap-6 lg:gap-8 shrink-0">
-            <BrandLogo href={brandHref} badge={brandBadge} />
+            <BrandLogo href={brandHref} badge={brandBadge} hideTextOnMobile />
 
             {/* Modern Segmented Navigation Bar */}
-            <nav className="hidden md:flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-surface-2 border border-slate-200/80 dark:border-line shadow-xs">
+            <nav className="hidden lg:flex items-center p-1 rounded-xl bg-surface-2 border border-line">
               {navLinks.map((item) => {
                 const isActive = pathname === item.href || (item.href !== '/candidate/dashboard' && item.href !== '/recruiter/dashboard' && pathname.startsWith(item.href));
                 const Icon = item.icon;
@@ -158,11 +159,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     href={item.href}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 whitespace-nowrap ${
                       isActive
-                        ? 'bg-white dark:bg-surface text-blue-600 dark:text-accent-cyan shadow-xs border border-slate-200/80 dark:border-line/60 font-bold'
-                        : 'text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink hover:bg-white/60 dark:hover:bg-surface/50 border border-transparent'
+                        ? 'bg-surface text-accent-cyan shadow-xs border border-line font-bold'
+                        : 'text-ink-muted hover:text-ink hover:bg-surface border border-transparent'
                     }`}
                   >
-                    {Icon && <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-600 dark:text-accent-cyan' : 'text-slate-500 dark:text-ink-faint'}`} />}
+                    {Icon && <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-accent-cyan' : 'text-ink-faint'}`} />}
                     <span>{item.name}</span>
                   </Link>
                 );
@@ -170,14 +171,16 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </nav>
           </div>
 
-          {/* ================= RIGHT SECTION: WALLET BADGE, NOTIF, PROFILE ================= */}
+          {/* ================= RIGHT SECTION: THEME, WALLET BADGE, NOTIF, PROFILE ================= */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+
+            <ThemeToggle />
 
             {/* Optional Live Wallet Pill (Fintech / SaaS standard) */}
             {walletBadge && (
               <Link
                 href={walletBadge.href}
-                className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50/90 hover:bg-blue-100/80 border border-blue-200 dark:border-blue-500/30 dark:bg-blue-950/30 text-xs font-bold text-blue-700 dark:text-accent-cyan transition-all group shadow-xs cursor-pointer shrink-0"
+                className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent-cyan/10 hover:bg-accent-cyan/20 border border-accent-cyan/25 text-xs font-bold text-accent-cyan transition-all group shadow-xs cursor-pointer shrink-0"
                 title="Available Interview Balance"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -195,7 +198,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 aria-expanded={notificationsOpen}
                 onClick={toggleNotifications}
                 className={`relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-all shadow-xs ${notificationsOpen
-                    ? 'border-blue-500/40 bg-blue-500/10 text-blue-600'
+                    ? 'border-accent-cyan/40 bg-accent-cyan/10 text-accent-cyan'
                     : 'border-line/80 bg-surface text-ink-muted hover:border-line hover:bg-surface-2 hover:text-ink'
                   }`}
               >
@@ -214,7 +217,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                         setNotificationsOpen(false);
                         onNotificationsOpenChange?.(false);
                       }}
-                      className="text-xs font-semibold text-blue-600 hover:underline px-2 py-1 cursor-pointer"
+                      className="text-xs font-semibold text-accent-cyan hover:underline px-2 py-1 cursor-pointer"
                     >
                       Close
                     </button>
@@ -234,7 +237,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 aria-label={profileTitle}
                 aria-expanded={profileDropdownOpen}
                 className={`flex h-10 shrink-0 cursor-pointer items-center gap-2.5 rounded-2xl border py-1 pl-1.5 pr-2.5 transition-all shadow-xs ${profileDropdownOpen
-                    ? 'border-blue-500/40 bg-blue-500/10'
+                    ? 'border-accent-cyan/40 bg-accent-cyan/10'
                     : 'border-line/80 bg-surface hover:border-line hover:bg-surface-2'
                   }`}
               >
@@ -254,7 +257,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 </div>
 
                 <ChevronDown
-                  className={`hidden sm:block h-3.5 w-3.5 text-ink-muted transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180 text-blue-600' : ''
+                  className={`hidden sm:block h-3.5 w-3.5 text-ink-muted transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180 text-accent-cyan' : ''
                     }`}
                 />
               </button>
@@ -263,7 +266,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               {profileDropdownOpen && (
                 <div className="absolute right-0 top-12 z-[60] w-64 rounded-2xl border border-line bg-surface p-2 shadow-2xl animate-fadeIn space-y-1">
                   {/* User Header */}
-                  <div className="p-3 border-b border-line/60 rounded-xl bg-canvas/40">
+                  <div className="p-3 border-b rounded-xl bg-canvas/40">
                     <p className="text-xs font-bold text-ink truncate">{profileName}</p>
                     <p className="text-[11px] text-ink-muted truncate mt-0.5">{profileSubtitle}</p>
                     {walletBadge && (
@@ -323,7 +326,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle mobile menu"
               aria-expanded={mobileMenuOpen}
-              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface text-ink transition hover:bg-surface-2 md:hidden shadow-xs"
+              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface text-ink transition hover:bg-surface-2 lg:hidden shadow-xs"
             >
               {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
@@ -334,12 +337,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
       {/* ================= MOBILE DRAWER MENU ================= */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-line bg-surface/98 px-4 py-4 space-y-4 animate-fadeIn shadow-xl">
+        <div className="lg:hidden border-t border-line bg-surface/98 px-4 py-4 space-y-4 animate-fadeIn shadow-xl">
           {/* Profile Card */}
           <Link
             href={profileHref}
             onClick={closeMobileMenu}
-            className="p-3 rounded-2xl bg-canvas border border-line flex items-center justify-between hover:border-blue-500/40 transition group"
+            className="p-3 rounded-2xl bg-canvas border border-line flex items-center justify-between hover:border-accent-cyan/40 transition group"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div
@@ -348,13 +351,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 {profileInitials}
               </div>
               <div className="min-w-0">
-                <p className="font-bold text-ink text-sm truncate group-hover:text-blue-600 transition">
+                <p className="font-bold text-ink text-sm truncate group-hover:text-accent-cyan transition">
                   {profileName}
                 </p>
-                <p className={`text-blue-600 ${drawerProfileSubtitleClassName}`}>{drawerProfileSubtitle}</p>
+                <p className={`text-accent-cyan ${drawerProfileSubtitleClassName}`}>{drawerProfileSubtitle}</p>
               </div>
             </div>
-            <span className="text-xs font-semibold text-ink-muted group-hover:text-blue-600 flex items-center gap-1 shrink-0">
+            <span className="text-xs font-semibold text-ink-muted group-hover:text-accent-cyan flex items-center gap-1 shrink-0">
               Profile &rarr;
             </span>
           </Link>
@@ -390,7 +393,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   href={item.href}
                   onClick={closeMobileMenu}
                   className={`flex items-center justify-between px-3 py-2.5 text-sm font-semibold rounded-xl transition ${isActive
-                      ? 'bg-blue-500/10 text-blue-600 font-bold border border-blue-500/20'
+                      ? 'bg-accent-cyan/10 text-accent-cyan font-bold border border-accent-cyan/25'
                       : 'text-ink hover:bg-canvas'
                     }`}
                 >
@@ -398,7 +401,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     {Icon ? <Icon className="w-4 h-4 text-ink-muted" /> : null}
                     <span>{item.name}</span>
                   </div>
-                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
+                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan" />}
                 </Link>
               );
             })}

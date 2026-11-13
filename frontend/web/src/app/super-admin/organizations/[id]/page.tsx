@@ -1,10 +1,9 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft,
   Briefcase,
   Building2,
   Calendar,
@@ -152,7 +151,7 @@ export default function SuperAdminOrganizationDetailPage() {
           href="/super-admin/organizations"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-cyan hover:underline"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Organizations
+          Back to Organizations
         </Link>
         <ErrorBanner message={error || 'Organization dossier could not be found.'} />
       </div>
@@ -170,7 +169,7 @@ export default function SuperAdminOrganizationDetailPage() {
           href="/super-admin/organizations"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted hover:text-accent-cyan transition-colors mb-3"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Organization Management
+          Back to Organization Management
         </Link>
 
         <PageHeader
@@ -360,7 +359,7 @@ export default function SuperAdminOrganizationDetailPage() {
           <Card>
             <CardHeader title="Isolation & Governance Posture" icon={ShieldCheck} />
             <div className="mt-4 space-y-3 text-xs text-ink-muted">
-              <div className="flex items-start gap-2.5 rounded-xl border border-line bg-surface-2 p-3">
+              <div className="flex items-start gap-2.5 rounded-xl bg-surface-2 p-3">
                 <CheckCircle2 className="h-4 w-4 text-accent-emerald shrink-0 mt-0.5" />
                 <div>
                   <p className="font-semibold text-ink">Strict MongoDB Tenant Isolation</p>
@@ -371,7 +370,7 @@ export default function SuperAdminOrganizationDetailPage() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 rounded-xl border border-line bg-surface-2 p-3">
+              <div className="flex items-start gap-2.5 rounded-xl bg-surface-2 p-3">
                 <CheckCircle2 className="h-4 w-4 text-accent-emerald shrink-0 mt-0.5" />
                 <div>
                   <p className="font-semibold text-ink">RBAC & Recruiter Enforceability</p>
@@ -382,7 +381,7 @@ export default function SuperAdminOrganizationDetailPage() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 rounded-xl border border-line bg-surface-2 p-3">
+              <div className="flex items-start gap-2.5 rounded-xl bg-surface-2 p-3">
                 <CheckCircle2 className="h-4 w-4 text-accent-cyan shrink-0 mt-0.5" />
                 <div>
                   <p className="font-semibold text-ink">Authoritative Double-Entry Ledger</p>
@@ -408,7 +407,7 @@ export default function SuperAdminOrganizationDetailPage() {
             {users.length === 0 ? (
               <EmptyState title="No users in this organization" hint="Invite recruiters to get started." icon={Users} />
             ) : (
-              <table className="w-full text-left text-xs">
+              <table className="w-full min-w-[560px] text-left text-xs">
                 <thead>
                   <tr className="border-b border-line text-[10px] font-bold uppercase tracking-wider text-ink-faint">
                     <th className="pb-2 pr-4">User</th>
@@ -453,7 +452,7 @@ export default function SuperAdminOrganizationDetailPage() {
             {interviews.length === 0 ? (
               <EmptyState title="No interviews conducted yet" hint="Candidates invited by this tenant will appear here." icon={Video} />
             ) : (
-              <table className="w-full text-left text-xs">
+              <table className="w-full min-w-[560px] text-left text-xs">
                 <thead>
                   <tr className="border-b border-line text-[10px] font-bold uppercase tracking-wider text-ink-faint">
                     <th className="pb-2 pr-4">Candidate</th>
@@ -501,7 +500,7 @@ export default function SuperAdminOrganizationDetailPage() {
             {jobs.length === 0 ? (
               <EmptyState title="No jobs created yet" hint="Job templates created by recruiters will be cataloged here." icon={Briefcase} />
             ) : (
-              <table className="w-full text-left text-xs">
+              <table className="w-full min-w-[560px] text-left text-xs">
                 <thead>
                   <tr className="border-b border-line text-[10px] font-bold uppercase tracking-wider text-ink-faint">
                     <th className="pb-2 pr-4">Job Title</th>
@@ -536,25 +535,25 @@ export default function SuperAdminOrganizationDetailPage() {
             {billing ? (
               <div className="mt-4 space-y-6">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 font-mono text-xs">
-                  <div className="rounded-xl border border-line bg-surface-2 p-3">
+                  <div className="rounded-xl bg-surface-2 p-3">
                     <span className="block text-[10px] uppercase text-ink-muted">Available Balance</span>
                     <span className="text-base font-bold text-accent-emerald">
                       {formatCurrencyUsd(billing.availableBalanceUsd)}
                     </span>
                   </div>
-                  <div className="rounded-xl border border-line bg-surface-2 p-3">
+                  <div className="rounded-xl bg-surface-2 p-3">
                     <span className="block text-[10px] uppercase text-ink-muted">Paid Recharges</span>
                     <span className="text-base font-bold text-ink">
                       {formatCurrencyUsd(billing.paidCreditsUsd)}
                     </span>
                   </div>
-                  <div className="rounded-xl border border-line bg-surface-2 p-3">
+                  <div className="rounded-xl bg-surface-2 p-3">
                     <span className="block text-[10px] uppercase text-ink-muted">Promotional Grants</span>
                     <span className="text-base font-bold text-accent-violet">
                       {formatCurrencyUsd(billing.promotionalCreditsUsd)}
                     </span>
                   </div>
-                  <div className="rounded-xl border border-line bg-surface-2 p-3">
+                  <div className="rounded-xl bg-surface-2 p-3">
                     <span className="block text-[10px] uppercase text-ink-muted">Consumed Credits</span>
                     <span className="text-base font-bold text-accent-cyan">
                       {formatCurrencyUsd(billing.consumedCreditsUsd)}
@@ -567,7 +566,7 @@ export default function SuperAdminOrganizationDetailPage() {
                     href="/super-admin/billing"
                     className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-xs font-bold text-accent-cyan hover:bg-cyan-500/20 transition"
                   >
-                    Open in Billing & Usage Center →
+                    Open in Billing & Usage Center 
                   </Link>
                 </div>
               </div>

@@ -22,6 +22,7 @@ cryptography>=42.0.0
 # Document & Resume Parsing
 PyMuPDF>=1.23.0
 python-docx>=1.1.0
+openpyxl>=3.1.2
 
 # Media, Voice & WebRTC
 edge-tts>=7.0.0

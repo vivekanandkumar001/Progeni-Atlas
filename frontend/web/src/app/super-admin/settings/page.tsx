@@ -413,7 +413,7 @@ export default function SuperAdminSettingsPage() {
               {/* 1. Maintenance Mode */}
               {selectedSetting.key === 'maintenance_mode' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between rounded-xl border border-line bg-surface-2 p-3">
+                  <div className="flex items-center justify-between rounded-xl bg-surface-2 p-3">
                     <div>
                       <p className="font-bold text-ink">Enable Maintenance Window</p>
                       <p className="text-[11px] text-ink-muted">
@@ -462,7 +462,7 @@ export default function SuperAdminSettingsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between rounded-xl border border-line bg-surface-2 p-3">
+                  <div className="flex items-center justify-between rounded-xl bg-surface-2 p-3">
                     <div>
                       <p className="font-semibold text-ink">Super Admin Bypass Allowed</p>
                       <p className="text-[11px] text-ink-muted">admin@progeni.live retains access</p>
@@ -480,7 +480,7 @@ export default function SuperAdminSettingsPage() {
               {/* 2. API Rate Limiting */}
               {selectedSetting.key === 'rate_limits' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between rounded-xl border border-line bg-surface-2 p-3">
+                  <div className="flex items-center justify-between rounded-xl bg-surface-2 p-3">
                     <div>
                       <p className="font-bold text-ink">Rate Limiting Enforcement</p>
                       <p className="text-[11px] text-ink-muted">Protects backend endpoints against abuse.</p>
@@ -545,7 +545,7 @@ export default function SuperAdminSettingsPage() {
                   <p className="text-ink-muted">
                     Enable or disable authorized third-party integrations across all tenant organizations:
                   </p>
-                  <div className="space-y-2 rounded-xl border border-line bg-surface-2 p-3">
+                  <div className="space-y-2 rounded-xl bg-surface-2 p-3">
                     {(formConfig.allowed_providers || []).map((provider: any, idx: number) => (
                       <div
                         key={provider.id || idx}
@@ -610,7 +610,7 @@ export default function SuperAdminSettingsPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2 rounded-xl border border-line bg-surface-2 p-3">
+                  <div className="space-y-2 rounded-xl bg-surface-2 p-3">
                     <div className="flex items-center justify-between py-1">
                       <span className="font-semibold text-ink">Terminate on Critical Flag</span>
                       <input
@@ -671,7 +671,7 @@ export default function SuperAdminSettingsPage() {
                     <label className="block text-ink-muted mb-2 font-semibold">
                       Supported Screening Languages ({formConfig.supported_languages?.length || 0})
                     </label>
-                    <div className="grid grid-cols-2 gap-2 rounded-xl border border-line bg-surface-2 p-3">
+                    <div className="grid grid-cols-2 gap-2 rounded-xl bg-surface-2 p-3">
                       {[
                         'English (US)',
                         'English (UK)',
@@ -722,7 +722,7 @@ export default function SuperAdminSettingsPage() {
                     />
                   </div>
 
-                  <div className="space-y-2 rounded-xl border border-line bg-surface-2 p-3">
+                  <div className="space-y-2 rounded-xl bg-surface-2 p-3">
                     <div className="flex items-center justify-between py-1">
                       <span className="font-semibold text-ink">Email Notifications (SMTP)</span>
                       <input
@@ -759,7 +759,7 @@ export default function SuperAdminSettingsPage() {
               )}
 
               {/* Mandatory Operational Justification */}
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-2">
+              <div className="rounded-xl bg-amber-500/10 p-3.5 space-y-2">
                 <label className="block font-bold text-accent-amber">
                   Operational Change Justification (Required for Audit Log) *
                 </label>

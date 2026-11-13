@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import RoleGate from '@/components/auth/RoleGate';
 
 export const metadata: Metadata = {
   title: {
@@ -19,5 +20,5 @@ export const metadata: Metadata = {
  * metadata-only layout deeper in the tree.
  */
 export default function CandidateLayout({ children }: { children: ReactNode }) {
-  return <>{children}</>;
+  return <RoleGate allow={['candidate']}>{children}</RoleGate>;
 }

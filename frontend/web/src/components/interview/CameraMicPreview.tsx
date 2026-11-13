@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useMediaSource } from '@/lib/media/MediaSourceProvider';
@@ -705,7 +705,7 @@ export const CameraMicPreview: React.FC<CameraMicPreviewProps> = ({
                 onClick={() => handleConfirmSpeaker(true)}
                 className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-accent-emerald text-xs font-bold transition-colors cursor-pointer"
               >
-                Sound is Working Now →
+                Sound is Working Now 
               </button>
             </div>
           </div>

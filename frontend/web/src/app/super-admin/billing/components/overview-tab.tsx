@@ -103,7 +103,7 @@ export function OverviewTab({
  Active in {overview?.activeAccountsCount ?? 0} organization accounts
  </p>
  </div>
- <Wallet className="h-8 w-8 text-emerald-400/40"/>
+ <Wallet className="h-8 w-8 text-accent-emerald/40"/>
  </Card>
  <Card className="flex items-center justify-between">
  <div>
@@ -113,7 +113,7 @@ export function OverviewTab({
  </p>
  <p className="mt-1 text-[11px] text-ink-faint">Pending settlement or wire transfer</p>
  </div>
- <FileText className="h-8 w-8 text-amber-400/40"/>
+ <FileText className="h-8 w-8 text-accent-amber/40"/>
  </Card>
  <Card className="flex items-center justify-between">
  <div>
@@ -125,7 +125,7 @@ export function OverviewTab({
  Tenants below safety threshold (₹850.00)
  </p>
  </div>
- <AlertTriangle className="h-8 w-8 text-rose-400/40"/>
+ <AlertTriangle className="h-8 w-8 text-accent-rose/40"/>
  </Card>
  </div>
 
@@ -274,7 +274,7 @@ export function OverviewTab({
  ) : (
  <div className="mt-4 space-y-3">
  {trend.map((t) => (
- <div key={t.date} className="rounded-xl border border-line/60 bg-surface-2 p-3">
+ <div key={t.date} className="rounded-xl bg-surface-2 p-3">
  <div className="flex items-center justify-between text-xs">
  <span className="font-mono font-bold text-ink">{t.date}</span>
  <span className="text-[11px] text-ink-muted">{t.txCount} transactions</span>

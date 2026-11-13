@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ShieldCheck, ArrowRight, RefreshCw, KeyRound, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, RefreshCw, KeyRound, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { apiFetch, persistSession } from '@/lib/api';
 import { takePendingResume } from '@/lib/pending-resume';
 import { AuthCard, buttonClass, inputClass } from '@/components/ui';
@@ -161,6 +161,7 @@ function VerifyOtpContent() {
       // redirect target immediately bounces back to /login for lack of a session.
       // A FORGOT_PASSWORD OTP deliberately returns no session — that user must log
       // in with the new password.
+      const granted = typeof data.creditsGranted === 'number' ? data.creditsGranted : 0;
       if (purpose === 'REGISTRATION_VERIFY') {
         const token = data.access_token || data.token;
         if (token || data.user) {
@@ -188,10 +189,21 @@ function VerifyOtpContent() {
         }
       }
 
-      setSuccessMsg('Email verified successfully! Redirecting...');
+      setSuccessMsg(
+        granted > 0
+          ? `Email verified! ${granted} free credits added to your wallet — start your first interview.`
+          : 'Email verified successfully! Redirecting...',
+      );
       setOtp(Array(6).fill(''));
       setTimeout(() => {
-        const dest = data.redirectUrl || '/candidate/dashboard';
+        const dest: string = typeof data.redirectUrl === 'string' &&
+          data.redirectUrl.startsWith('/') &&
+          !data.redirectUrl.startsWith('//') &&
+          !/^[a-z]+:/i.test(data.redirectUrl) &&
+          !data.redirectUrl.includes('..') &&
+          !data.redirectUrl.includes('\\')
+            ? data.redirectUrl
+            : '/candidate/dashboard';
         if (typeof window !== 'undefined') {
           window.location.assign(dest);
         } else {
@@ -352,8 +364,7 @@ function VerifyOtpContent() {
           ) : (
             <>
               <span>Verify & Continue</span>
-              <ArrowRight className="w-4 h-4" />
-            </>
+              </>
           )}
         </button>
 
@@ -383,7 +394,7 @@ function VerifyOtpContent() {
             href="/login"
             className="inline-flex items-center gap-1 text-caption text-xs text-ink-muted hover:text-ink transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
+            Back to Login
           </Link>
         </div>
       </AuthCard>

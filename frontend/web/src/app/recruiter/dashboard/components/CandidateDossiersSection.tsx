@@ -181,7 +181,9 @@ export function CandidateDossiersSection({
  <span>{candidate.aptitudeScore.overallScore}%</span>
  </div>
  <div className="text-[10px] text-ink-muted">
- <span className="font-semibold text-ink">{candidate.aptitudeScore.percentile}th</span> %ile
+ <span className="font-semibold text-ink">
+ {candidate.aptitudeScore.percentile != null ? `${candidate.aptitudeScore.percentile}th` : '—'}
+ </span> %ile
  </div>
  </div>
  ) : (
@@ -212,12 +214,12 @@ export function CandidateDossiersSection({
  ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'
  : candStudentStatus === 'backout'
  ? 'bg-amber-100/90 text-amber-900 border-amber-300 hover:bg-amber-200/80 font-extrabold'
- : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+ : 'bg-blue-50 text-accent-blue border-blue-300 hover:bg-blue-100'
  }`}
  title="Click to change student status [selected, inprocess, rejected, backout]"
  >
  <option value="selected"className="bg-surface text-emerald-700 font-semibold">Selected</option>
- <option value="inprocess"className="bg-surface text-blue-700 font-semibold">In-Process</option>
+ <option value="inprocess"className="bg-surface text-accent-blue font-semibold">In-Process</option>
  <option value="rejected"className="bg-surface text-rose-700 font-semibold">Rejected</option>
  <option value="backout"className="bg-surface text-amber-800 font-semibold">Backout</option>
  </select>
@@ -278,7 +280,7 @@ export function CandidateDossiersSection({
  {!past && (candidate.status?.toLowerCase().includes('progress') || candidate.status?.toLowerCase().includes('live')) ? (
  <Link
  href={`/recruiter/interview/${candidate.sessionId || candidate.id}/live`}
- className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all shadow-sm"
+ className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-accent-rose border border-rose-500/30 text-xs font-bold transition-all shadow-sm"
  title="Monitor interview live"
  >
  <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping"/>
@@ -364,11 +366,11 @@ export function CandidateDossiersSection({
  ? 'bg-rose-50 text-rose-700 border-rose-300'
  : candStudentStatus === 'backout'
  ? 'bg-amber-100/90 text-amber-900 border-amber-300 font-extrabold'
- : 'bg-blue-50 text-blue-700 border-blue-300'
+ : 'bg-blue-50 text-accent-blue border-blue-300'
  }`}
  >
  <option value="selected"className="bg-surface text-emerald-700">Selected</option>
- <option value="inprocess"className="bg-surface text-blue-700">In-Process</option>
+ <option value="inprocess"className="bg-surface text-accent-blue">In-Process</option>
  <option value="rejected"className="bg-surface text-rose-700">Rejected</option>
  <option value="backout"className="bg-surface text-amber-800">Backout</option>
  </select>
@@ -421,7 +423,7 @@ export function CandidateDossiersSection({
  <Link
  href={`/recruiter/interview/${candidate.sessionId || candidate.id}/live`}
  onClick={(e) => e.stopPropagation()}
- className="inline-flex items-center gap-1 px-3 py-2 min-h-[44px] rounded-xl bg-rose-500/15 text-rose-300 border border-rose-500/30 text-xs font-bold"
+ className="inline-flex items-center gap-1 px-3 py-2 min-h-[44px] rounded-xl bg-rose-500/15 text-accent-rose border border-rose-500/30 text-xs font-bold"
  >
  <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping"/>
  <span>Live</span>

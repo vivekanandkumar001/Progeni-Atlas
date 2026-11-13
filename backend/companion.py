@@ -68,6 +68,7 @@ def _companion_options(*args, **kwargs):
 
 
 from core.db import get_mongo_db
+from core.security import require_session_access
 
 def _as_aware_utc(dt):
     if dt is None:
@@ -143,6 +144,7 @@ def _get_livekit_config() -> Tuple[str, str, str]:
 # 1. CREATE PAIRING TOKEN (Desktop Lobby -> QR Generation)
 # ------------------------------------------------------------------------------
 @companion_bp.route("/interview-sessions/<session_id>/companion/pair", methods=["POST"])
+@require_session_access
 def create_pairing(session_id: str):
     """
     POST /api/v1/interview-sessions/<session_id>/companion/pair
@@ -186,9 +188,9 @@ def create_pairing(session_id: str):
             "expiresAt": expires_at.isoformat()
         }), 201
 
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to create pairing token."}), 500
 
 
 # ------------------------------------------------------------------------------
@@ -286,6 +288,7 @@ def redeem_pairing():
 # 3. VIEWER TOKEN (Desktop Room Viewport)
 # ------------------------------------------------------------------------------
 @companion_bp.route("/interview-sessions/<session_id>/companion/viewer-token", methods=["POST"])
+@require_session_access
 def get_viewer_token(session_id: str):
     """
     POST /api/v1/interview-sessions/<session_id>/companion/viewer-token
@@ -325,15 +328,16 @@ def get_viewer_token(session_id: str):
 
     except ValueError as val_err:
         return jsonify({"error": str(val_err)}), 500
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
-        return jsonify({"error": f"Failed to generate viewer token: {str(e)}"}), 500
+        return jsonify({"error": "Failed to generate viewer token."}), 500
 
 
 # ------------------------------------------------------------------------------
 # 4. COMPANION EVENT TELEMETRY (Audit & Timeline in MongoDB)
 # ------------------------------------------------------------------------------
 @companion_bp.route("/interview-sessions/<session_id>/companion/event", methods=["POST"])
+@require_session_access
 def log_companion_event(session_id: str):
     """
     POST /api/v1/interview-sessions/<session_id>/companion/event
@@ -371,9 +375,9 @@ def log_companion_event(session_id: str):
             "sessionId": session_id
         }), 200
 
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to log companion event."}), 500
 
 
 def init_companion_blueprint(app) -> None:

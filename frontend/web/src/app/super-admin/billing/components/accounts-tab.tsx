@@ -67,7 +67,7 @@ export function AccountsTab({
         </div>
 
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full min-w-[880px] text-left text-xs">
             <thead>
               <tr className="border-b border-line text-ink-muted">
                 <th className="pb-3 font-semibold">Organization / Account</th>

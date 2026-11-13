@@ -71,7 +71,7 @@ export function InviteCandidateModal({
         </div>
 
         {isZeroBalance && (
-          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-accent-amber flex items-start gap-3 shadow-md shadow-amber-500/5">
+          <div className="p-3.5 rounded-xl bg-amber-500/10 text-accent-amber flex items-start gap-3 shadow-md shadow-amber-500/5">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-accent-amber" />
             <div className="flex-1 space-y-1.5">
               <div className="flex items-center justify-between">

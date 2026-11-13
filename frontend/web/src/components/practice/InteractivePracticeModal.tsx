@@ -139,7 +139,7 @@ export const InteractivePracticeModal: React.FC<InteractivePracticeModalProps> =
         {/* Modal Content Body */}
         <div className="space-y-5 overflow-y-auto pr-1 flex-1 relative z-10">
           {/* AI Evaluator Prompt Card */}
-          <div className="p-4 rounded-xl bg-inset border border-line space-y-2">
+          <div className="p-4 rounded-xl bg-inset space-y-2">
             <div className="flex items-center gap-2 text-accent-cyan">
               <Sparkles className="w-4 h-4 text-accent-cyan" />
               <span className="text-xs font-bold font-mono uppercase tracking-wider">AI Mock Evaluator Prompt</span>
@@ -181,14 +181,14 @@ export const InteractivePracticeModal: React.FC<InteractivePracticeModalProps> =
           </div>
 
           {!isSupported && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-accent-amber text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-amber-500/10 text-accent-amber text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>Speech recognition (Web Speech API) is not supported in this browser. Please type your response directly in the text box below.</span>
             </div>
           )}
 
           {speechError && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-accent-rose text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-500/10 text-accent-rose text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{speechError}</span>
             </div>

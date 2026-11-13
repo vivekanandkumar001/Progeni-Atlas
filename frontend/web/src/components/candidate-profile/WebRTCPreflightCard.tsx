@@ -84,7 +84,7 @@ export function WebRTCPreflightCard({
 
       {/* Diagnostic Metrics Matrix */}
       <div className="grid grid-cols-2 gap-3 pt-1">
-        <div className="p-3 rounded-xl bg-inset border border-line space-y-1">
+        <div className="p-3 rounded-xl bg-inset space-y-1">
           <p className="text-[11px] text-ink-muted font-mono">Webcam Stream</p>
           <p
             className={`text-xs font-semibold ${
@@ -103,7 +103,7 @@ export function WebRTCPreflightCard({
           </p>
         </div>
 
-        <div className="p-3 rounded-xl bg-inset border border-line space-y-1">
+        <div className="p-3 rounded-xl bg-inset space-y-1">
           <p className="text-[11px] text-ink-muted font-mono">Microphone Audio</p>
           <p
             className={`text-xs font-semibold ${
@@ -122,7 +122,7 @@ export function WebRTCPreflightCard({
           </p>
         </div>
 
-        <div className="col-span-2 p-3 rounded-xl bg-inset border border-line flex items-center justify-between">
+        <div className="col-span-2 p-3 rounded-xl bg-inset flex items-center justify-between">
           <span className="text-xs text-ink-muted font-mono">WebRTC Diagnostic Latency</span>
           <span className="text-xs font-mono font-bold text-accent-cyan">
             {latencyMs !== null ? `${latencyMs} ms (Excellent)` : '--'}

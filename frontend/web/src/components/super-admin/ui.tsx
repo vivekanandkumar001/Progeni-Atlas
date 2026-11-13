@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowUpRight, Inbox, Loader2, RefreshCw, Search, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Inbox, Loader2, RefreshCw, Search, type LucideIcon } from 'lucide-react';
 import type { Verdict } from '@/lib/super-admin';
 
 /* ------------------------------------------------------------------ shells */
@@ -124,9 +124,6 @@ export function StatCard({
           <span className="text-xs font-semibold text-ink-muted group-hover:text-ink transition-colors">
             {label}
           </span>
-          {isInteractive && (
-            <ArrowUpRight className="h-3.5 w-3.5 text-ink-muted opacity-0 -translate-x-1 translate-y-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0 group-hover:text-ink transition-all duration-200" />
-          )}
         </div>
         <span
           className={`rounded-xl border p-2.5 transition-transform duration-200 ${currentTone.badge} ${
@@ -142,11 +139,6 @@ export function StatCard({
       {hint && (
         <div className="mt-2 flex items-center justify-between gap-2">
           <p className="text-xs text-ink-muted leading-normal">{hint}</p>
-          {isInteractive && (
-            <span className={`text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap ${currentTone.text}`}>
-              Open &rarr;
-            </span>
-          )}
         </div>
       )}
     </>
@@ -194,20 +186,22 @@ export function StatSkeleton() {
 
 export function TableSkeleton({ rows, cols }: { rows: number; cols: number }) {
   return (
-    <>
-      {Array.from({ length: rows }).map((_, r) => (
-        <tr key={r} className="border-b border-line/50">
-          {Array.from({ length: cols }).map((__, c) => (
-            <td key={c} className="py-3.5">
-              <div
-                className="h-3.5 animate-pulse rounded bg-surface-3"
-                style={{ width: `${55 + ((r + c) % 4) * 12}%` }}
-              />
-            </td>
-          ))}
-        </tr>
-      ))}
-    </>
+    <table className="w-full animate-pulse" aria-hidden="true">
+      <tbody>
+        {Array.from({ length: rows }).map((_, r) => (
+          <tr key={r} className="border-b border-line/50">
+            {Array.from({ length: cols }).map((__, c) => (
+              <td key={c} className="py-3.5">
+                <div
+                  className="h-3.5 animate-pulse rounded bg-surface-3"
+                  style={{ width: `${55 + ((r + c) % 4) * 12}%` }}
+                />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

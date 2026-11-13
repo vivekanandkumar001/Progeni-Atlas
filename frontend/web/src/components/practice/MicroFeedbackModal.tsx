@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { MicroFeedbackReport } from '@/types/practice';
-import { X, CheckCircle2, AlertTriangle, Award, BookOpen, ArrowRight, Sparkles } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, Award, BookOpen, Sparkles } from 'lucide-react';
 
 interface MicroFeedbackModalProps {
   report: MicroFeedbackReport | null;
@@ -42,7 +42,7 @@ export const MicroFeedbackModal: React.FC<MicroFeedbackModalProps> = ({
         {/* Modal Content Body */}
         <div className="space-y-6 overflow-y-auto pr-1 flex-1 relative z-10">
           {/* Top Score Banner */}
-          <div className="p-6 rounded-2xl bg-inset border border-line flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="p-6 rounded-2xl bg-inset flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-5">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-400 p-1 shrink-0 flex items-center justify-center shadow-lg shadow-cyan-500/20">
                 <div className="w-full h-full bg-inset rounded-[14px] flex flex-col items-center justify-center">
@@ -66,7 +66,7 @@ export const MicroFeedbackModal: React.FC<MicroFeedbackModalProps> = ({
           {/* 2-Column: Strengths & Omissions */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Strengths */}
-            <div className="p-4 rounded-xl bg-inset border border-line space-y-3">
+            <div className="p-4 rounded-xl bg-inset space-y-3">
               <div className="flex items-center gap-2 text-accent-emerald">
                 <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
                 <h4 className="text-xs font-bold text-ink uppercase tracking-wider font-mono">Key Strengths Demonstrated</h4>
@@ -82,7 +82,7 @@ export const MicroFeedbackModal: React.FC<MicroFeedbackModalProps> = ({
             </div>
 
             {/* Omissions & Improvements */}
-            <div className="p-4 rounded-xl bg-inset border border-line space-y-3">
+            <div className="p-4 rounded-xl bg-inset space-y-3">
               <div className="flex items-center gap-2 text-accent-amber">
                 <AlertTriangle className="w-4 h-4 text-accent-amber" />
                 <h4 className="text-xs font-bold text-ink uppercase tracking-wider font-mono">Omissions & Growth Areas</h4>
@@ -99,7 +99,7 @@ export const MicroFeedbackModal: React.FC<MicroFeedbackModalProps> = ({
           </div>
 
           {/* Model Answer Overview */}
-          <div className="p-4 rounded-xl bg-inset border border-line space-y-2">
+          <div className="p-4 rounded-xl bg-inset space-y-2">
             <div className="flex items-center gap-2 text-accent-cyan">
               <BookOpen className="w-4 h-4 text-accent-cyan" />
               <h4 className="text-xs font-bold text-ink uppercase tracking-wider font-mono">Ideal Model Answer Structure</h4>
@@ -143,8 +143,7 @@ export const MicroFeedbackModal: React.FC<MicroFeedbackModalProps> = ({
             className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-medium text-xs transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
           >
             <span>Next Recommended Drill</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+            </button>
         </div>
       </div>
     </div>

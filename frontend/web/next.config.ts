@@ -9,7 +9,7 @@ const parsedDevOrigins = rawDevOrigins
 const isProduction = process.env.NODE_ENV === 'production';
 const defaultDevOrigins = isProduction
   ? ['localhost', '127.0.0.1']
-  : ['172.16.6.10', 'localhost', '127.0.0.1', '172.16.6.10:3000', 'localhost:3000', '127.0.0.1:3000'];
+  : ['172.16.6.10', 'localhost', '127.0.0.1', '172.16.6.10:3000', 'localhost:3000', '127.0.0.1:3000', '192.168.1.6', '192.168.1.6:3000'];
 const allowedDevOrigins = Array.from(new Set([...defaultDevOrigins, ...parsedDevOrigins]));
 
 // Remote image hosts are an explicit allowlist. A wildcard hostname would turn
@@ -68,7 +68,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://static.cloudflareinsights.com https://checkout.razorpay.com",
+              `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"} https://cdn.jsdelivr.net https://static.cloudflareinsights.com https://checkout.razorpay.com`,
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               "img-src 'self' data: https: blob: https://*.razorpay.com",
               "font-src 'self' data: https://cdn.jsdelivr.net",

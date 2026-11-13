@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import RoleGate from '@/components/auth/RoleGate';
 
 export const metadata: Metadata = {
   title: {
@@ -17,5 +18,5 @@ export const metadata: Metadata = {
  * candidate/layout.tsx for the same pattern.
  */
 export default function RecruiterLayout({ children }: { children: ReactNode }) {
-  return <>{children}</>;
+  return <RoleGate allow={['recruiter', 'admin', 'hr', 'employer']}>{children}</RoleGate>;
 }

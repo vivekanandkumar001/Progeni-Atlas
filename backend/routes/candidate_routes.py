@@ -365,13 +365,19 @@ def mark_candidate_notifications_read():
         db = get_mongo_db()
         if db is not None and notification_ids:
             from bson import ObjectId
+            caller_id = str(user.get("id") or user.get("_id") or "")
+            caller_email = str(user.get("email") or "").strip().lower()
             id_objs = []
             for nid in notification_ids:
                 id_objs.append(str(nid))
                 if ObjectId.is_valid(str(nid)):
                     id_objs.append(ObjectId(str(nid)))
+            # Scope strictly to the caller's own notifications — never touch others'.
+            owner_filter = {"$or": [{"candidate_id": caller_id}]}
+            if caller_email:
+                owner_filter["$or"].append({"candidate_email": caller_email})
             db.candidate_notifications.update_many(
-                {"$or": [{"id": {"$in": id_objs}}, {"_id": {"$in": id_objs}}]},
+                {"$and": [{"$or": [{"id": {"$in": id_objs}}, {"_id": {"$in": id_objs}}]}, owner_filter]},
                 {"$set": {"is_read": True}}
             )
         return jsonify({"success": True}), 200
@@ -602,7 +608,7 @@ def candidate_resume_endpoint():
 
             resumes_dir = os.path.join(UPLOAD_DIR, "resumes")
             os.makedirs(resumes_dir, exist_ok=True)
-            saved_path = os.path.join(resumes_dir, f"{int(time.time())}_{file_name}")
+            saved_path = os.path.join(resumes_dir, f"{int(time.time())}_{uuid.uuid4().hex[:12]}_{file_name}")
             file.save(saved_path)
             file_size = os.path.getsize(saved_path)
             file_url = f"/uploads/resumes/{os.path.basename(saved_path)}"
@@ -711,12 +717,27 @@ def parse_candidate_resume_preview():
 
         if 'file' in request.files:
             file = request.files['file']
-            file_name = file.filename or "resume.pdf"
+            raw_name = file.filename or "resume.pdf"
+            # Sanitize: strip path components, keep only safe characters
+            from werkzeug.utils import secure_filename
+            safe_name = secure_filename(raw_name) or "resume.pdf"
+            ext = os.path.splitext(safe_name)[1].lower()
+            if ext not in (".pdf", ".doc", ".docx", ".txt", ".md"):
+                return jsonify({"error": "Unsupported file type. Please upload a PDF, DOC, DOCX or TXT resume."}), 400
+
             resumes_dir = os.path.join(UPLOAD_DIR, "resumes")
             os.makedirs(resumes_dir, exist_ok=True)
-            saved_path = os.path.join(resumes_dir, f"temp_{int(time.time())}_{file_name}")
+            saved_path = os.path.join(resumes_dir, f"temp_{int(time.time())}_{uuid.uuid4().hex[:8]}_{safe_name}")
             file.save(saved_path)
             file_size = os.path.getsize(saved_path)
+            MAX_RESUME_BYTES = 5 * 1024 * 1024
+            if file_size > MAX_RESUME_BYTES:
+                try:
+                    os.remove(saved_path)
+                except OSError:
+                    pass
+                return jsonify({"error": "Resume file exceeds the 5 MB limit."}), 400
+            file_name = safe_name
         else:
             data = request.get_json(silent=True) or {}
             file_name = data.get("fileName", "resume.pdf")
@@ -725,7 +746,14 @@ def parse_candidate_resume_preview():
         parsed_text = ""
         extracted_skills = []
         if saved_path and os.path.exists(saved_path):
-            parsed_text, extracted_skills = extract_text_and_skills_from_file(saved_path, file_name)
+            try:
+                parsed_text, extracted_skills = extract_text_and_skills_from_file(saved_path, file_name)
+            finally:
+                # Temp pre-registration file is single-use — never retain resume PII on disk
+                try:
+                    os.remove(saved_path)
+                except OSError:
+                    pass
 
         size_fmt = f"{round(file_size / 1024, 1)} KB" if file_size < 1024 * 1024 else f"{round(file_size / (1024 * 1024), 2)} MB"
 
@@ -747,6 +775,7 @@ def parse_candidate_resume_preview():
 
 
 @candidate_bp.route("/api/candidate/diagnostics", methods=["POST"])
+@require_auth
 def log_hardware_diagnostics():
     """Log WebRTC pre-flight hardware diagnostic results to MongoDB Atlas."""
     try:
@@ -756,8 +785,8 @@ def log_hardware_diagnostics():
         latency_ms = data.get("latencyMs", 35)
         user_agent = request.headers.get("User-Agent", "")
 
-        user, _, _ = get_current_candidate(request)
-        candidate_email = data.get("email") or (user and user.get("email")) or "candidate@progeni.atlas"
+        user = getattr(g, "user", None) or {}
+        candidate_email = str(user.get("email") or "").strip().lower()
 
         doc = {
             "diagnosticId": str(uuid.uuid4()),
@@ -1481,16 +1510,26 @@ def _get_mongo_collection():
 
 
 def _load_practice_sessions(user_id: str) -> list[dict]:
-    """All persisted sessions for a candidate, newest first."""
+    """All persisted sessions for a candidate, newest first. Memoized per request."""
+    cache_key = f"_practice_sessions_{user_id}"
+    cached = getattr(g, cache_key, None)
+    if cached is not None:
+        return cached
     col = _get_mongo_collection()
     if col is None:
-        return []
+        result = []
+    else:
+        try:
+            cursor = col.find({"userId": user_id}).sort("completedAt", -1)
+            result = list(cursor)
+        except Exception:
+            traceback.print_exc()
+            result = []
     try:
-        cursor = col.find({"userId": user_id}).sort("completedAt", -1)
-        return list(cursor)
+        setattr(g, cache_key, result)
     except Exception:
-        traceback.print_exc()
-        return []
+        pass
+    return result
 
 
 def _build_practice_stats(sessions: list[dict]) -> dict:

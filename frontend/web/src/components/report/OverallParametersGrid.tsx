@@ -48,7 +48,7 @@ const PARAM_CONFIG: Record<
 
 function getPerformanceBadge(percentage: number | null | undefined): { label: string; color: string } {
   if (percentage === null || percentage === undefined) {
-    return { label: 'Pending', color: 'text-ink-muted bg-slate-500/10 border-slate-500/20' };
+    return { label: 'Pending', color: 'text-ink-muted bg-accent-violet/10 border-accent-violet/20' };
   }
   if (percentage >= 80) {
     return { label: 'Exemplary', color: 'text-accent-emerald bg-emerald-500/10 border-emerald-500/30' };
@@ -59,7 +59,7 @@ function getPerformanceBadge(percentage: number | null | undefined): { label: st
   if (percentage >= 40) {
     return { label: 'Needs Growth', color: 'text-accent-amber bg-amber-500/10 border-amber-500/30' };
   }
-  return { label: 'Critical Gap', color: 'text-rose-400 bg-rose-500/10 border-rose-500/30' };
+  return { label: 'Critical Gap', color: 'text-accent-rose bg-rose-500/10 border-rose-500/30' };
 }
 
 export const OverallParametersGrid: React.FC<OverallParametersGridProps> = ({
@@ -146,7 +146,7 @@ export const OverallParametersGrid: React.FC<OverallParametersGridProps> = ({
           return (
             <div
               key={param.name || idx}
-              className="p-5 rounded-xl bg-inset border border-line space-y-3.5 hover:border-line-strong transition-all shadow-md group relative overflow-hidden"
+              className="p-5 rounded-xl bg-inset space-y-3.5 hover:bg-surface-2 transition-all shadow-md group relative overflow-hidden"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -194,11 +194,11 @@ export const OverallParametersGrid: React.FC<OverallParametersGridProps> = ({
                 </span>
                 <span>
                   {hasScore && pct >= 70 ? (
-                    <span className="text-emerald-400 flex items-center gap-1">
+                    <span className="text-accent-emerald flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" /> Met benchmark
                     </span>
                   ) : hasScore ? (
-                    <span className="text-amber-400 flex items-center gap-1">
+                    <span className="text-accent-amber flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3" /> Below target
                     </span>
                   ) : (
@@ -217,7 +217,7 @@ export const OverallParametersGrid: React.FC<OverallParametersGridProps> = ({
       </div>
 
       {/* FOOTER CALLOUT */}
-      <div className="p-3.5 rounded-xl bg-cyan-500/5 border border-cyan-500/20 flex items-center gap-3 relative z-10 text-xs">
+      <div className="p-3.5 rounded-xl bg-cyan-500/5 flex items-center gap-3 relative z-10 text-xs">
         <ShieldCheck className="w-4 h-4 text-accent-cyan shrink-0" />
         <p className="text-ink-muted leading-normal">
           <strong>Parameter Scoring Rigor:</strong> Each answer is independently rated on these 3 criteria (0-10 scale), which directly drive your core competency pillars and executive hiring recommendation.

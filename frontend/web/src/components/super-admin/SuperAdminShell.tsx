@@ -237,7 +237,7 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
               >
                 {mobileNavOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
               </button>
-              <BrandLogo href="/super-admin" badge="Super Admin" />
+              <BrandLogo href="/super-admin" badge="Super Admin" hideTextOnMobile />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
@@ -360,7 +360,7 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
 
                     {/* Support status banner if active */}
                     {supportReason && (
-                      <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs">
+                      <div className="mt-3 rounded-xl bg-amber-500/10 p-2.5 text-xs">
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-accent-amber flex items-center gap-1.5">
                             <KeyRound className="h-3.5 w-3.5" />
@@ -476,7 +476,7 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
               <div className="absolute inset-0 bg-scrim backdrop-blur-sm" onClick={() => setMobileNavOpen(false)} />
               <div className="absolute left-0 top-0 h-full w-[85%] max-w-xs overflow-y-auto border-r border-line bg-surface p-4">
                 <div className="mb-4 flex items-center justify-between">
-                  <BrandLogo href="/super-admin" badge="Super Admin" />
+                  <BrandLogo href="/super-admin" badge="Super Admin" hideTextOnMobile />
                   <button
                     type="button"
                     onClick={() => setMobileNavOpen(false)}
@@ -546,7 +546,7 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
         {/* Support modal */}
         {supportModalOpen && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center bg-scrim p-4 backdrop-blur-md">
-            <div className="w-full max-w-lg space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <div className="w-full max-w-lg space-y-4 rounded-2xl border border-line bg-surface p-6 shadow-xl">
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <div className="flex items-center gap-2">
                   <KeyRound className="h-5 w-5 text-accent-amber" />

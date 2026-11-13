@@ -207,7 +207,14 @@ export function useInviteCandidate({
         throw new Error(data.error || `Invite failed (${res.status})`);
       }
 
-      showToast(`AI Technical Interview scheduled and invitation dispatched to ${inviteEmail}!`, 'success');
+      if (data.emailDelivered === false) {
+        showToast(
+          `Interview scheduled for ${inviteEmail}, but the invitation email was NOT delivered: ${data.emailError || 'email transport not configured — add RESEND_API_KEY'}`,
+          'error',
+        );
+      } else {
+        showToast(`AI Technical Interview scheduled and invitation emailed to ${inviteEmail}.`, 'success');
+      }
       setInviteName('');
       setInviteEmail('');
       setInviteJobId('');

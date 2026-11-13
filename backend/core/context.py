@@ -27,7 +27,10 @@ def get_current_candidate(req=None) -> tuple[dict | None, dict | None, list[str]
 
     # 1. Use flask.g if already verified by @require_auth decorator
     if hasattr(g, "user") and g.user and str(g.user.get("role", "")).lower() == "candidate":
-        user = g.user
+        if str(g.user.get("status", "")).lower() in ("active", "1", "true"):
+            user = g.user
+        else:
+            return None, None, []
 
     # 2. Resolve from cryptographically verified JWT claims in request
     if not user:
@@ -42,6 +45,9 @@ def get_current_candidate(req=None) -> tuple[dict | None, dict | None, list[str]
 
     # No unverified fallbacks (headers, unsigned cookies, or query params) are allowed.
     if not user:
+        return None, None, []
+
+    if str(user.get("status", "")).lower() not in ("active", "1", "true"):
         return None, None, []
 
     # 3. Resolve active resume belonging strictly to THIS candidate (NO cross-tenant leaks)
@@ -103,6 +109,8 @@ def get_current_recruiter(req=None) -> dict | None:
     if hasattr(g, "user") and g.user:
         role = str(g.user.get("role", "")).lower()
         if role in ("recruiter", "admin", "super_admin", "employer", "hr"):
+            if str(g.user.get("status", "")).lower() not in ("active", "1", "true"):
+                return None
             return g.user
 
     # 2. Resolve from cryptographically verified JWT claims in request
@@ -115,10 +123,12 @@ def get_current_recruiter(req=None) -> dict | None:
     except Exception as e:
         logger.debug(f"[get_current_recruiter] Auth claim resolution: {e}")
 
-    # Verify role permissions
+    # Verify role permissions and account status
     if user:
         role = str(user.get("role", "")).lower()
         if role not in ("recruiter", "admin", "super_admin", "employer", "hr"):
+            return None
+        if str(user.get("status", "")).lower() not in ("active", "1", "true"):
             return None
 
     return user

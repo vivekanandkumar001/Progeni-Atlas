@@ -496,7 +496,7 @@ export default function SuperAdminUsersPage() {
               </div>
             ) : creditAccount ? (
               <>
-                <div className="mt-5 grid gap-3 rounded-xl border border-line bg-surface-2 p-3 text-xs sm:grid-cols-2">
+                <div className="mt-5 grid gap-3 rounded-xl bg-surface-2 p-3 text-xs sm:grid-cols-2">
                   <div>
                     <p className="text-ink-faint">Account</p>
                     <p className="font-semibold text-ink">

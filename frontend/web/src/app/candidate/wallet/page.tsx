@@ -26,7 +26,6 @@ import {
   Receipt,
   FileText,
   Video,
-  ChevronRight,
   Info
 } from 'lucide-react';
 import { createMayankUpiOrder, MayankUpiOrderResponse } from '@/lib/mayank_upi';
@@ -383,8 +382,8 @@ export default function CandidateWalletPage() {
           <div
             className={`p-4 rounded-2xl border text-sm flex items-center justify-between ${
               message.type === 'success'
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-accent-emerald'
+                : 'bg-rose-500/10 border-rose-500/30 text-accent-rose'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -404,7 +403,7 @@ export default function CandidateWalletPage() {
         {/* Paytm-Style Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Available Balance */}
-          <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm relative overflow-hidden group">
+          <div className="p-6 rounded-xl border border-line bg-surface shadow-sm relative overflow-hidden group">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span className="font-semibold uppercase tracking-wider">Available Balance</span>
               <div className="p-1.5 rounded-lg bg-cyan-500/10 text-accent-cyan">
@@ -425,13 +424,13 @@ export default function CandidateWalletPage() {
                 onClick={() => setRechargeModalOpen(true)}
                 className="text-accent-cyan hover:underline font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer"
               >
-                + Top Up <ChevronRight className="h-3 w-3" />
+                + Top Up
               </button>
             </div>
           </div>
 
           {/* Card 2: Total Credits Added / Recharged */}
-          <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm relative overflow-hidden group">
+          <div className="p-6 rounded-xl border border-line bg-surface shadow-sm relative overflow-hidden group">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span className="font-semibold uppercase tracking-wider">Total Added (Recharges)</span>
               <div className="p-1.5 rounded-lg bg-emerald-500/10 text-accent-emerald">
@@ -450,7 +449,7 @@ export default function CandidateWalletPage() {
           </div>
 
           {/* Card 3: Total Spent on Practice & Technical Interviews */}
-          <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm relative overflow-hidden group">
+          <div className="p-6 rounded-xl border border-line bg-surface shadow-sm relative overflow-hidden group">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span className="font-semibold uppercase tracking-wider">Spent on Interviews</span>
               <div className="p-1.5 rounded-lg bg-rose-500/10 text-accent-rose">
@@ -469,7 +468,7 @@ export default function CandidateWalletPage() {
           </div>
 
           {/* Card 4: Free Demo Quota */}
-          <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm relative overflow-hidden group">
+          <div className="p-6 rounded-xl border border-line bg-surface shadow-sm relative overflow-hidden group">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span className="font-semibold uppercase tracking-wider">Free Demo Quota</span>
               <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
@@ -491,7 +490,7 @@ export default function CandidateWalletPage() {
         </div>
 
         {/* Paytm-Style Passbook & History Section */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 space-y-5 shadow-sm">
+        <div className="rounded-xl border border-line bg-surface p-5 sm:p-6 space-y-5 shadow-sm">
           {/* Header & Search */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line pb-4">
             <div>
@@ -538,7 +537,7 @@ export default function CandidateWalletPage() {
               <span>All Transactions</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'ALL' ? 'bg-white/20 text-white' : 'bg-surface-2 text-ink-muted'
+                  activeTab === 'ALL' ? 'bg-surface/20 text-white' : 'bg-surface-2 text-ink-muted'
                 }`}
               >
                 {counts.all}
@@ -553,11 +552,10 @@ export default function CandidateWalletPage() {
                   : 'bg-canvas text-ink-muted hover:text-ink border border-line'
               }`}
             >
-              <ArrowUpRight className="h-3.5 w-3.5 text-accent-rose" />
               <span>Spent on Interviews (-)</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'OUT' ? 'bg-white/20 text-white' : 'bg-rose-500/10 text-accent-rose'
+                  activeTab === 'OUT' ? 'bg-surface/20 text-white' : 'bg-rose-500/10 text-accent-rose'
                 }`}
               >
                 {counts.debits}
@@ -576,7 +574,7 @@ export default function CandidateWalletPage() {
               <span>Added / Recharges (+)</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'IN' ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-accent-emerald'
+                  activeTab === 'IN' ? 'bg-surface/20 text-white' : 'bg-emerald-500/10 text-accent-emerald'
                 }`}
               >
                 {counts.credits}
@@ -595,7 +593,7 @@ export default function CandidateWalletPage() {
               <span>Free Demos</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  activeTab === 'DEMO' ? 'bg-white/20 text-white' : 'bg-indigo-500/10 text-indigo-400'
+                  activeTab === 'DEMO' ? 'bg-surface/20 text-white' : 'bg-indigo-500/10 text-indigo-400'
                 }`}
               >
                 {counts.demos}
@@ -625,7 +623,7 @@ export default function CandidateWalletPage() {
                   <div
                     key={tx.id}
                     onClick={() => setSelectedTx(tx)}
-                    className="p-4 rounded-2xl border border-line bg-canvas hover:bg-surface-2 hover:border-cyan-500/30 transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 group"
+                    className="p-4 rounded-2xl bg-canvas hover:bg-surface-2 transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 group"
                   >
                     {/* Left: Direction Icon + Title + Details */}
                     <div className="flex items-start gap-3.5 min-w-0">
@@ -752,7 +750,7 @@ export default function CandidateWalletPage() {
       {/* Paytm-Style Transaction Receipt Modal */}
       {selectedTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-5">
+          <div className="w-full max-w-lg rounded-2xl border border-line bg-surface p-6 shadow-xl space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-2">
                 <Receipt className="h-5 w-5 text-accent-cyan" />
@@ -767,7 +765,7 @@ export default function CandidateWalletPage() {
             </div>
 
             {/* Verified Green Banner */}
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-1">
+            <div className="p-4 rounded-2xl bg-emerald-500/10 text-center space-y-1">
               <div className="inline-flex p-2 rounded-full bg-emerald-500/20 text-accent-emerald mb-1">
                 <CheckCircle2 className="h-6 w-6" />
               </div>
@@ -888,7 +886,7 @@ export default function CandidateWalletPage() {
       {/* Recharge Modal */}
       {rechargeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-5">
+          <div className="w-full max-w-lg rounded-2xl border border-line bg-surface p-6 shadow-xl space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-accent-cyan" />
@@ -915,10 +913,10 @@ export default function CandidateWalletPage() {
                       setSelectedPack(pack.credits);
                       setCustomAmount('');
                     }}
-                    className={`cursor-pointer p-3 sm:p-4 rounded-2xl border text-center transition ${
+                    className={`cursor-pointer p-3 sm:p-4 rounded-2xl text-center transition ${
                       selectedPack === pack.credits && !customAmount
-                        ? 'border-cyan-500 bg-cyan-500/10 shadow-sm ring-1 ring-cyan-500'
-                        : 'border-line bg-surface hover:border-cyan-500/40'
+                        ? 'bg-cyan-500/10 shadow-sm ring-1 ring-cyan-500'
+                        : 'bg-surface hover:bg-surface-2'
                     }`}
                   >
                     <span className="block text-[10px] font-black uppercase text-accent-cyan truncate">
@@ -1004,7 +1002,7 @@ export default function CandidateWalletPage() {
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs text-ink">
+              <div className="p-4 rounded-xl bg-cyan-500/10 text-xs text-ink">
                 <div className="flex items-center justify-between font-bold">
                   <span>Total Payable:</span>
                   <span className="text-base text-accent-cyan">

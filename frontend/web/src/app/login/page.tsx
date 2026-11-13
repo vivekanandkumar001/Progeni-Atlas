@@ -4,14 +4,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { apiFetch, persistSession, clearSession } from '@/lib/api';
+import { apiFetch, apiJson, persistSession, clearSession } from '@/lib/api';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
 import {
   Eye,
   EyeOff,
-  ArrowRight,
   ShieldCheck,
   Loader2,
   Mail,
@@ -19,8 +18,7 @@ import {
   AlertCircle,
   Info,
   Building2,
-  UserPlus,
-} from 'lucide-react';
+  UserPlus } from 'lucide-react';
 import { LoginValidationSchema, LoginFormData } from '@/lib/validations/login';
 import { Navbar } from '@/components/Navbar';
 import { AuthCard, buttonClass, inputClass } from '@/components/ui';
@@ -150,18 +148,21 @@ export default function LoginPage() {
         }
       }
     } else {
-      // Option 1: If user is already authenticated and visits /login, redirect directly to dashboard
-      try {
-        const stored = localStorage.getItem('tp_user');
-        if (stored) {
-          const u = JSON.parse(stored);
-          if (u && (u.id || u.email)) {
-            const normalizedRole = normalizeRole(u.role || '');
-            router.replace(roleHome(normalizedRole));
+      // Option 1: If the user has a VALID session, redirect directly to dashboard.
+      // Verify server-side (cookie may be gone even if localStorage lingers) — never trust localStorage alone.
+      void (async () => {
+        try {
+          const me = await apiJson<{ role?: string } | null>('/api/auth/me', {}, { skipCache: true });
+          const role = normalizeRole(me?.role || '');
+          if (me && me.role) {
+            router.replace(roleHome(role));
             return;
           }
+          clearSession();
+        } catch {
+          clearSession();
         }
-      } catch {}
+      })();
     }
   }, [router]);
 
@@ -258,7 +259,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="h-screen bg-canvas text-ink font-sans flex flex-col relative overflow-hidden">
+    <div className="h-dvh bg-canvas text-ink font-sans flex flex-col relative overflow-hidden">
       {/* Ambient radial background glows */}
       <div className="absolute top-0 left-0 w-full h-full ambient-glow-cyan pointer-events-none z-0" />
       <div className="absolute bottom-0 right-0 w-full h-full ambient-glow-indigo pointer-events-none z-0" />
@@ -426,8 +427,7 @@ export default function LoginPage() {
                     ) : (
                       <>
                         <span>Sign in securely</span>
-                        <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                      </>
+                        </>
                     )}
                   </button>
                 </form>

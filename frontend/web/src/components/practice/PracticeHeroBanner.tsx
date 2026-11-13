@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { PracticeDrillItem } from '@/types/practice';
-import { Sparkles, ArrowRight, Zap, Target } from 'lucide-react';
+import { Sparkles, Zap, Target } from 'lucide-react';
 
 interface PracticeHeroBannerProps {
   recommendedDrill?: PracticeDrillItem;
@@ -69,9 +69,8 @@ export const PracticeHeroBanner: React.FC<PracticeHeroBannerProps> = ({
               onClick={() => onLaunchWarmup(recommendedDrill)}
               className="inline-flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-medium text-xs transition-all shadow-md shadow-cyan-500/20 cursor-pointer group"
             >
-              <span>Launch {recommendedDrill.estimatedMinutes}-Min Warmup →</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </button>
+              <span>Launch {recommendedDrill.estimatedMinutes}-Min Warmup </span>
+              </button>
           </div>
         </div>
       )}

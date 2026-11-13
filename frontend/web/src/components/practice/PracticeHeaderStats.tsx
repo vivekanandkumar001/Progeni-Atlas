@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { CandidatePracticeStats } from '@/types/practice';
-import { ArrowLeft, Target, Zap, Clock, Award, ShieldCheck } from 'lucide-react';
+import { Target, Zap, Clock, Award, ShieldCheck } from 'lucide-react';
 
 interface PracticeHeaderStatsProps {
   stats: CandidatePracticeStats;
@@ -18,9 +18,7 @@ export const PracticeHeaderStats: React.FC<PracticeHeaderStatsProps> = ({ stats 
           <Link
             href="/candidate/dashboard"
             className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted hover:text-accent-cyan transition-colors mb-1"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Candidate Dashboard</span>
+          > <span>Return to Candidate Dashboard</span>
           </Link>
           <div className="flex items-center gap-3">
             <h1 className="text-heading font-bold text-ink text-2xl sm:text-3xl tracking-tight">

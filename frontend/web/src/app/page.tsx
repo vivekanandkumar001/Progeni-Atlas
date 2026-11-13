@@ -1,11 +1,10 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  ArrowRight,
   BrainCircuit,
   Code2,
   ShieldCheck,
@@ -22,10 +21,10 @@ import {
   Terminal,
   Cpu,
   Flame,
-  Check,
-} from 'lucide-react';
+  Check } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { apiJson } from '@/lib/api';
 
 const featureCards = [
   { icon: Video, title: 'Two-Way AI Video Interviews', text: 'A natural candidate ↔ AI interviewer conversation with live voice, video and adaptive follow-up questions.' },
@@ -47,7 +46,7 @@ const technicalInterviewTracks = [
     title: 'Frontend Architecture & Modern Web Systems',
     category: 'Frontend Track',
     level: 'Core',
-    levelColor: 'text-blue-700 bg-blue-50 border-blue-200',
+    levelColor: 'text-accent-blue bg-blue-50 border-blue-200',
     desc: 'Tests real DOM performance, state reactivity, micro-frontends, rendering pipelines and accessibility standards.',
   },
   {
@@ -177,23 +176,26 @@ export default function Home() {
   const [activePricing, setActivePricing] = useState(pricing);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('tp_user');
-      if (stored) {
-        const u = JSON.parse(stored);
-        if (u && (u.id || u.email)) {
-          const role = String(u.role || 'candidate').toLowerCase().trim();
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await apiJson<{ role?: string; user?: { role?: string } } | null>('/api/auth/me', {}, { skipCache: true });
+        const role = String(me?.user?.role || me?.role || '').toLowerCase().trim();
+        if (!cancelled && me && role) {
           const target = role === 'super_admin'
             ? '/super-admin'
-            : (role === 'recruiter' || role === 'admin' || role === 'hr')
+            : (role === 'recruiter' || role === 'admin' || role === 'hr' || role === 'employer')
               ? '/recruiter/dashboard'
               : '/candidate/dashboard';
           router.replace(target);
           return;
         }
+      } catch {
+        // Not authenticated — stay on the marketing page
       }
-    } catch {}
-    setCheckingAuth(false);
+      if (!cancelled) setCheckingAuth(false);
+    })();
+    return () => { cancelled = true; };
   }, [router]);
 
   // Keep homepage pricing in sync with packages managed in Super Admin.
@@ -310,7 +312,7 @@ export default function Home() {
             {/* Live Kicker Pill with Radar Beacon Dot & Brand Aura */}
             <div className="relative inline-flex mb-6">
               <span className="absolute -inset-1 rounded-full bg-cyan-400/25 blur-md anim-aura pointer-events-none" />
-              <div className="relative inline-flex items-center gap-2.5 rounded-full border border-cyan-400/40 bg-surface/90 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-cyan shadow-sm backdrop-blur-md">
+              <div className="relative inline-flex items-center gap-2.5 rounded-full border border-cyan-400/40 bg-surface/90 px-3.5 py-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.08em] sm:tracking-[0.18em] text-accent-cyan shadow-sm backdrop-blur-md whitespace-nowrap">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 shadow-[0_0_8px_#34d399]" />
@@ -339,8 +341,7 @@ export default function Home() {
                 className="sheen-sweeper group relative inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600 px-7 py-4 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:brightness-110 hover:shadow-cyan-500/35 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <span>Start Free Interview</span>
-                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Link>
+                </Link>
               
               <a
                 href="#live-demo"
@@ -364,7 +365,7 @@ export default function Home() {
             {/* Trust badge with Sakshaat-style twinkling star sparks */}
             <div className="relative mt-8 max-w-sm">
               {/* Twinkling Star Sparks */}
-              <svg className="trust-sparkle -top-3 -right-2 w-5 h-5 text-cyan-400 fill-cyan-400" viewBox="0 0 24 24">
+              <svg className="trust-sparkle -top-3 -right-2 w-5 h-5 text-accent-cyan fill-cyan-400" viewBox="0 0 24 24">
                 <path d="M12 0C12.9 7.6 16.4 11.1 24 12C16.4 12.9 12.9 16.4 12 24C11.1 16.4 7.6 12.9 0 12C7.6 11.1 11.1 7.6 12 0Z" />
               </svg>
               <svg className="trust-sparkle top-7 -left-3 w-3.5 h-3.5 text-indigo-400 fill-indigo-400" style={{ animationDelay: '1.2s' }} viewBox="0 0 24 24">
@@ -400,58 +401,58 @@ export default function Home() {
             <div className="absolute -inset-4 rounded-xl bg-gradient-to-r from-cyan-500/20 via-indigo-500/15 to-purple-500/20 blur-2xl pointer-events-none anim-aura" />
 
             {/* The Live Video Interview Room Window (Sakshaat Style) */}
-            <div className="relative overflow-hidden rounded-2xl border border-cyan-400/40 bg-slate-950 text-white shadow-2xl shadow-cyan-500/15">
+            <div className="relative overflow-hidden rounded-2xl border border-cyan-400/40 bg-inverse-canvas text-white shadow-2xl shadow-cyan-500/15">
               
               {/* Window Titlebar / Live Status Bar */}
-              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 py-3 text-xs backdrop-blur-md">
+              <div className="flex items-center justify-between border-b border-inverse-line bg-inverse-surface-2/90 px-4 py-3 text-xs backdrop-blur-md">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5">
                     <span className="h-3 w-3 rounded-full bg-rose-500/80 inline-block" />
                     <span className="h-3 w-3 rounded-full bg-amber-500/80 inline-block" />
                     <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block" />
                   </div>
-                  <span className="font-mono text-slate-400">|</span>
+                  <span className="font-mono text-inverse-ink-muted">|</span>
                   <div className="flex items-center gap-2">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                     </span>
-                    <span className="font-semibold text-emerald-300">Live Call</span>
-                    <span className="font-mono text-[11px] text-slate-400">· {formatTimer(timerSeconds)}</span>
+                    <span className="font-semibold text-inverse-emerald">Live Call</span>
+                    <span className="font-mono text-[11px] text-inverse-ink-muted">· {formatTimer(timerSeconds)}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-300">
+                  <span className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-inverse-cyan">
                     Live DSA & Concurrency Round
                   </span>
-                  <span className="font-mono text-[11px] text-slate-400">Python 3.12</span>
+                  <span className="font-mono text-[11px] text-inverse-ink-muted">Python 3.12</span>
                 </div>
               </div>
 
               {/* Dual Video Tiles: AI Interviewer & Candidate */}
-              <div className="grid gap-3 p-3.5 sm:grid-cols-2 bg-slate-950/70">
+              <div className="grid gap-3 p-3.5 sm:grid-cols-2 bg-inverse-canvas/70">
                 
                 {/* AI Interviewer Viewport */}
-                <div className="relative overflow-hidden rounded-xl border border-cyan-400/60 bg-slate-900 shadow-lg ring-2 ring-cyan-400/30">
-                  <div className="relative h-44 w-full overflow-hidden bg-slate-900">
+                <div className="relative overflow-hidden rounded-xl border border-cyan-400/60 bg-inverse-surface-2 shadow-lg ring-2 ring-cyan-400/30">
+                  <div className="relative h-44 w-full overflow-hidden bg-inverse-surface-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src="/avatars/interviewer_female.jpg"
                       alt="Sarah Chen"
                       className="h-full w-full object-cover object-center interviewer-sway brightness-105 contrast-[1.02]"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-canvas via-transparent to-transparent opacity-80" />
                     
                     {/* Active Voice Equalizer Overlay (11 Equalizer Bars) */}
                     <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between">
-                      <div className="flex items-center gap-2 rounded-lg bg-slate-950/85 px-2.5 py-1 backdrop-blur-md border border-slate-700/60">
+                      <div className="flex items-center gap-2 rounded-lg bg-inverse-canvas/85 px-2.5 py-1 backdrop-blur-md border border-inverse-line-strong/60">
                         <span className="text-[11px] font-bold text-white">Sarah Chen</span>
-                        <span className="text-[9px] font-mono text-cyan-400 font-semibold uppercase">Lead AI</span>
+                        <span className="text-[9px] font-mono text-inverse-cyan font-semibold uppercase">Lead AI</span>
                       </div>
 
                       {/* Equalizer Waveform Bars */}
-                      <div className="flex items-end gap-1 h-5 px-2 py-1 rounded-md bg-slate-950/85 border border-cyan-500/30 backdrop-blur-md">
+                      <div className="flex items-end gap-1 h-5 px-2 py-1 rounded-md bg-inverse-canvas/85 border border-cyan-500/30 backdrop-blur-md">
                         {[0.2, 0.5, 0.8, 0.4, 0.9, 0.3, 0.7, 1.0, 0.6, 0.4, 0.8].map((delay, i) => (
                           <div
                             key={i}
@@ -465,19 +466,19 @@ export default function Home() {
                 </div>
 
                 {/* Candidate Video Preview */}
-                <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-md">
-                  <div className="relative flex h-44 w-full flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-indigo-950/60">
+                <div className="relative overflow-hidden rounded-xl border border-inverse-line bg-inverse-surface-2 shadow-md">
+                  <div className="relative flex h-44 w-full flex-col items-center justify-center bg-gradient-to-br from-surface to-indigo-950/60">
                     <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 shadow-inner">
                       <Users className="h-8 w-8" />
                     </div>
 
                     <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between">
-                      <div className="flex items-center gap-2 rounded-lg bg-slate-950/85 px-2.5 py-1 backdrop-blur-md border border-slate-800">
+                      <div className="flex items-center gap-2 rounded-lg bg-inverse-canvas/85 px-2.5 py-1 backdrop-blur-md border border-inverse-line">
                         <span className="text-[11px] font-bold text-white">Candidate</span>
-                        <span className="text-[9px] font-mono text-slate-400">(Live Stream)</span>
+                        <span className="text-[9px] font-mono text-inverse-ink-muted">(Live Stream)</span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-300 font-medium">
+                      <div className="flex items-center gap-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] text-inverse-emerald font-medium">
                         <Mic2 className="h-3 w-3" /> Audio Active
                       </div>
                     </div>
@@ -486,29 +487,29 @@ export default function Home() {
               </div>
 
               {/* Real-Time Live Code Editor Workspace */}
-              <div className="border-t border-slate-800 bg-slate-950 p-3.5 font-mono text-xs">
+              <div className="border-t border-inverse-line bg-inverse-canvas p-3.5 font-mono text-xs">
                 {/* Code Tabs */}
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/80">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-inverse-line/80">
                   <div className="flex items-center gap-2">
-                    <Terminal className="h-3.5 w-3.5 text-cyan-400" />
-                    <span className="text-[11px] font-bold text-slate-300">Solution.py</span>
+                    <Terminal className="h-3.5 w-3.5 text-inverse-cyan" />
+                    <span className="text-[11px] font-bold text-inverse-ink-muted">Solution.py</span>
                   </div>
                   <div className="flex gap-1 text-[10px]">
                     <button
                       onClick={() => setActiveCodeTab('python')}
-                      className={`px-2 py-0.5 rounded transition ${activeCodeTab === 'python' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-white'}`}
+                      className={`px-2 py-0.5 rounded transition ${activeCodeTab === 'python' ? 'bg-cyan-500/20 text-inverse-cyan border border-cyan-500/40' : 'text-inverse-ink-muted hover:text-white'}`}
                     >
                       Python
                     </button>
                     <button
                       onClick={() => setActiveCodeTab('cpp')}
-                      className={`px-2 py-0.5 rounded transition ${activeCodeTab === 'cpp' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-white'}`}
+                      className={`px-2 py-0.5 rounded transition ${activeCodeTab === 'cpp' ? 'bg-cyan-500/20 text-inverse-cyan border border-cyan-500/40' : 'text-inverse-ink-muted hover:text-white'}`}
                     >
                       C++
                     </button>
                     <button
                       onClick={() => setActiveCodeTab('ts')}
-                      className={`px-2 py-0.5 rounded transition ${activeCodeTab === 'ts' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-white'}`}
+                      className={`px-2 py-0.5 rounded transition ${activeCodeTab === 'ts' ? 'bg-cyan-500/20 text-inverse-cyan border border-cyan-500/40' : 'text-inverse-ink-muted hover:text-white'}`}
                     >
                       TypeScript
                     </button>
@@ -516,27 +517,27 @@ export default function Home() {
                 </div>
 
                 {/* Code Lines with Syntax Highlighting and Active Line Caret */}
-                <div className="space-y-1 text-slate-300 leading-relaxed">
+                <div className="space-y-1 text-inverse-ink-muted leading-relaxed">
                   <div className="flex gap-3">
-                    <span className="w-4 select-none text-slate-600">1</span>
+                    <span className="w-4 select-none text-inverse-ink-muted">1</span>
                     <div>
-                      <span className="text-purple-400">class</span> <span className="text-yellow-300">Solution</span>:
+                      <span className="text-inverse-violet">class</span> <span className="text-yellow-300">Solution</span>:
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <span className="w-4 select-none text-slate-600">2</span>
+                    <span className="w-4 select-none text-inverse-ink-muted">2</span>
                     <div className="pl-4">
-                      <span className="text-purple-400">def</span> <span className="text-blue-400">maxSlidingWindow</span>(self, nums: <span className="text-cyan-400">list[int]</span>, k: <span className="text-cyan-400">int</span>) -&gt; <span className="text-cyan-400">list[int]</span>:
+                      <span className="text-inverse-violet">def</span> <span className="text-inverse-cyan">maxSlidingWindow</span>(self, nums: <span className="text-inverse-cyan">list[int]</span>, k: <span className="text-inverse-cyan">int</span>) -&gt; <span className="text-inverse-cyan">list[int]</span>:
                     </div>
                   </div>
                   <div className="flex gap-3 rounded bg-cyan-500/10 py-0.5 -mx-1 px-1 border-l-2 border-cyan-400">
-                    <span className="w-4 select-none text-cyan-400 font-bold">3</span>
+                    <span className="w-4 select-none text-inverse-cyan font-bold">3</span>
                     <div className="pl-4">
-                      dq = collections.<span className="text-blue-400">deque</span>()  <span className="text-slate-500"># monotonic queue</span><span className="typing-caret" />
+                      dq = collections.<span className="text-inverse-cyan">deque</span>()  <span className="text-inverse-ink-faint"># monotonic queue</span><span className="typing-caret" />
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <span className="w-4 select-none text-slate-600">4</span>
+                    <span className="w-4 select-none text-inverse-ink-muted">4</span>
                     <div className="pl-4">
                       res = []
                     </div>
@@ -544,12 +545,12 @@ export default function Home() {
                 </div>
 
                 {/* Real-time Compiler & Execution Badge */}
-                <div className="mt-3 flex items-center justify-between rounded-lg border border-emerald-500/25 bg-emerald-950/30 px-3 py-2 text-[11px] text-emerald-300">
+                <div className="mt-3 flex items-center justify-between rounded-lg border border-emerald-500/25 bg-inverse-emerald/10 px-3 py-2 text-[11px] text-inverse-emerald">
                   <span className="inline-flex items-center gap-1.5 font-semibold">
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                     Execution: 14ms · Memory: 28.2MB
                   </span>
-                  <span className="font-mono font-bold text-emerald-400">12/12 Automated Tests Passed</span>
+                  <span className="font-mono font-bold text-inverse-emerald">12/12 Automated Tests Passed</span>
                 </div>
               </div>
             </div>
@@ -564,14 +565,14 @@ export default function Home() {
       <section className="relative border-b border-line bg-surface py-14 overflow-hidden">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-blue-600">
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-accent-blue">
               <Sparkles className="h-3.5 w-3.5" /> Autonomous Interview Engine
             </div>
-            <h2 className="mt-2 text-2xl sm:text-3xl font-extrabold text-slate-900">
+            <h2 className="mt-2 text-2xl sm:text-3xl font-extrabold text-ink">
               Curated Technical Tracks. Production Rigor.
             </h2>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-md">
+          <p className="text-xs sm:text-sm text-ink-faint max-w-md">
             Each track evaluates deep architectural competency, clean code semantics, and real-world system resilience.
           </p>
         </div>
@@ -582,23 +583,23 @@ export default function Home() {
             {[...technicalInterviewTracks, ...technicalInterviewTracks].map((track, idx) => (
               <div
                 key={idx}
-                className="group flex w-[380px] shrink-0 flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 hover:border-blue-400 hover:shadow-sm"
+                className="group flex w-[380px] shrink-0 flex-col justify-between rounded-xl border border-line bg-surface p-5 shadow-xs transition-all duration-200 hover:border-blue-400 hover:shadow-sm"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 font-mono">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-accent-blue font-mono">
                       {track.category}
                     </span>
                     <span className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${track.levelColor}`}>
                       {track.level}
                     </span>
                   </div>
-                  <h3 className="font-bold text-sm text-slate-900 mt-2 line-clamp-1">{track.title}</h3>
-                  <p className="mt-1.5 text-xs text-slate-600 line-clamp-2 leading-relaxed">{track.desc}</p>
+                  <h3 className="font-bold text-sm text-ink mt-2 line-clamp-1">{track.title}</h3>
+                  <p className="mt-1.5 text-xs text-ink-muted line-clamp-2 leading-relaxed">{track.desc}</p>
                 </div>
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-[11px] text-ink-muted">
                   <span>Adaptive Dynamic Questions</span>
-                  <span className="font-medium text-blue-600">Live Workspace</span>
+                  <span className="font-medium text-accent-blue">Live Workspace</span>
                 </div>
               </div>
             ))}
@@ -673,14 +674,14 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="mt-8 grid gap-4 rounded-2xl border border-cyan-400/25 bg-cyan-400/5 p-6 md:grid-cols-2">
+          <div className="mt-8 grid gap-4 rounded-2xl bg-cyan-400/5 p-6 md:grid-cols-2">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-accent-cyan">Adaptive Dialogue Example</p>
               <p className="mt-2 text-sm text-ink leading-relaxed">
                 Candidate explains API scaling → AI evaluates foundational clarity → AI organically probes distributed cache eviction and failure scenarios.
               </p>
             </div>
-            <div className="rounded-xl border border-line-strong bg-surface p-4 font-mono text-xs text-ink shadow-inner">
+            <div className="rounded-xl bg-surface p-4 font-mono text-xs text-ink shadow-inner">
               <span className="text-accent-cyan font-bold">AI:</span> &quot;How would you handle cache stampede if 10k workers query the same key?&quot;
               <br /><br />
               <span className="text-purple-500 font-bold">AI analysis:</span> Foundation verified → testing mutex locking &amp; probabilistic early expiration.
@@ -729,8 +730,7 @@ export default function Home() {
               <h3 className="mt-2 text-xl font-black text-ink">Practice. Prepare. Perform.</h3>
               <p className="mt-2 text-sm text-ink-muted">Practice interviews, full-length mock exams, live coding, and actionable turn-by-turn dossiers.</p>
               <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-accent-cyan">
-                Candidate Portal <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-              </span>
+                Candidate Portal </span>
             </Link>
 
             <Link
@@ -741,8 +741,7 @@ export default function Home() {
               <h3 className="mt-2 text-xl font-black text-ink">Interview at Scale.</h3>
               <p className="mt-2 text-sm text-ink-muted">Create job campaigns, bulk invite candidates, inspect proctoring trust scores and verified dossiers.</p>
               <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-accent-indigo">
-                Recruiter Portal <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-              </span>
+                Recruiter Portal </span>
             </Link>
           </div>
         </div>
@@ -772,7 +771,7 @@ export default function Home() {
             </div>
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
-              <div className="rounded-xl border border-line bg-inset p-5">
+              <div className="rounded-xl bg-inset p-5">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-accent-cyan">Sample Candidate Feedback Extract</p>
                 <p className="mt-3 text-sm italic leading-6 text-ink">
                   &quot;Candidate articulated the difference between pessimistic and optimistic locking with distributed Redis leases; clearly accounted for clock skew via Redlock algorithm.&quot;
@@ -916,13 +915,13 @@ export default function Home() {
       {/* =====================================================================
           FINAL CTA
           ===================================================================== */}
-      <section className="relative overflow-hidden border-b border-line bg-gradient-to-r from-indigo-950 via-slate-950 to-indigo-950 px-5 py-20 text-center text-white">
+      <section className="relative overflow-hidden border-b border-inverse-line bg-gradient-to-r from-inverse-surface via-inverse-canvas to-inverse-surface px-5 py-20 text-center text-white">
         <div className="sakshaat-grid" />
         <div className="absolute inset-0 bg-radial from-cyan-500/15 via-transparent to-transparent pointer-events-none anim-drift-a" />
         <div className="relative mx-auto max-w-3xl">
-          <span className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">Progeni Atlas</span>
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-accent-cyan">Progeni Atlas</span>
           <h2 className="mt-3 text-3xl font-black sm:text-4xl">Ready to transform your technical interviews?</h2>
-          <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-slate-300">
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-inverse-ink-muted">
             Conduct intelligent two-way AI interviews, evaluate technical problem solving and generate structured candidate dossiers.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3.5 sm:flex-row">
@@ -930,11 +929,11 @@ export default function Home() {
               href="/register"
               className="sheen-sweeper rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-500 px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-110"
             >
-              Get Started Free →
+              Get Started Free 
             </Link>
             <a
               href="#hero"
-              className="rounded-xl border border-slate-700 bg-slate-900/80 px-7 py-3.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition"
+              className="rounded-xl border border-inverse-line-strong bg-inverse-surface-2/80 px-7 py-3.5 text-sm font-semibold text-inverse-ink hover:bg-inverse-surface-2 transition"
             >
               Back to Top
             </a>

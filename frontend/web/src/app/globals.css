@@ -1,10 +1,10 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Design tokens
-   Light is the only theme. Every token below is the value that was
-   hardcoded in the markup, so the light rendering is pixel-identical to the
-   previous light theme.
+   Design tokens — light by default; dark via [data-theme="dark"].
+   Semantic aliases in @theme switch everything automatically.
+   "inverse-*" tokens are the fixed palette for immersive dark islands
+   (interview arena, camera previews, code editors).
 --------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
@@ -58,6 +58,70 @@
   --brand-glow: rgba(37, 99, 235, 0.12);
 }
 
+/* Dark identity — same semantic names; chosen for WCAG AA on dark surfaces. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #020617;
+  --surface: #0f172a;
+  --surface-deep: #0f172a;
+  --surface-2: #1e293b;
+  --surface-3: #334155;
+  --inset: #020617;
+
+  --line: #334155;
+  --line-strong: #475569;
+
+  --ink: #f1f5f9;         /* Slate 100 — readable on dark canvas */
+  --ink-2: #e2e8f0;
+  --ink-muted: #94a3b8;   /* slate-400 on slate-900 ≈ 7.4:1 */
+  --ink-faint: #7d8da5;   /* slate-500/light caption tone */
+
+  --accent-blue: #60a5fa;
+  --accent-blue-hover: #3b82f6;
+  --accent-cyan: #38bdf8;
+  --accent-indigo: #818cf8;
+  --accent-emerald: #34d399;
+  --accent-rose: #fb7185;
+  --accent-amber: #fbbf24;
+  --accent-violet: #a78bfa;
+
+  --header: rgba(15, 23, 42, 0.88);
+  --grid-line: rgba(248, 250, 252, 0.05);
+  --glass-from: rgba(15, 23, 42, 0.92);
+  --glass-to: rgba(2, 6, 23, 0.92);
+  --glass-border: rgba(148, 163, 184, 0.18);
+  --glow-cyan: rgba(56, 189, 248, 0.10);
+  --glow-indigo: rgba(129, 140, 248, 0.12);
+
+  --scrim: rgba(2, 6, 23, 0.72);
+
+  --brand-from: #60a5fa;
+  --brand-to: #3b82f6;
+  --on-brand: #020617;
+
+  --brand-glow: rgba(96, 165, 250, 0.35);
+}
+
+/* Fixed "inverse" palette — immersive dark islands (arena, camera, editors).
+   Never flips with the app theme. */
+:root {
+  --inverse-canvas: #020617;
+  --inverse-surface: #0f172a;
+  --inverse-surface-2: #1e293b;
+  --inverse-surface-3: #334155;
+  --inverse-line: #334155;
+  --inverse-line-strong: #475569;
+  --inverse-ink: #f8fafc;
+  --inverse-ink-muted: #cbd5e1;
+  --inverse-ink-faint: #64748b;
+  --inverse-cyan: #38bdf8;
+  --inverse-emerald: #34d399;
+  --inverse-rose: #fb7185;
+  --inverse-amber: #fbbf24;
+  --inverse-violet: #a78bfa;
+}
+
 /* Expose the tokens as Tailwind utilities (bg-surface, text-ink, border-line...).
    `inline` keeps the var() reference live so token changes apply instantly. */
 @theme inline {
@@ -83,6 +147,23 @@
   --color-accent-rose: var(--accent-rose);
   --color-accent-amber: var(--accent-amber);
   --color-accent-violet: var(--accent-violet);
+  --color-accent-blue-hover: var(--accent-blue-hover);
+  --color-header: var(--header);
+
+  --color-inverse-canvas: var(--inverse-canvas);
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-surface-2: var(--inverse-surface-2);
+  --color-inverse-surface-3: var(--inverse-surface-3);
+  --color-inverse-line: var(--inverse-line);
+  --color-inverse-line-strong: var(--inverse-line-strong);
+  --color-inverse-ink: var(--inverse-ink);
+  --color-inverse-ink-muted: var(--inverse-ink-muted);
+  --color-inverse-ink-faint: var(--inverse-ink-faint);
+  --color-inverse-cyan: var(--inverse-cyan);
+  --color-inverse-emerald: var(--inverse-emerald);
+  --color-inverse-rose: var(--inverse-rose);
+  --color-inverse-amber: var(--inverse-amber);
+  --color-inverse-violet: var(--inverse-violet);
 
   --color-header: var(--header);
   --color-scrim: var(--scrim);

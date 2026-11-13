@@ -7,7 +7,6 @@ import {
   fetchCandidateResumes,
   fetchCandidateSkills,
   formatBytes,
-  getAccessToken,
   type CandidateProfile as ProfileRecord,
   type CandidateSkill,
 } from '@/lib/api';
@@ -120,8 +119,6 @@ export function useCandidateProfileData({ onToast, enabled = true }: UseCandidat
 
   const loadProfile = useCallback(async () => {
     if (!enabled) return;
-    const token = getAccessToken();
-    if (!token) return;
     try {
       setLoading(true);
       const [record, resumes, skills, suggestions] = await Promise.all([
@@ -180,7 +177,7 @@ export function useCandidateProfileData({ onToast, enabled = true }: UseCandidat
   }, [enabled]);
 
   useEffect(() => {
-    if (enabled && getAccessToken()) {
+    if (enabled) {
       void loadProfile();
     }
   }, [loadProfile, enabled]);

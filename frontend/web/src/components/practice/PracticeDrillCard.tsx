@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { PracticeDrillItem, DrillDifficulty } from '@/types/practice';
-import { Clock, Play, Award, ArrowRight } from 'lucide-react';
+import { Clock, Play, Award } from 'lucide-react';
 
 interface PracticeDrillCardProps {
   drill: PracticeDrillItem;
@@ -81,7 +81,7 @@ export const PracticeDrillCard: React.FC<PracticeDrillCardProps> = ({ drill, onS
           onClick={() => onStartDrill(drill)}
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface hover:bg-cyan-500/10 border border-line-strong hover:border-cyan-500/30 text-ink hover:text-accent-cyan text-xs font-semibold transition-all cursor-pointer group-hover:scale-[1.02]"
         >
-          <span>Start Drill →</span>
+          <span>Start Drill </span>
         </button>
       </div>
     </div>

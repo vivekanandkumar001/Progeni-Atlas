@@ -67,12 +67,12 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       {/* Wordmark: 100% Solid High-Contrast "Progeni Atlas" */}
       <div className={`${hideTextOnMobile ? 'hidden sm:flex' : 'flex'} items-center gap-1.5 whitespace-nowrap`}>
         <span className="text-xl sm:text-2xl font-black tracking-tight font-sans whitespace-nowrap flex items-center">
-          <span className="text-slate-900">Progeni</span>
-          <span className="ml-1 text-blue-600">Atlas</span>
+          <span className="text-ink">Progeni</span>
+          <span className="ml-1 text-accent-blue">Atlas</span>
         </span>
 
         {/* AI Tech Pill Badge */}
-        <span className="inline-flex items-center text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 ml-0.5 whitespace-nowrap">
+        <span className="inline-flex items-center text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-accent-blue border border-blue-200 ml-0.5 whitespace-nowrap">
           {badge || 'AI'}
         </span>
       </div>

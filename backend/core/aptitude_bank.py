@@ -288,7 +288,245 @@ APTITUDE_QUESTIONS_CATALOG: List[Dict[str, Any]] = [
         "explanation": "Rule 1: Number of edges increases by 1 (5 edges -> 6 edges -> 7 edges). The final figure must be a Heptagon (7-sided polygon).\nRule 2: Internal dot rotates 90 degrees clockwise (Top -> Right -> Bottom).\nCombining both rules gives: Heptagon with shaded dot at Bottom.",
         "formula": "N_{\\text{edges}} = 5 \\to 6 \\to 7; \\quad \\theta_{\\text{dot}} = 0^\\circ \\to 90^\\circ \\to 180^\\circ",
         "timeRecommendedSeconds": 50
+    },    {
+        "id": "verb-004",
+        "section": "Verbal",
+        "topic": "Vocabulary in Context",
+        "difficulty": "medium",
+        "prompt": "Read the sentence: 'The migration went sideways when the vendor deprecated the legacy API without warning, and the team had to scramble to patch the integration at midnight.' In this context, 'sideways' most nearly means:",
+        "options": [
+            "smoothly and on schedule",
+            "poorly and off course",
+            "in a lateral direction",
+            "faster than planned"
+        ],
+        "correctIndex": 1,
+        "explanation": "The sentence describes an unplanned failure and an emergency fix at midnight; 'sideways' is used idiomatically for something that failed or was derailed, not literally.",
+        "formula": "context + fallback phrase signals idiomatic reading",
+        "timeRecommendedSeconds": 45
+    },
+    {
+        "id": "verb-005",
+        "section": "Verbal",
+        "topic": "Error Spotting — Subject-Verb Agreement",
+        "difficulty": "medium",
+        "prompt": "Identify the segment with a grammatical error: 'Each of the engineers (A) / have completed (B) / their onboarding (C) / and system setup (D).'",
+        "options": [
+            "(A)",
+            "(B)",
+            "(C)",
+            "(D)"
+        ],
+        "correctIndex": 1,
+        "explanation": "'Each' takes a singular verb, so 'have completed' must be 'has completed'. Segment (B) is the error.",
+        "formula": "each / every / everyone + singular verb",
+        "timeRecommendedSeconds": 40
+    },
+    {
+        "id": "verb-006",
+        "section": "Verbal",
+        "topic": "Para Jumbles",
+        "difficulty": "medium",
+        "prompt": "Arrange the sentences to form a coherent paragraph:\nP: The database began timing out under load.\nQ: Engineers added a read replica and tuned the indexes.\nR: Query latency dropped by 70 percent.\nS: Traffic then continued to grow month over month.\nWhich of the following is the correct order?",
+        "options": [
+            "P - Q - R - S",
+            "P - R - Q - S",
+            "Q - P - R - S",
+            "Q - P - S - R"
+        ],
+        "correctIndex": 0,
+        "explanation": "Problem first (P), solution next (Q), measurable outcome (R), and the closing context (S). P-Q-R-S reads as a complete narrative.",
+        "formula": "problem -> action -> result -> outlook",
+        "timeRecommendedSeconds": 60
+    },
+    {
+        "id": "verb-007",
+        "section": "Verbal",
+        "topic": "Idioms & Phrasal Verbs",
+        "difficulty": "easy",
+        "prompt": "Choose the correct word to complete the sentence: 'The pull request cannot be merged until the reviewer signs ___ on the checklist.'",
+        "options": [
+            "off",
+            "up",
+            "in",
+            "down"
+        ],
+        "correctIndex": 0,
+        "explanation": "'Signs off' is the standard idiom meaning to formally approve or authorise (sign-off). 'Signs in' means to authenticate, 'signs up' means to register, 'signs down' is not idiomatic.",
+        "formula": "sign off = formally approve",
+        "timeRecommendedSeconds": 30
+    },
+    {
+        "id": "abstract-002",
+        "section": "Abstract",
+        "topic": "Mirror Images & Reflections",
+        "difficulty": "medium",
+        "prompt": "A square tile carries a single dot in the top-right corner and a diagonal line running from bottom-left to top-right. The tile is placed facing a vertical mirror kept to its right side. In the mirror image, the dot appears at the:",
+        "options": [
+            "top-left corner",
+            "top-right corner",
+            "bottom-left corner",
+            "bottom-right corner"
+        ],
+        "correctIndex": 0,
+        "explanation": "A vertical mirror swaps left and right while keeping top and bottom fixed. The top-right dot of the object appears at the top-left of the reflected image.",
+        "formula": "vertical reflection: (x, y) -> (W - x, y)",
+        "timeRecommendedSeconds": 45
+    },
+    {
+        "id": "abstract-003",
+        "section": "Abstract",
+        "topic": "Paper Folding & Punching",
+        "difficulty": "medium",
+        "prompt": "A square sheet of paper is folded in half vertically, and the resulting half is folded in half horizontally. Two holes are punched at the corner of the folded packet that lies at the bottom-right. When the sheet is unfolded, the final pattern will contain:",
+        "options": [
+            "2 holes, both lying on the vertical centreline",
+            "2 holes, both lying on the horizontal centreline",
+            "4 holes, symmetric in all four quadrants",
+            "4 holes, arranged in one straight line"
+        ],
+        "correctIndex": 2,
+        "explanation": "Two folds create 4 superimposed layers. Punching one location through the folded corner reproduces it in each of the four reflected positions, giving 4 holes, one per quadrant.",
+        "formula": "2 folds -> 4 layers -> 4 mirrored holes",
+        "timeRecommendedSeconds": 60
     }
+,    {
+        "id": "verb-008",
+        "section": "Verbal",
+        "topic": "Synonyms & Antonyms",
+        "difficulty": "easy",
+        "prompt": "Choose the option that is the closest in meaning to the word 'PERFUNCTORY'.",
+        "options": [
+            "Thorough and deliberate",
+            "Superficial and half-hearted",
+            "Enthusiastic and eager",
+            "Dramatic and exaggerated"
+        ],
+        "correctIndex": 1,
+        "explanation": "'Perfunctory' describes work done as a matter of routine, with minimal effort or care — superficial and half-hearted.",
+        "formula": "perfunctory = superficial, cursory",
+        "timeRecommendedSeconds": 35
+    },
+    {
+        "id": "verb-009",
+        "section": "Verbal",
+        "topic": "Sentence Correction",
+        "difficulty": "medium",
+        "prompt": "Identify the correct sentence from the options below.",
+        "options": [
+            "The committee are scheduled to meet every Friday at 3 PM.",
+            "The committee was scheduled to meet every Friday at 3 PM.",
+            "The committee is scheduled to meet every Friday at 3 PM.",
+            "The committee have been scheduled to meet every Friday at 3 PM."
+        ],
+        "correctIndex": 2,
+        "explanation": "Collective nouns like 'committee' take singular agreement when acting as one unit — 'is scheduled'. Options A, B and D misuse plural or past agreement.",
+        "formula": "collective noun + singular verb (as a unit)",
+        "timeRecommendedSeconds": 50
+    },
+    {
+        "id": "verb-010",
+        "section": "Verbal",
+        "topic": "Reading Comprehension",
+        "difficulty": "hard",
+        "prompt": "Passage: 'The cargo cult illusion persists in our enthusiasm for process theatre — elaborate ceremonies of stand-ups and dashboards that produce motion without progress.' What does the author imply about such ceremonies?",
+        "options": [
+            "They reduce the need for skilled leadership",
+            "They create visible activity while failing to deliver real outcomes",
+            "They are necessary checkpoints in mature engineering organisations",
+            "They demonstrate commitment to quality standards"
+        ],
+        "correctIndex": 1,
+        "explanation": "'Process theatre' and 'cargo cult' imagery convey ceremonies that mimic meaningful work; the author's stance is that they produce activity, not progress.",
+        "formula": "inference question: decode figurative language",
+        "timeRecommendedSeconds": 75
+    },
+    {
+        "id": "verb-011",
+        "section": "Verbal",
+        "topic": "Fill in the Blanks — Contextual Vocabulary",
+        "difficulty": "medium",
+        "prompt": "Fill in the blank: 'The court's decision to grant bail to the accused was ___ given the weak evidence presented by the prosecution.'",
+        "options": [
+            "unprecedented",
+            "predictable",
+            "celebrated",
+            "astonishing"
+        ],
+        "correctIndex": 1,
+        "explanation": "With weak evidence, granting bail follows the normal course of law — hence 'predictable'. The other options suggest surprise or uniqueness, which the reasoning does not support.",
+        "formula": "logical consistency of modifiers in context",
+        "timeRecommendedSeconds": 50
+    },
+    {
+        "id": "verb-012",
+        "section": "Verbal",
+        "topic": "Error Spotting — Prepositions & Articles",
+        "difficulty": "medium",
+        "prompt": "Identify the segment with a grammatical error: 'The new policy was formulated (A) / in lines with the feedback (B) / received from the district offices (C) / during the last quarter (D).'",
+        "options": [
+            "(A)",
+            "(B)",
+            "(C)",
+            "(D)"
+        ],
+        "correctIndex": 1,
+        "explanation": "The idiom is 'in line with', not 'in lines with'. Segment (B) contains the error.",
+        "formula": "in line with = consistent with",
+        "timeRecommendedSeconds": 40
+    },
+    {
+        "id": "verb-013",
+        "section": "Verbal",
+        "topic": "Logical Connectors",
+        "difficulty": "easy",
+        "prompt": "Choose the option that best completes the sentence: 'The experiment failed, ___ the hypothesis may still be valid if the measurement errors can be eliminated.'",
+        "options": [
+            "therefore",
+            "however",
+            "for instance",
+            "similarly"
+        ],
+        "correctIndex": 1,
+        "explanation": "'However' introduces a concession — the failed outcome does not refute the hypothesis. 'Therefore' would imply causation, which does not fit.",
+        "formula": "concession connector: however / although / yet",
+        "timeRecommendedSeconds": 40
+    },
+    {
+        "id": "abstract-004",
+        "section": "Abstract",
+        "topic": "Figure Series — Rotation",
+        "difficulty": "medium",
+        "prompt": "A figure shows an arrow pointing up with a small filled circle orbiting it 45 degrees clockwise each frame. Frame 1: circle at 12 o'clock. Frame 2: circle at 1:30. Frame 3: circle at 3 o'clock. In Frame 5, where will the circle be?",
+        "options": [
+            "At 4:30 position (135 degrees)",
+            "At 6 o'clock",
+            "At 7:30",
+            "Back at 12 o'clock"
+        ],
+        "correctIndex": 1,
+        "explanation": "45 degrees per frame: F1 = 0, F2 = 45, F3 = 90, F4 = 135, F5 = 180 degrees measured from 12 o'clock. 180 degrees points straight down — the 6 o'clock position.",
+        "formula": "angle = (frame - 1) x 45 degrees; F5 = 4 x 45 = 180 degrees",
+        "timeRecommendedSeconds": 50
+    },
+    {
+        "id": "abstract-005",
+        "section": "Abstract",
+        "topic": "Figure Matrix — Counting",
+        "difficulty": "hard",
+        "prompt": "In a 3x3 dot matrix, each cell contains a number of dots equal to the sum of its row and column indices (1-based). How many dots are in the centre-right cell (row 2, column 3)?",
+        "options": [
+            "4",
+            "5",
+            "6",
+            "7"
+        ],
+        "correctIndex": 1,
+        "explanation": "Row index 2 + column index 3 = 5 dots. The matrix contains cell(i,j) = i + j dots.",
+        "formula": "dots(r, c) = r + c",
+        "timeRecommendedSeconds": 45
+    }
+
 ]
 
 
@@ -296,45 +534,51 @@ STANDARD_TEST_TEMPLATES = [
     {
         "id": "template-campus-general",
         "title": "Standard Campus Employability Assessment",
-        "subtitle": "AMCAT & CoCubes Benchmark Pattern",
-        "description": "Comprehensive 5-pillar cognitive screening simulating top IT & product company hiring filters.",
-        "durationMinutes": 30,
-        "totalQuestions": 12,
+        "subtitle": "AMCAT & CoCubes-Style Campus Profile",
+        "description": "Full-length 5-pillar screening modelled on campus drives (AMCAT & CoCubes-style section weights and pacing; not an official paper). 40 items, 60 minutes.",
+        "durationMinutes": 60,
+        "totalQuestions": 40,
         "sections": [
-            {"name": "Quantitative", "questionCount": 4, "timeMinutes": 10},
-            {"name": "Logical", "questionCount": 3, "timeMinutes": 8},
-            {"name": "Verbal", "questionCount": 2, "timeMinutes": 5},
-            {"name": "Data Interpretation", "questionCount": 2, "timeMinutes": 5},
-            {"name": "Abstract", "questionCount": 1, "timeMinutes": 2}
+            {"name": "Quantitative", "questionCount": 12, "timeMinutes": 13},
+            {"name": "Logical", "questionCount": 10, "timeMinutes": 12},
+            {"name": "Verbal", "questionCount": 8, "timeMinutes": 11},
+            {"name": "Data Interpretation", "questionCount": 6, "timeMinutes": 10},
+            {"name": "Abstract", "questionCount": 4, "timeMinutes": 14}
         ],
         "negativeMarking": False,
-        "proctoringStrictness": "STRICT"
+        "proctoringStrictness": "STRICT",
+        "exposureCapPerUser": 2,
+        "blueprintTags": ["amcat", "cocubes", "campus"]
     },
     {
         "id": "template-quant-speed-sprint",
         "title": "Quantitative Speed & Accuracy Sprint",
         "subtitle": "High-Velocity Math & Number Systems",
-        "description": "Focus on arithmetic shortcuts, probability, percentages, and modular speed math.",
-        "durationMinutes": 15,
-        "totalQuestions": 5,
+        "description": "High-velocity quantitative screen with 0.25 negative marking, modelled on the AMCAT-style speed-math module: 20 items, 20 minutes.",
+        "durationMinutes": 20,
+        "totalQuestions": 20,
         "sections": [
-            {"name": "Quantitative", "questionCount": 5, "timeMinutes": 15}
+            {"name": "Quantitative", "questionCount": 20, "timeMinutes": 20}
         ],
         "negativeMarking": True,
-        "proctoringStrictness": "STANDARD"
+        "proctoringStrictness": "STANDARD",
+        "exposureCapPerUser": 3,
+        "blueprintTags": ["amcat", "campus", "practice"]
     },
     {
         "id": "template-analytical-reasoning",
         "title": "Logical & Critical Deductions Test",
         "subtitle": "Puzzles, Arrangements & Syllogisms",
-        "description": "Evaluate non-verbal fluid intelligence, critical reasoning, and algorithmic logic under pressure.",
+        "description": "Non-verbal fluid intelligence, critical reasoning and deduction in timed conditions: 15 items, 15 minutes.",
         "durationMinutes": 15,
-        "totalQuestions": 4,
+        "totalQuestions": 15,
         "sections": [
-            {"name": "Logical", "questionCount": 4, "timeMinutes": 15}
+            {"name": "Logical", "questionCount": 15, "timeMinutes": 15}
         ],
         "negativeMarking": False,
-        "proctoringStrictness": "STANDARD"
+        "proctoringStrictness": "STANDARD",
+        "exposureCapPerUser": 3,
+        "blueprintTags": ["tcs-nqt", "infosys"]
     }
 ]
 
@@ -346,27 +590,118 @@ def get_template_by_id(template_id: str) -> Optional[Dict[str, Any]]:
     return STANDARD_TEST_TEMPLATES[0]
 
 
-def assemble_session_questions(template_id: str) -> List[Dict[str, Any]]:
-    """Assemble balanced questions matching the requested template."""
+def rendered_hash(prompt: str) -> str:
+    import hashlib
+    return hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:24]
+
+
+def _candidate_usage(db, candidate_id: str):
+    """Return (family_use_counts, seen_rendered_hashes) for a candidate."""
+    fam_counts: Dict[str, int] = {}
+    hashes = set()
+    if db is None or not candidate_id:
+        return fam_counts, hashes
+    try:
+        rows = db.aptitude_question_usage.find(
+            {"userId": candidate_id},
+            {"_id": 0, "familyId": 1, "renderedHash": 1},
+        )
+        for r in rows:
+            fid = r.get("familyId") or "static:?"
+            fam_counts[fid] = fam_counts.get(fid, 0) + 1
+            h = r.get("renderedHash")
+            if h:
+                hashes.add(h)
+    except Exception:
+        pass
+    return fam_counts, hashes
+
+
+def assemble_session_questions(template_id: str, candidate_id: str = "", db=None, session_seed: str = "") -> List[Dict[str, Any]]:
+    """Assemble a blueprint-balanced paper for the candidate.
+
+    Assembly order per section: parameterized families first (exposure-capped
+    per user, rendered hashes never repeat for this candidate), then the static
+    seed bank as fallback. Per-user exposure cap comes from the template
+    (STRICT=2, STANDARD=3; hard ceiling is 3 by platform policy).
+    """
+    import hashlib
+    import random as _random
+
     tmpl = get_template_by_id(template_id)
-    selected_questions: List[Dict[str, Any]] = []
+    cap = int(tmpl.get("exposureCapPerUser", 3) or 3)
+    rng = _random.Random(session_seed or None)
+
+    fam_counts, seen_hashes = _candidate_usage(db, candidate_id)
+
+    try:
+        from core.aptitude_families import FAMILIES, render_family_item
+        families = FAMILIES
+    except Exception:
+        families = []
+
+    selected: List[Dict[str, Any]] = []
+
+    def take_static(sec_name: str):
+        pool = [q for q in APTITUDE_QUESTIONS_CATALOG if q["section"].lower() == sec_name.lower()] or list(APTITUDE_QUESTIONS_CATALOG)
+        # static items are single-instance families keyed by their id
+        fresh = [q for q in pool if f"static:{q.get('id')}" not in [q2.get("familyId") for q2 in selected]]
+        pool = fresh or pool
+        _random.shuffle(pool)
+        for q in pool:
+            fam_id = f"static:{q.get('id')}"
+            if fam_counts.get(fam_id, 0) >= cap and len(fresh) > 1:
+                continue
+            item = dict(q)
+            item["familyId"] = fam_id
+            item["renderedHash"] = rendered_hash(str(q.get("prompt", "")))
+            if item["renderedHash"] in seen_hashes:
+                continue
+            return item
+        if pool:
+            item = dict(pool[0])
+            item["familyId"] = f"static:{pool[0].get('id')}"
+            item["renderedHash"] = rendered_hash(str(pool[0].get("prompt", "")))
+            return item
+        return None
+
+    def take_from_family(sec_name: str, slot_index: int):
+        sec_fams = [f for f in families if f["section"].lower() == sec_name.lower()]
+        if not sec_fams:
+            return None
+        saturated = {f["id"] for f in sec_fams if fam_counts.get(f["id"], 0) >= cap}
+        viable = [f for f in sec_fams if f["id"] not in saturated]
+        if not viable:
+            return None
+        for attempt in range(30):
+            fam = rng.choice(viable)
+            seed = hashlib.sha256(f"{session_seed}|{sec_name}|{slot_index}|{attempt}".encode()).hexdigest()
+            item = render_family_item(fam, seed)
+            item["familyId"] = fam["id"]
+            item["renderedHash"] = rendered_hash(item["prompt"])
+            if item["renderedHash"] in seen_hashes:
+                continue
+            return item
+        return None
 
     for sec in tmpl.get("sections", []):
         sec_name = sec["name"]
-        needed = sec["questionCount"]
-        pool = [q for q in APTITUDE_QUESTIONS_CATALOG if q["section"].lower() == sec_name.lower()]
-        if not pool:
-            pool = [q for q in APTITUDE_QUESTIONS_CATALOG]
-        
-        # Sample without replacement
-        sample_size = min(needed, len(pool))
-        chosen = random.sample(pool, sample_size)
-        selected_questions.extend(chosen)
+        needed = int(sec["questionCount"])
+        for slot in range(needed):
+            item = take_from_family(sec_name, slot)
+            if item is None:
+                item = take_static(sec_name)
+            if item is None:
+                continue
+            selected.append(item)
+            fid = item.get("familyId")
+            fam_counts[fid] = fam_counts.get(fid, 0) + 1
+            seen_hashes.add(item["renderedHash"])
 
-    # Fallback if too few
-    if len(selected_questions) < tmpl.get("totalQuestions", 5):
-        remaining = [q for q in APTITUDE_QUESTIONS_CATALOG if q not in selected_questions]
-        selected_questions.extend(remaining[: tmpl.get("totalQuestions", 5) - len(selected_questions)])
+    return selected
 
-    return selected_questions
 
+def paper_hash(items: List[Dict[str, Any]]) -> str:
+    import hashlib
+    hashes = sorted(str(i.get("renderedHash") or i.get("id")) for i in items)
+    return hashlib.sha256("|".join(hashes).encode("utf-8")).hexdigest()[:24]

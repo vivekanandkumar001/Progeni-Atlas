@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 import {
   CandidatePracticeStats,
@@ -58,15 +58,15 @@ export function PracticeDrillBrowser({ initialDrillId, embedded = false }: Pract
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data.success && data.wallet) {
-            // Default to 40 credits for candidates if no wallet record exists
-            const defaultCredits = 40.0;
-            const storedBalance = Number(data.wallet.availableCredits ?? defaultCredits);
+            const storedBalance = Number(data.wallet.availableCredits ?? 0);
             setWalletBalance(storedBalance <= 0 ? 0 : storedBalance);
           }
         }
       } catch (err) {
         console.error('[PracticeDrillBrowser] Wallet API error:', err);
-        setWalletBalance(40); // Fallback: new candidates get 40 credits
+        // Do not fabricate a balance on failure — the server enforces the
+        // real balance at drill creation (402 INSUFFICIENT_CREDITS).
+        setWalletBalance(null);
       }
     }
     void loadWallet();
@@ -218,9 +218,7 @@ export function PracticeDrillBrowser({ initialDrillId, embedded = false }: Pract
           <Link
             href="/candidate/dashboard"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-surface hover:bg-surface-2 border border-line text-ink text-xs font-medium transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Candidate Dashboard</span>
+          > <span>Candidate Dashboard</span>
           </Link>
         </header>
       )}

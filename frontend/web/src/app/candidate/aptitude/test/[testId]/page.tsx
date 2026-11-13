@@ -8,16 +8,10 @@ import {
   ShieldAlert,
   ShieldCheck,
   CheckCircle2,
-  AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
   Maximize2,
   Minimize2,
-  Flag,
   Bookmark,
   RotateCcw,
-  Sparkles,
-  HelpCircle,
   XCircle,
 } from 'lucide-react';
 import {
@@ -280,22 +274,22 @@ export default function AptitudeTestArenaPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4 text-white">
-        <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-medium text-slate-300">Loading Secure Assessment Arena…</p>
+      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center space-y-4 text-ink">
+        <div className="w-10 h-10 border-4 border-accent-cyan border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-medium text-ink-muted">Loading Secure Assessment Arena…</p>
       </div>
     );
   }
 
   if (error || !currentQuestion) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white text-center space-y-4">
-        <XCircle className="w-12 h-12 text-rose-500" />
-        <h2 className="text-xl font-bold">Unable to Load Test Session</h2>
-        <p className="text-sm text-slate-400 max-w-md">{error || 'Session is unavailable.'}</p>
+      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center p-6 text-ink text-center space-y-4">
+        <XCircle className="w-12 h-12 text-accent-rose" />
+        <h2 className="text-xl font-bold text-ink">Unable to Load Test Session</h2>
+        <p className="text-sm text-ink-muted max-w-md">{error || 'Session is unavailable.'}</p>
         <button
           onClick={() => router.push('/candidate/aptitude')}
-          className="px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-medium transition-colors"
+          className="px-6 py-2.5 rounded-xl bg-surface border border-line text-sm font-semibold text-ink hover:bg-surface-2 transition-colors cursor-pointer"
         >
           Return to Aptitude Hub
         </button>
@@ -304,20 +298,20 @@ export default function AptitudeTestArenaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none">
+    <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans select-none">
       {/* -------------------------------------------------------------------- */}
       {/* 1. TOP SECURE EXAM HEADER (FULLSCREEN & MONOTONIC CLOCK BAR)        */}
       {/* -------------------------------------------------------------------- */}
-      <header className="h-14 sm:h-16 px-4 sm:px-6 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between shrink-0 sticky top-0 z-40 backdrop-blur-md">
+      <header className="h-14 sm:h-16 px-4 sm:px-6 bg-surface/90 border-b border-line flex items-center justify-between shrink-0 sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+          <div className="p-1.5 rounded-lg bg-accent-cyan/10 border border-accent-cyan/30 text-accent-cyan">
             <Brain className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[200px] sm:max-w-xs">
+            <h1 className="text-xs sm:text-sm font-bold text-ink tracking-tight truncate max-w-[200px] sm:max-w-xs">
               {session?.template?.title || session?.templateTitle || 'Aptitude Assessment'}
             </h1>
-            <p className="text-[10px] text-cyan-400 font-mono">
+            <p className="text-[10px] text-accent-cyan font-mono">
               Section: {currentQuestion.section} • {currentQuestion.topic}
             </p>
           </div>
@@ -326,10 +320,10 @@ export default function AptitudeTestArenaPage() {
         {/* Center / Right: Live Countdown Timer & Anti-Cheat Status */}
         <div className="flex items-center gap-2 sm:gap-4">
           <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono font-bold text-xs sm:text-sm tracking-wider border shadow-md ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono font-bold text-xs sm:text-sm tracking-wider border ${
               isTimeCritical
-                ? 'bg-rose-500/10 border-rose-500/40 text-rose-400 animate-pulse'
-                : 'bg-slate-950 border-slate-700/80 text-cyan-300'
+                ? 'bg-accent-rose/10 border-accent-rose/50 text-accent-rose animate-pulse'
+                : 'bg-inset border-line text-accent-cyan'
             }`}
           >
             <Clock className="w-4 h-4" />
@@ -340,15 +334,15 @@ export default function AptitudeTestArenaPage() {
             type="button"
             onClick={toggleFullscreen}
             title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors"
+            className="p-2 rounded-xl bg-surface-2 hover:bg-surface-3 border border-line text-ink-muted hover:text-ink transition-colors cursor-pointer"
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4 text-cyan-400" />}
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
           <button
             type="button"
             onClick={() => setShowSubmitModal(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95"
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs sm:text-sm transition-all active:scale-95 cursor-pointer"
           >
             Submit Test
           </button>
@@ -363,22 +357,22 @@ export default function AptitudeTestArenaPage() {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col justify-between overflow-y-auto max-w-4xl mx-auto w-full">
           <div className="space-y-6">
             {/* Question Header Pill Info */}
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div className="flex items-center justify-between border-b border-line pb-3">
               <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-bold text-xs">
+                <span className="px-3 py-1 rounded-full bg-accent-cyan/10 border border-accent-cyan/30 text-accent-cyan font-bold text-xs">
                   Question {currentIndex + 1} of {questions.length}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-400 uppercase">
+                <span className="px-2.5 py-0.5 rounded-full bg-surface-2 border border-line text-[11px] font-mono text-ink-muted uppercase">
                   {currentQuestion.difficulty}
                 </span>
               </div>
-              <div className="text-xs text-slate-400">
-                Recommended: <strong className="text-slate-300">{currentQuestion.timeRecommendedSeconds}s</strong>
+              <div className="text-xs text-ink-muted">
+                Recommended: <strong className="text-ink">{currentQuestion.timeRecommendedSeconds}s</strong>
               </div>
             </div>
 
             {/* Question Prompt */}
-            <div className="text-sm sm:text-base font-medium text-slate-100 leading-relaxed whitespace-pre-line bg-surface/40 p-5 rounded-2xl border border-slate-800 shadow-sm">
+            <div className="text-sm sm:text-base font-medium text-ink leading-relaxed whitespace-pre-line bg-surface p-5 rounded-2xl border border-line shadow-xs">
               {currentQuestion.prompt}
             </div>
 
@@ -391,17 +385,26 @@ export default function AptitudeTestArenaPage() {
                   <div
                     key={oIdx}
                     onClick={() => handleSelectOption(oIdx)}
+                    role="radio"
+                    aria-checked={isSelected}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSelectOption(oIdx);
+                      }
+                    }}
                     className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-3.5 select-none ${
                       isSelected
-                        ? 'bg-cyan-500/15 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)] text-white'
-                        : 'bg-surface border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white'
+                        ? 'bg-accent-cyan/10 border-accent-cyan ring-1 ring-accent-cyan/40 text-accent-cyan'
+                        : 'bg-surface border-line hover:border-accent-cyan/50 text-ink hover:text-ink'
                     }`}
                   >
                     <div
                       className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 transition-colors ${
                         isSelected
-                          ? 'bg-cyan-400 text-slate-950'
-                          : 'bg-slate-900 border border-slate-700 text-slate-400'
+                          ? 'bg-accent-cyan text-white'
+                          : 'bg-surface-2 border border-line text-ink-muted'
                       }`}
                     >
                       {letter}
@@ -414,15 +417,15 @@ export default function AptitudeTestArenaPage() {
           </div>
 
           {/* Action Navigation Footer */}
-          <div className="pt-8 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 mt-6">
+          <div className="pt-8 border-t border-line flex flex-wrap items-center justify-between gap-3 mt-6">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleToggleMarkReview}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
                   currentAnswer?.isMarkedForReview
-                    ? 'bg-purple-500/20 border-purple-500/50 text-purple-300 shadow-sm'
-                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                    ? 'bg-accent-violet/15 border-accent-violet/50 text-accent-violet'
+                    : 'bg-surface-2 border-line text-ink-muted hover:text-ink hover:border-line-strong'
                 }`}
               >
                 <Bookmark className="w-3.5 h-3.5" />
@@ -433,7 +436,7 @@ export default function AptitudeTestArenaPage() {
                 <button
                   type="button"
                   onClick={handleClearResponse}
-                  className="px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-rose-400 bg-slate-900 border border-slate-800 hover:border-rose-500/30 flex items-center gap-1 transition-colors"
+                  className="px-3 py-2 rounded-xl text-xs text-ink-faint hover:text-accent-rose bg-surface-2 border border-line hover:border-accent-rose/40 flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Clear</span>
@@ -446,9 +449,8 @@ export default function AptitudeTestArenaPage() {
                 type="button"
                 disabled={currentIndex === 0}
                 onClick={handlePrev}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition-colors disabled:opacity-40"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-surface-2 border border-line hover:bg-surface text-ink hover:border-line-strong transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
               >
-                <ChevronLeft className="w-4 h-4" />
                 <span>Previous</span>
               </button>
 
@@ -456,16 +458,15 @@ export default function AptitudeTestArenaPage() {
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center gap-1 transition-all shadow-md shadow-cyan-500/20 active:scale-95"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-accent-cyan hover:bg-accent-cyan/90 text-white transition-all active:scale-95 cursor-pointer"
                 >
                   <span>Save & Next</span>
-                  <ChevronRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => setShowSubmitModal(true)}
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center gap-1 transition-all shadow-md shadow-emerald-500/20 active:scale-95"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-white flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
                 >
                   <span>Review & Finish</span>
                   <CheckCircle2 className="w-4 h-4" />
@@ -476,16 +477,16 @@ export default function AptitudeTestArenaPage() {
         </main>
 
         {/* RIGHT COLUMN: QUESTION PALETTE & TEST PROGRESS (DESKTOP) */}
-        <aside className="w-full lg:w-80 p-4 sm:p-6 bg-slate-900/60 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col justify-between shrink-0">
+        <aside className="w-full lg:w-80 p-4 sm:p-6 bg-surface-2 border-t lg:border-t-0 lg:border-l border-line flex flex-col justify-between shrink-0">
           <div className="space-y-5">
             <div>
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center justify-between">
+              <h3 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center justify-between">
                 <span>Question Palette</span>
-                <span className="text-[11px] text-cyan-400 font-mono">
+                <span className="text-[11px] text-accent-cyan font-mono">
                   {answeredCount}/{questions.length} Answered
                 </span>
               </h3>
-              <p className="text-[11px] text-slate-400 pt-1">Jump to any question directly</p>
+              <p className="text-[11px] text-ink-muted pt-1">Jump to any question directly</p>
             </div>
 
             {/* Question Grid Buttons 1 to N */}
@@ -496,17 +497,17 @@ export default function AptitudeTestArenaPage() {
                 const isAnswered = ans?.selectedOptionIndex !== null && ans?.selectedOptionIndex !== undefined;
                 const isMarked = Boolean(ans?.isMarkedForReview);
 
-                let btnClass = 'bg-slate-950 text-slate-400 border-slate-800';
+                let btnClass = 'bg-inset text-ink-faint border-line';
                 if (isAnswered && isMarked) {
-                  btnClass = 'bg-purple-900/40 text-purple-300 border-purple-500/60 ring-1 ring-purple-500/50';
+                  btnClass = 'bg-accent-violet/15 text-accent-violet border-accent-violet/50';
                 } else if (isAnswered) {
-                  btnClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 font-bold';
+                  btnClass = 'bg-accent-emerald/15 text-accent-emerald border-accent-emerald/40 font-bold';
                 } else if (isMarked) {
-                  btnClass = 'bg-purple-500/20 text-purple-300 border-purple-500/40';
+                  btnClass = 'bg-accent-violet/10 text-accent-violet border-accent-violet/30';
                 }
 
                 if (isSelected) {
-                  btnClass += ' ring-2 ring-cyan-400 border-cyan-400 text-white font-bold scale-105';
+                  btnClass += ' ring-2 ring-accent-cyan border-accent-cyan text-ink font-bold scale-105';
                 }
 
                 return (
@@ -517,7 +518,8 @@ export default function AptitudeTestArenaPage() {
                       setCurrentIndex(idx);
                       questionStartTimeRef.current = Date.now();
                     }}
-                    className={`h-10 rounded-xl border text-xs flex items-center justify-center transition-all ${btnClass}`}
+                    aria-label={`Question ${idx + 1}${isAnswered ? ', answered' : ''}${isMarked ? ', marked for review' : ''}`}
+                    className={`h-10 rounded-xl border text-xs flex items-center justify-center transition-all cursor-pointer ${btnClass}`}
                   >
                     {idx + 1}
                   </button>
@@ -526,36 +528,36 @@ export default function AptitudeTestArenaPage() {
             </div>
 
             {/* Legend */}
-            <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 space-y-2 text-[11px] text-slate-300">
+            <div className="p-3 rounded-xl bg-inset border border-line space-y-2 text-[11px] text-ink-muted">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-md bg-emerald-500/30 border border-emerald-500" />
+                <span className="w-3 h-3 rounded-md bg-accent-emerald/25 border border-accent-emerald" />
                 <span>Answered ({answeredCount})</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-md bg-purple-500/30 border border-purple-500" />
+                <span className="w-3 h-3 rounded-md bg-accent-violet/20 border border-accent-violet" />
                 <span>Marked for Review ({reviewCount})</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-md bg-slate-950 border border-slate-800" />
+                <span className="w-3 h-3 rounded-md bg-inset border border-line" />
                 <span>Unanswered ({questions.length - answeredCount})</span>
               </div>
             </div>
           </div>
 
           {/* Anti-Cheat Integrity Meter */}
-          <div className="pt-6 border-t border-slate-800 text-xs space-y-2">
+          <div className="pt-6 border-t border-line text-xs space-y-2">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-slate-400 font-medium">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span className="flex items-center gap-1.5 text-ink-muted font-medium">
+                <ShieldCheck className="w-4 h-4 text-accent-emerald" />
                 Proctoring Integrity
               </span>
-              <span className={tabSwitchCount > 0 ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>
+              <span className={tabSwitchCount > 0 ? 'text-accent-amber font-bold' : 'text-accent-emerald font-bold'}>
                 {Math.max(0, 100 - tabSwitchCount * 10)}%
               </span>
             </div>
             {tabSwitchCount > 0 && (
-              <p className="text-[11px] text-amber-400 font-mono">
-                ⚠ {tabSwitchCount} tab focus switch(es) recorded
+              <p className="text-[11px] text-accent-amber font-mono">
+                {tabSwitchCount} tab focus switch(es) recorded
               </p>
             )}
           </div>
@@ -566,18 +568,18 @@ export default function AptitudeTestArenaPage() {
       {/* VIOLATION WARNING MODAL                                              */}
       {/* -------------------------------------------------------------------- */}
       {showViolationModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-surface border border-rose-500/50 p-6 space-y-4 shadow-2xl text-center">
-            <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto animate-bounce" />
-            <h3 className="text-lg font-bold text-white tracking-tight">Integrity Violation Detected</h3>
-            <p className="text-xs text-rose-300 font-medium leading-relaxed">{violationMsg}</p>
-            <p className="text-[11px] text-slate-400">
+        <div className="fixed inset-0 z-50 bg-canvas/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-surface border border-accent-rose/40 p-6 space-y-4 text-center">
+            <ShieldAlert className="w-12 h-12 text-accent-rose mx-auto" />
+            <h3 className="text-lg font-bold text-ink tracking-tight">Integrity Violation Detected</h3>
+            <p className="text-xs text-accent-rose font-medium leading-relaxed">{violationMsg}</p>
+            <p className="text-[11px] text-ink-muted">
               Exam guidelines strictly prohibit switching browser tabs or exiting fullscreen. Exceeding 5 warnings will terminate the assessment.
             </p>
             <button
               type="button"
               onClick={() => setShowViolationModal(false)}
-              className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-colors"
+              className="w-full py-2.5 rounded-xl bg-accent-rose hover:bg-accent-rose/90 text-white font-bold text-xs transition-colors cursor-pointer"
             >
               I Understand & Acknowledge
             </button>
@@ -589,39 +591,39 @@ export default function AptitudeTestArenaPage() {
       {/* CONFIRM SUBMIT MODAL                                                 */}
       {/* -------------------------------------------------------------------- */}
       {showSubmitModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-surface border border-slate-800 p-6 space-y-5 shadow-2xl text-center">
-            <CheckCircle2 className="w-12 h-12 text-cyan-400 mx-auto" />
-            <h3 className="text-lg font-bold text-white tracking-tight">Confirm Test Submission?</h3>
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-1.5 text-left">
+        <div className="fixed inset-0 z-50 bg-canvas/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-surface border border-line p-6 space-y-5 text-center">
+            <CheckCircle2 className="w-12 h-12 text-accent-cyan mx-auto" />
+            <h3 className="text-lg font-bold text-ink tracking-tight">Confirm Test Submission?</h3>
+            <div className="p-4 rounded-xl bg-inset text-xs text-ink-muted space-y-1.5 text-left">
               <div className="flex justify-between">
-                <span>Total Questions:</span> <strong className="text-white">{questions.length}</strong>
+                <span>Total Questions:</span> <strong className="text-ink">{questions.length}</strong>
               </div>
               <div className="flex justify-between">
-                <span>Answered:</span> <strong className="text-emerald-400">{answeredCount}</strong>
+                <span>Answered:</span> <strong className="text-accent-emerald">{answeredCount}</strong>
               </div>
               <div className="flex justify-between">
-                <span>Marked for Review:</span> <strong className="text-purple-400">{reviewCount}</strong>
+                <span>Marked for Review:</span> <strong className="text-accent-violet">{reviewCount}</strong>
               </div>
               <div className="flex justify-between">
-                <span>Unanswered:</span> <strong className="text-amber-400">{questions.length - answeredCount}</strong>
+                <span>Unanswered:</span> <strong className="text-accent-amber">{questions.length - answeredCount}</strong>
               </div>
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-ink-muted">
               Once submitted, your answers will be locked, graded server-side, and comprehensive step-by-step solutions will be generated.
             </p>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setShowSubmitModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-800 transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-surface-2 border border-line text-ink-muted text-xs font-semibold hover:bg-surface transition-colors cursor-pointer"
               >
                 Continue Test
               </button>
               <button
                 type="button"
                 onClick={handleConfirmSubmit}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold transition-all cursor-pointer"
               >
                 Finalize & Submit
               </button>
@@ -632,4 +634,3 @@ export default function AptitudeTestArenaPage() {
     </div>
   );
 }
-

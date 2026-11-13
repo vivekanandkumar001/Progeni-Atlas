@@ -8,8 +8,6 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   ExternalLink,
   Eye,
@@ -446,9 +444,8 @@ export default function SuperAdminInterviewsPage() {
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1 || loading}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1 text-xs font-semibold text-ink hover:border-cyan-500/40 disabled:opacity-40"
+                className="inline-flex cursor-pointer items-center rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-xs font-semibold text-ink hover:border-cyan-500/40 disabled:opacity-40"
               >
-                <ChevronLeft className="h-3.5 w-3.5" />
                 Previous
               </button>
               <span className="px-2 font-mono text-[11px]">
@@ -458,10 +455,9 @@ export default function SuperAdminInterviewsPage() {
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages || loading}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1 text-xs font-semibold text-ink hover:border-cyan-500/40 disabled:opacity-40"
+                className="inline-flex cursor-pointer items-center rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-xs font-semibold text-ink hover:border-cyan-500/40 disabled:opacity-40"
               >
                 Next
-                <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
@@ -517,7 +513,7 @@ export default function SuperAdminInterviewsPage() {
               </div>
             ) : (
               <div className="mt-4 space-y-4">
-                <div className="grid grid-cols-2 gap-3 rounded-xl border border-line bg-surface-2 p-3 text-xs">
+                <div className="grid grid-cols-2 gap-3 rounded-xl bg-surface-2 p-3 text-xs">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-ink-faint">Organization</span>
                     <p className="font-semibold text-ink mt-0.5">
@@ -554,17 +550,17 @@ export default function SuperAdminInterviewsPage() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="rounded-xl border border-line bg-inset p-2.5">
+                  <div className="rounded-xl bg-inset p-2.5">
                     <span className="text-[10px] text-ink-faint block">Duration</span>
                     <span className="font-mono font-bold text-ink">{sessionDetail.durationMinutes} min</span>
                   </div>
-                  <div className="rounded-xl border border-line bg-inset p-2.5">
+                  <div className="rounded-xl bg-inset p-2.5">
                     <span className="text-[10px] text-ink-faint block">Overall Score</span>
                     <span className="font-mono font-bold text-accent-cyan">
                       {sessionDetail.overallScore != null ? `${sessionDetail.overallScore}%` : '—'}
                     </span>
                   </div>
-                  <div className="rounded-xl border border-line bg-inset p-2.5">
+                  <div className="rounded-xl bg-inset p-2.5">
                     <span className="text-[10px] text-ink-faint block">Proctoring Flags</span>
                     <span className={`font-mono font-bold ${sessionDetail.proctoringFlags > 0 ? 'text-accent-rose' : 'text-accent-emerald'}`}>
                       {sessionDetail.proctoringFlags > 0 ? `⚠️ ${sessionDetail.proctoringFlags}` : '0 Clean'}
@@ -572,7 +568,7 @@ export default function SuperAdminInterviewsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-1 text-[11px] text-ink-muted rounded-xl border border-line p-3 bg-surface-2">
+                <div className="space-y-1 text-[11px] text-ink-muted rounded-xl p-3 bg-surface-2">
                   <div className="flex justify-between">
                     <span>Created:</span>
                     <span>{formatDateTime(sessionDetail.createdAt)}</span>
@@ -593,7 +589,7 @@ export default function SuperAdminInterviewsPage() {
 
                 {/* Emergency Live Room Observation (Governed by Support Reason) */}
                 {sessionDetail.status === 'in_progress' && (
-                  <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-3">
+                  <div className="rounded-xl bg-cyan-500/5 p-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Radio className="h-4 w-4 text-accent-cyan animate-pulse" />

@@ -114,7 +114,7 @@ export default function LiveInterviewRoomPage() {
   // Media Provider State
   const { source, stream, phoneStatus, status: mediaStatus, liveKitConnected, startPairing, retryLocal, audioUnlocked, unlockAudio } = useMediaSource();
 
-  // Session Turn State ΓÇö always derived from the server contract
+  // Session Turn State – always derived from the server contract
   const [serverState, setServerState] = useState<InterviewContract | null>(null);
   const [questionId, setQuestionId] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<string>('');
@@ -546,7 +546,7 @@ export default function LiveInterviewRoomPage() {
 
   // Real-mode start gate: enters fullscreen from this click (a user gesture the
   // browser accepts) and only then runs preflight. If fullscreen is refused the
-  // preflight is not attempted ΓÇö the candidate sees why instead of a generic
+  // preflight is not attempted – the candidate sees why instead of a generic
   // failure, and no MEDIA_ERROR state is manufactured.
   const beginRealInterview = useCallback(async () => {
     if (!sessionId) return;
@@ -1285,7 +1285,7 @@ export default function LiveInterviewRoomPage() {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-canvas text-ink flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
+    <div className="h-dvh w-full overflow-hidden bg-canvas text-ink flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
       <video ref={bindProctoringVideo} muted playsInline autoPlay className="hidden" aria-hidden="true" />
 
       {/* TOP NAVIGATION & STATUS BAR */}
@@ -1309,17 +1309,17 @@ export default function LiveInterviewRoomPage() {
         aria-live="polite"
         className="mx-auto w-full max-w-7xl px-4 text-xs text-ink-muted"
       >
-        {deadlineStatus === 'loading' && 'Loading authoritative interview stateΓÇª'}
+        {deadlineStatus === 'loading' && 'Loading authoritative interview state…'}
         {deadlineStatus === 'active' && (
           questionRemainingSeconds === null
-            ? 'Interview active ┬╖ deadlines continue while you are away.'
-            : `Question time remaining: ${String(Math.floor(questionRemainingSeconds / 60)).padStart(2, '0')}:${String(questionRemainingSeconds % 60).padStart(2, '0')} ┬╖ deadlines continue while you are away.`
+            ? 'Interview active · deadlines continue while you are away.'
+            : `Question time remaining: ${String(Math.floor(questionRemainingSeconds / 60)).padStart(2, '0')}:${String(questionRemainingSeconds % 60).padStart(2, '0')} · deadlines continue while you are away.`
         )}
         {deadlineStatus === 'question-expired' && 'Question time expired.'}
-        {deadlineStatus === 'advancing' && 'Question time expired ┬╖ saving the available response and advancingΓÇª'}
-        {deadlineStatus === 'interview-expired' && 'Interview time expired ┬╖ finalizing submitted responsesΓÇª'}
+        {deadlineStatus === 'advancing' && 'Question time expired · saving the available response and advancing…'}
+        {deadlineStatus === 'interview-expired' && 'Interview time expired · finalizing submitted responses…'}
         {deadlineStatus === 'completed' && 'Interview completed.'}
-        {deadlineStatus === 'network-error' && 'Connection issue ┬╖ deadline status could not be confirmed. Retry to resume safely.'}
+        {deadlineStatus === 'network-error' && 'Connection issue · deadline status could not be confirmed. Retry to resume safely.'}
       </div>
 
       {/* COMPACT INTERVIEW STATUS & AUDIO UNLOCK BANNER */}
@@ -1381,7 +1381,7 @@ export default function LiveInterviewRoomPage() {
                   : 'text-ink-muted hover:text-ink hover:bg-surface'
                   }`}
               >
-                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                <FileText className="w-3.5 h-3.5 text-accent-emerald" />
                 <span>Question Prompt</span>
               </button>
 
@@ -1393,7 +1393,7 @@ export default function LiveInterviewRoomPage() {
                   : 'text-ink-muted hover:text-ink hover:bg-surface'
                   }`}
               >
-                <Code2 className="w-3.5 h-3.5 text-cyan-400" />
+                <Code2 className="w-3.5 h-3.5 text-accent-cyan" />
                 <span>Code Editor</span>
               </button>
 
@@ -1411,7 +1411,7 @@ export default function LiveInterviewRoomPage() {
             </div>
 
             {sessionMode === 'practice' && (
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-mono font-bold shrink-0">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-accent-emerald text-[11px] font-mono font-bold shrink-0">
                 PRACTICE DRILL
               </span>
             )}
