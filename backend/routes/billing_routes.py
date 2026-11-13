@@ -326,7 +326,7 @@ def _resolve_credits_for_inr(db, amount_inr: float) -> float:
 def _complete_paid_order(db, order_rec, payment_ref, reason_title, extra_fields=None):
     """Atomically credit candidate/recruiter wallet, update order status, and log transaction.
     Guarantees idempotency via atomic state transition (pending -> paid)."""
-    if not order_rec or not db:
+    if not order_rec or db is None:
         return 0.0
 
     order_id = order_rec.get("order_id")
