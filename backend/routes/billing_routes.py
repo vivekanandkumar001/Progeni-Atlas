@@ -294,6 +294,12 @@ MAYANK_UPI_KEY = (os.environ.get("UPI_GATEWAY_KEY") or "").strip()
 MAYANK_UPI_SECRET = (os.environ.get("UPI_GATEWAY_SECRET") or "").strip()
 MAYANK_UPI_VPA = os.environ.get("UPI_MERCHANT_VPA", "progeniatlas@ptaxis")
 MAYANK_UPI_PAYEE = os.environ.get("UPI_PAYEE_NAME", "Progeni Atlas")
+# Auto-approve UTR-verified recharges up to this INR amount when the gateway
+# is unreachable (fallback rainy-day path). Set UPI_AUTO_APPROVE_MAX_INR=0 to disable.
+try:
+    UPI_AUTO_APPROVE_MAX_INR = float(os.environ.get("UPI_AUTO_APPROVE_MAX_INR", "10000") or 10000)
+except (TypeError, ValueError):
+    UPI_AUTO_APPROVE_MAX_INR = 10000.0
 
 
 def _resolve_credits_for_inr(db, amount_inr: float) -> float:
@@ -317,7 +323,7 @@ def _resolve_credits_for_inr(db, amount_inr: float) -> float:
     return float(int(amount_inr))
 
 
-def _complete_paid_order(db, order_rec, payment_ref, reason_title):
+def _complete_paid_order(db, order_rec, payment_ref, reason_title, extra_fields=None):
     """Atomically credit candidate/recruiter wallet, update order status, and log transaction.
     Guarantees idempotency via atomic state transition (pending -> paid)."""
     if not order_rec or not db:
@@ -342,7 +348,8 @@ def _complete_paid_order(db, order_rec, payment_ref, reason_title):
             "utr": payment_ref,
             "payment_id": payment_ref,
             "paid_at": now_str,
-            "updated_at": now_str
+            "updated_at": now_str,
+            **(extra_fields or {})
         }}
     )
 
@@ -631,13 +638,14 @@ def submit_wallet_utr():
                 "order_id": order_id
             }), 200
 
-        # Anti-Replay: check if UTR was already recorded in any completed order or transaction
-        existing_utr = db.billing_orders.find_one({"utr": utr, "status": "paid"})
+        # Anti-Replay: check if UTR was already recorded in any completed order, pending one, or transaction
+        existing_utr = db.billing_orders.find_one({"utr": utr, "status": {"$in": ["paid", "pending_verification"]}})
         if existing_utr and existing_utr.get("order_id") != order_id:
             return jsonify({"success": False, "error": "This UTR number has already been claimed on another order."}), 409
 
         # Poll Mayank Singh UPI Gateway for authoritative confirmation
         is_gw_paid = False
+        gateway_unreachable = False
         try:
             import requests
             gw_check = requests.get(
@@ -648,12 +656,16 @@ def submit_wallet_utr():
                 },
                 timeout=4
             )
-            if gw_check.ok:
+            if not gw_check.ok:
+                # Gateway responded with an error — treat as unreachable for auto-approve rules
+                gateway_unreachable = True
+            elif gw_check.ok:
                 gw_data = gw_check.json().get("data", {})
                 if gw_data.get("status") == "paid":
                     is_gw_paid = True
                     utr = gw_data.get("utr") or utr
         except Exception as gw_err:
+            gateway_unreachable = True
             print(f"[Gateway Verification Check]: {gw_err}")
 
         if is_gw_paid:
@@ -667,7 +679,43 @@ def submit_wallet_utr():
                 "credits_added": credits_added
             }), 200
 
-        # Gateway has not yet confirmed: record UTR under pending verification
+        # Gateway has not yet confirmed. When the gateway is completely unreachable the
+        # customer still expects instant credit, so auto-approve small verified-format
+        # UTRs with a mandatory audit flag. If the gateway RESPONDED but has not marked
+        # the order paid yet (payment pending / user hasn't paid), do NOT auto-approve.
+        amount_inr_order = float(order_rec.get("amount_inr") or 0.0)
+
+        if (
+            UPI_AUTO_APPROVE_MAX_INR > 0
+            and gateway_unreachable
+            and utr.isdigit()
+            and len(utr) == 12
+            and amount_inr_order > 0
+            and amount_inr_order <= UPI_AUTO_APPROVE_MAX_INR
+        ):
+            credits_added = _complete_paid_order(
+                db, order_rec, utr,
+                f"Auto-Approved on UTR (gateway unreachable) - pending review (UTR: {utr})",
+                extra_fields={
+                    "auto_approved": True,
+                    "needs_review": True,
+                    "approval_source": "utr_auto",
+                    "review_reason": "UPI gateway unreachable at time of UTR verification",
+                },
+            )
+            if credits_added and credits_added > 0:
+                return jsonify({
+                    "success": True,
+                    "message": f"Payment received! {int(credits_added)} credits added to your wallet.",
+                    "utr": utr,
+                    "order_id": order_id,
+                    "status": "paid",
+                    "credits_added": credits_added,
+                    "auto_approved": True,
+                    "needs_review": True,
+                }), 200
+
+        # Otherwise: record UTR under pending verification (manual / gateway confirmation path)
         now_str = datetime.now(timezone.utc).isoformat()
         db.billing_orders.update_one(
             {"order_id": order_rec.get("order_id")},
