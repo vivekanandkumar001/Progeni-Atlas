@@ -1,0 +1,24 @@
+# NEVER ship secrets to the functions bundle
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Caches & local junk
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+*.log
+logs/
+scratch/
+
+# Runtime data (not part of the codebase bundle)
+uploads/
+recordings/
+data/
+transcripts/
