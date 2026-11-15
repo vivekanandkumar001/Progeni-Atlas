@@ -3085,3 +3085,43 @@ def download_candidate_dossier_pdf(candidate_id):
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": "An unexpected error occurred"}), 500
+
+
+@recruiter_bp.route("/api/recruiter/semantic-search", methods=["GET"])
+def semantic_search_candidates():
+    """Semantic resume/candidate search powered by OpenAI-compatible embeddings.
+
+    Query params: q (required), skills (comma-separated), limit (default 10, max 50).
+    Falls back to keyword matching when embeddings are unavailable. Never 5xx
+    for a search miss â€” an empty list with success:true is still 200.
+    """
+    try:
+        user = get_current_recruiter()
+        if not user:
+            return jsonify({"success": False, "error": "Recruiter authentication required. Please log in.", "errorType": "unauthorized"}), 401
+
+        user_role = str(user.get("role", "")).lower().strip()
+        if user_role not in ("recruiter", "admin", "hr", "super_admin"):
+            return jsonify({"success": False, "error": "Recruiter or Administrator role required. You are currently logged in with a Candidate account.", "errorType": "role_forbidden"}), 403
+
+        q = (request.args.get("q") or "").strip()
+        if not q:
+            return jsonify({"success": False, "error": "Query parameter 'q' is required."}), 400
+
+        skills_param = request.args.get("skills") or ""
+        skills_list = [s.strip() for s in skills_param.split(",") if s.strip()] or None
+        limit = request.args.get("limit", 10, type=int) or 10
+
+        from core.semantic_search import semantic_resume_search
+        results = semantic_resume_search(q, limit=limit, skills=skills_list)
+
+        return jsonify({
+            "success": True,
+            "query": q,
+            "count": len(results),
+            "results": results,
+        }), 200
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
+

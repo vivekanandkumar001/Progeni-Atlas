@@ -650,6 +650,20 @@ def candidate_resume_endpoint():
                 "uploaded_at": now_iso
             })
 
+            # Embed this resume for semantic search (best-effort, never blocks upload).
+            try:
+                from core.semantic_search import embed_resume_doc
+                embed_resume_doc({
+                    "id": res_id,
+                    "candidate_id": candidate_id,
+                    "candidate_email": candidate_email,
+                    "parsed_text": parsed_text,
+                    "extracted_skills": extracted_skills,
+                    "file_name": file_name,
+                })
+            except Exception:
+                pass
+
             # Sync extracted skills into candidate user profile if available
             if extracted_skills and user:
                 curr_skills = user.get("skills_summary") or []
