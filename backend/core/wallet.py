@@ -6,6 +6,7 @@ Authoritative balance resolution and credit sanitation.
 
 from datetime import datetime, timezone
 from core.db import get_mongo_db
+from core import anomaly as _anomaly
 
 
 _signup_free_config_cache: dict = {"at": 0.0, "cfg": None}
@@ -215,4 +216,8 @@ def settle_interview_billing_completion(session_id: str, session_doc: dict) -> f
         }},
         upsert=True
     )
+    try:
+        _anomaly.note_debit(target_user_id, cost, str(session_id), is_demo=is_demo)
+    except Exception:
+        pass  # anomaly monitoring must never break billing
     return cost

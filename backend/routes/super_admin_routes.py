@@ -148,6 +148,21 @@ def super_admin_overview():
         return jsonify({"success": False, "error": generic_500(e)}), 500
 
 
+@super_admin_bp.route("/api/super-admin/security-alerts", methods=["GET"])
+@require_super_admin
+def super_admin_security_alerts():
+    """Recent wallet/credit abuse anomaly alerts (read-only)."""
+    try:
+        from core.anomaly import recent_alerts
+
+        limit = request.args.get("limit", 50, type=int) or 50
+        alerts = recent_alerts(limit=max(1, min(200, int(limit))))
+        return jsonify({"success": True, "count": len(alerts), "alerts": alerts}), 200
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
+
+
 @super_admin_bp.route("/api/super-admin/system-health", methods=["GET"])
 @require_super_admin
 def super_admin_system_health():

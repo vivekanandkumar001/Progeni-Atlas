@@ -5,9 +5,11 @@ import { fileURLToPath } from 'node:url';
 
 const configPath = fileURLToPath(new URL('../../../next.config.ts', import.meta.url));
 
-test('CSP allows fonts from the configured jsDelivr host', () => {
+test('CSP excludes the unused jsDelivr CDN (supply-chain hardening)', () => {
   const config = readFileSync(configPath, 'utf8');
 
-  assert.match(config, /font-src[^;]*https:\/\/cdn\.jsdelivr\.net/);
-  assert.doesNotMatch(config, /cdn\.jsdelivr\.connect/);
+  assert.doesNotMatch(config, /script-src[^;]*cdn\.jsdelivr\.net/);
+  assert.doesNotMatch(config, /style-src[^;]*cdn\.jsdelivr\.net/);
+  assert.doesNotMatch(config, /font-src[^;]*cdn\.jsdelivr\.net/);
+  assert.doesNotMatch(config, /connect-src[^;]*cdn\.jsdelivr\.net/);
 });
