@@ -16,6 +16,7 @@ from flask import Blueprint, request, jsonify, make_response, g
 
 from core.db import get_mongo_db
 from core.wallet import grant_signup_free_credits
+from core.simple_limiter import allow as _rate_allow, client_ip as _client_ip
 from core.security import (
     hash_password, verify_password, validate_password_strength,
     hash_otp, check_otp_hash, generate_otp_code,
@@ -31,6 +32,9 @@ auth_bp = Blueprint("auth_bp", __name__)
 def check_email_exists():
     """Duplicate Account Guard: Check if email already exists in MongoDB."""
     try:
+        if not _rate_allow(f"check-email:{_client_ip(request)}", 10, 60):
+            return jsonify({"error": "Too many requests. Please try again later."}), 429
+
         data = request.get_json(silent=True, force=True) or {}
         email = data.get("email", "").strip().lower()
         if not email:
@@ -55,6 +59,8 @@ def check_email_exists():
 def register():
     """User Registration with Duplicate Guard & 2-Minute Email OTP generation via MongoDB."""
     try:
+        if not _rate_allow(f"register:{_client_ip(request)}", 10, 300):
+            return jsonify({"error": "Too many requests. Please try again later."}), 429
         data = request.get_json(silent=True, force=True) or {}
         email = data.get("email", "").strip().lower()
         password = data.get("password", "")
@@ -351,6 +357,8 @@ def resend_otp():
         if purpose not in ("REGISTRATION_VERIFY", "FORGOT_PASSWORD"):
             purpose = "REGISTRATION_VERIFY"
 
+        if not _rate_allow(f"resend-otp:{_client_ip(request)}:{email}", 5, 300):
+            return jsonify({"error": "Too many resend requests. Please try again later."}), 429
         if not email:
             return jsonify({"error": "Email is required."}), 400
 
@@ -463,6 +471,8 @@ def otp_status():
 def login():
     """Authenticate user with Unverified Account Guard & Last Login Timestamp via MongoDB."""
     try:
+        if not _rate_allow(f"login:{_client_ip(request)}", 30, 300):
+            return jsonify({"error": "Too many login attempts. Please try again later."}), 429
         body = request.get_json(silent=True, force=True) or {}
         email = body.get("email", "").strip().lower()
         password = body.get("password", "")

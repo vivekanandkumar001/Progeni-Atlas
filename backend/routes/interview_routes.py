@@ -1,11 +1,16 @@
-"""
-Progeni Atlas â€” Interview Engine Blueprint
+﻿"""
+Progeni Atlas Ã¢â‚¬â€ Interview Engine Blueprint
 ===========================================
 Interactive interview sessions, question tree sequencing, scorecard synthesis,
 speech/TTS audio generation, proctoring events, room data, report dossier, and code execution.
 """
 
 import os
+
+try:
+    import resource as _resource
+except ImportError:  # non-POSIX platform (Windows dev machines)
+    _resource = None
 import uuid
 import re
 import time
@@ -110,7 +115,7 @@ def generate_dynamic_session_questions(session_id: str, session_doc: dict | None
             "You are Sarah Chen, a warm, experienced Staff Systems Engineer and Technical Hiring Lead. "
             "Generate a realistic, progressive 4-turn technical interview that feels like an authentic, collegial 1-on-1 video call. "
             "Output ONLY a valid JSON array of 4 question objects without preamble or markdown fences. "
-            "Every question must sound spoken aloud by a real human engineer â€” no dry exam prompts or robotic phrasing. "
+            "Every question must sound spoken aloud by a real human engineer Ã¢â‚¬â€ no dry exam prompts or robotic phrasing. "
             f"Turn 1 must start with a warm personal greeting (e.g., 'Hi {cand_name}, great to meet you! I'm Sarah, lead on this evaluation...'). "
             "Keep each question focused, natural, and under 42 words. "
             + interviewer_policy.question_authoring_rules()
@@ -185,7 +190,7 @@ JSON format:
         c2 = [s2, "Bundle Optimization", "Async Race Prevention"]
         t3 = f"Let's imagine you're architecting a real-time web application integrating {s3} with live WebSocket streams under a sudden 50,000-user spike. How do you design the edge rendering and backpressure so the clients stay responsive?"
         c3 = [s3, "WebSockets", "Edge Rendering", "Load Balancing"]
-        t4 = f"Once everything is running in production with {s4}, what telemetry â€” like Core Web Vitals, error boundary logs, or client-side distributed tracing â€” do you watch closely to spot memory leaks before users notice?"
+        t4 = f"Once everything is running in production with {s4}, what telemetry Ã¢â‚¬â€ like Core Web Vitals, error boundary logs, or client-side distributed tracing Ã¢â‚¬â€ do you watch closely to spot memory leaks before users notice?"
         c4 = [s4, "Core Web Vitals", "Telemetry", "Client Error Budgets"]
     elif any(k in lower_s1 for k in ["python", "fastapi", "django", "flask", "backend"]):
         t1 = f"Hi {cand_name}, great to meet you! I'm Sarah, leading our technical session today for {job_title}. To start us off, could you walk me through how you designed a recent backend service using {s1} and structured your domain boundaries?"
@@ -378,7 +383,7 @@ def build_interview_contract(session_id, session_doc=None, current_turn=1, state
     stages = [q.get("stage", f"Stage {i+1}").replace("_", " ").title() for i, q in enumerate(questions)]
     curr_stage = current_q.get("stage", "intro").replace("_", " ").title() if not is_finished else "Completed"
     if probe_active:
-        curr_stage = f"{curr_stage} Â· Follow-up"
+        curr_stage = f"{curr_stage} Ã‚Â· Follow-up"
 
     return {
         "session_id": session_id,
@@ -1133,7 +1138,7 @@ def synthesize_conversational_next_question(
         from app.services import llm_service
         sys_msg = (
             "You are Sarah Chen, Staff Systems Engineer and Technical Hiring Lead, in a live 1-on-1 technical conversation on video. "
-            "You are collegial, sharp, engaged, and warm â€” speaking naturally to an engineering peer. "
+            "You are collegial, sharp, engaged, and warm Ã¢â‚¬â€ speaking naturally to an engineering peer. "
             "Never use robotic transition phrases like 'Moving to stage 2', 'Now for the next question', or 'I have recorded your answer'. "
             "Your question must sound spoken aloud (under 38 words), bridging organically from what the candidate just discussed into the next focus."
         )
@@ -1626,7 +1631,7 @@ def interview_finish_route(session_id):
                     }}
                 )
             except Exception as update_err:
-                print(f"âš ï¸ [SCORECARD PERSIST WARNING] {update_err}")
+                print(f"Ã¢Å¡Â Ã¯Â¸Â [SCORECARD PERSIST WARNING] {update_err}")
             if rec_id or rec_email:
                 try:
                     rec_notif = {
@@ -1736,7 +1741,7 @@ def _sanitize_text_for_speech(text: str) -> str:
     t = re.sub(r"\*\*([^*]+)\*\*", r"\1", t)
     t = re.sub(r"\*([^*]+)\*", r"\1", t)
     t = re.sub(r"__([^_]+)__", r"\1", t)
-    t = re.sub(r"^\s*[-*â€¢]\s+", "", t, flags=re.MULTILINE)
+    t = re.sub(r"^\s*[-*Ã¢â‚¬Â¢]\s+", "", t, flags=re.MULTILINE)
     t = re.sub(r"^\s*\d+\.\s+", "", t, flags=re.MULTILINE)
     t = re.sub(r"^\s*#+\s+", "", t, flags=re.MULTILINE)
     t = re.sub(r"\s+", " ", t).strip()
@@ -1951,7 +1956,7 @@ def interview_whiteboard_critique(session_id):
         for c in connections:
             from_name = node_map.get(c.get("fromId"), c.get("fromId"))
             to_name = node_map.get(c.get("toId"), c.get("toId"))
-            topology_lines.append(f"  - {from_name} âž” {to_name}")
+            topology_lines.append(f"  - {from_name} Ã¢Å¾â€ {to_name}")
 
         topology_text = "\n".join(topology_lines) if topology_lines else "  - No active connections drawn yet."
         all_nodes_text = ", ".join([f"{n.get('label')} [{n.get('type')}]" for n in nodes])
@@ -2394,6 +2399,38 @@ def get_interview_room_data(session_id):
         return jsonify({"error": "An unexpected error occurred"}), 500
 
 
+def _posix_preexec() -> None:
+    """Best-effort POSIX resource-limit preexec for the candidate sandbox.
+
+    Caps address space (2 GiB â€” python/node/java friendly while containing
+    memory bombs), CPU seconds (4), open file descriptors (64) and max file
+    size (10 MiB), and places the child in its own process group. Every limit
+    is applied independently; failure of one never blocks the others.
+    No-op on non-POSIX platforms (preexec_fn=None there).
+    """
+    if _resource is None:
+        return
+
+    def _set(limit, soft, hard):
+        try:
+            _resource.setrlimit(limit, (soft, hard))
+        except Exception:
+            pass
+
+    _set(_resource.RLIMIT_AS if hasattr(_resource, "RLIMIT_AS") else _resource.RLIMIT_VMEM,
+         2 * 1024 * 1024 * 1024, 2 * 1024 * 1024 * 1024)
+    _set(_resource.RLIMIT_CPU, 4, 4)
+    _set(_resource.RLIMIT_NOFILE, 64, 64)
+    _set(_resource.RLIMIT_FSIZE, 10 * 1024 * 1024, 10 * 1024 * 1024)
+    try:
+        os.setsid()
+    except Exception:
+        pass
+
+
+_POSIX_PREEXEC = _posix_preexec if os.name == "posix" else None
+
+
 def _get_sandboxed_env(tmpdir: str) -> dict:
     """
     Construct a strictly isolated, leak-proof execution environment.
@@ -2573,6 +2610,7 @@ def run_interview_code(session_id):
                     proc = subprocess.run(
                         [py_exec, script_path],
                         capture_output=True,
+                        preexec_fn=_POSIX_PREEXEC,
                         text=True,
                         timeout=5,
                         cwd=tmpdir,
@@ -2606,7 +2644,7 @@ def run_interview_code(session_id):
                     return jsonify({
                         "success": False,
                         "stdout": "",
-                        "stderr": "âš¡ Execution Timeout: Code ran longer than 5.0 seconds. Check for infinite loops or non-terminating recursion.",
+                        "stderr": "Ã¢Å¡Â¡ Execution Timeout: Code ran longer than 5.0 seconds. Check for infinite loops or non-terminating recursion.",
                         "executionTimeMs": 5000,
                         "time": "5.00s",
                         "passedCount": 0,
@@ -2641,6 +2679,7 @@ def run_interview_code(session_id):
                     proc = subprocess.run(
                         [node_bin, script_path],
                         capture_output=True,
+                        preexec_fn=_POSIX_PREEXEC,
                         text=True,
                         timeout=5,
                         cwd=tmpdir,
@@ -2674,7 +2713,7 @@ def run_interview_code(session_id):
                     return jsonify({
                         "success": False,
                         "stdout": "",
-                        "stderr": "âš¡ Execution Timeout: Code ran longer than 5.0 seconds. Check for infinite loops or non-terminating recursion.",
+                        "stderr": "Ã¢Å¡Â¡ Execution Timeout: Code ran longer than 5.0 seconds. Check for infinite loops or non-terminating recursion.",
                         "executionTimeMs": 5000,
                         "time": "5.00s",
                         "passedCount": 0,
@@ -2706,6 +2745,7 @@ def run_interview_code(session_id):
                     compile_proc = subprocess.run(
                         [gpp_bin, "-O2", src_path, "-o", out_path],
                         capture_output=True,
+                        preexec_fn=_POSIX_PREEXEC,
                         text=True,
                         timeout=8,
                         cwd=tmpdir,
@@ -2725,6 +2765,7 @@ def run_interview_code(session_id):
                     run_proc = subprocess.run(
                         [out_path],
                         capture_output=True,
+                        preexec_fn=_POSIX_PREEXEC,
                         text=True,
                         timeout=5,
                         cwd=tmpdir,
@@ -2748,7 +2789,7 @@ def run_interview_code(session_id):
                     return jsonify({
                         "success": False,
                         "stdout": "",
-                        "stderr": "âš¡ Execution Timeout: C++ binary ran longer than 5.0 seconds.",
+                        "stderr": "Ã¢Å¡Â¡ Execution Timeout: C++ binary ran longer than 5.0 seconds.",
                         "executionTimeMs": 5000,
                         "time": "5.00s",
                         "passedCount": 0,
@@ -2780,6 +2821,7 @@ def run_interview_code(session_id):
                     compile_proc = subprocess.run(
                         [javac_bin, src_path],
                         capture_output=True,
+                        preexec_fn=_POSIX_PREEXEC,
                         text=True,
                         timeout=8,
                         cwd=tmpdir,
@@ -2799,6 +2841,7 @@ def run_interview_code(session_id):
                     run_proc = subprocess.run(
                         [java_bin, "-cp", tmpdir, "Solution"],
                         capture_output=True,
+                        preexec_fn=_POSIX_PREEXEC,
                         text=True,
                         timeout=5,
                         cwd=tmpdir,
@@ -2822,7 +2865,7 @@ def run_interview_code(session_id):
                     return jsonify({
                         "success": False,
                         "stdout": "",
-                        "stderr": "âš¡ Execution Timeout: Java program ran longer than 5.0 seconds.",
+                        "stderr": "Ã¢Å¡Â¡ Execution Timeout: Java program ran longer than 5.0 seconds.",
                         "executionTimeMs": 5000,
                         "time": "5.00s",
                         "passedCount": 0,
@@ -2969,7 +3012,7 @@ def get_candidate_evaluation_report(session_id):
                     "evaluatorFeedback": h_item.get("feedback") or "Evaluated against role standards."
                 })
         else:
-            # No turns recorded yet — never invent an interview that did not happen.
+            # No turns recorded yet â€” never invent an interview that did not happen.
             turns = []
 
         has_real_data = bool(turns)
@@ -3087,7 +3130,7 @@ def export_report_pdf(session_id):
         raw_score = sess.get("total_score")
         score = round(float(raw_score)) if raw_score is not None else None
         rec = str(sess.get("final_recommendation") or ("STRONG_HIRE" if score is not None and score >= 90 else "HIRE" if score is not None and score >= 80 else "LEAN_HIRE" if score is not None and score >= 60 else "REJECT" if score is not None else "PENDING EVALUATION")).upper().replace("_", " ")
-        summary = sess.get("summary") or ("Technical screening evaluation recorded." if score is not None else "Interview not yet completed — no evaluation data exists for this candidate.")
+        summary = sess.get("summary") or ("Technical screening evaluation recorded." if score is not None else "Interview not yet completed â€” no evaluation data exists for this candidate.")
 
         if request.args.get("format") == "json":
             return jsonify({
@@ -3102,7 +3145,7 @@ def export_report_pdf(session_id):
             }), 200
 
         # Unscored interview => honest placeholder output in the PDF
-        score_display = f"{score}%" if score is not None else "—"
+        score_display = f"{score}%" if score is not None else "â€”"
         score_width = score if score is not None else 0
         bar_label = score_display if score is not None else "Pending"
         assess_status = "Completed" if score is not None else "Pending Evaluation"
