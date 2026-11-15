@@ -35,6 +35,8 @@ const PUBLIC_PREFIXES = [
   '/terms',
   '/refund',
   '/ai-transparency',
+  // Public SEO content (e.g. /insights/*) must stay reachable for crawlers.
+  '/insights',
   '/sitemap',
   '/sitemap.xml',
   '/robots.txt',
