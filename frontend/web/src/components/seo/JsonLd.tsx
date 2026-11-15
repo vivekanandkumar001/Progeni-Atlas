@@ -29,8 +29,14 @@ export function JsonLd() {
       'Enterprise-grade autonomous AI technical interview and skills assessment platform conducting real-time two-way voice interviews, live coding assessments, and anti-cheat proctoring.',
     sameAs: [
       'https://github.com/vivekanandkumar001/Progeni-Atlas',
+      'https://in.linkedin.com/in/vivekanand2003',
       'https://atlas.progeni.live',
     ],
+    founder: {
+      '@type': 'Person',
+      name: 'Vivekanand Kumar',
+      url: 'https://in.linkedin.com/in/vivekanand2003',
+    },
     contactPoint: [
       {
         '@type': 'ContactPoint',
