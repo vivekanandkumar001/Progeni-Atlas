@@ -1,26 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
   <defs>
     <linearGradient id="pgLiveBg" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2f6bff"/>
-      <stop offset="0.55" stop-color="#1d4ed8"/>
-      <stop offset="1" stop-color="#0b1f3f"/>
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="0.55" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
     </linearGradient>
-    <linearGradient id="pgLiveDot" x1="31" y1="29.5" x2="40.5" y2="39.5" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#7dd3fc"/>
+    <linearGradient id="pgLiveDot" x1="32" y1="30.5" x2="41" y2="39.5" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#67e8f9"/>
       <stop offset="1" stop-color="#22d3ee"/>
     </linearGradient>
   </defs>
 
-  <!-- Rounded squircle tile -->
-  <rect x="2" y="2" width="44" height="44" rx="11" fill="url(#pgLiveBg)"/>
+  <!-- Brand tile: royal-blue squircle matching the app logo -->
+  <rect x="2" y="2" width="44" height="44" rx="10.8" fill="url(#pgLiveBg)"/>
+  <rect x="2.7" y="2.7" width="42.6" height="42.6" rx="10.1" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.4" fill="none"/>
 
-  <!-- Bowl of the "p" (open-right ring, reads as the glyph counter) -->
-  <circle cx="27" cy="18.6" r="7.4" stroke="#ffffff" stroke-width="5.4" fill="none"/>
+  <!-- Bowl of the white "p" (open ring) -->
+  <circle cx="26.4" cy="17.8" r="7.7" stroke="#ffffff" stroke-width="5.7" fill="none"/>
 
-  <!-- Stem of the "p" (full-height descender on the left) -->
-  <rect x="13.4" y="11.2" width="6.6" height="25.8" rx="3.3" fill="#ffffff"/>
+  <!-- Stem of the "p" (descender on the left) -->
+  <rect x="13.1" y="10.4" width="7.2" height="26.6" rx="3.6" fill="#ffffff"/>
 
-  <!-- ".live" cyan dot + halo, like a live-signal blip -->
-  <circle cx="36.2" cy="34.8" r="6.9" fill="#22d3ee" opacity="0.22"/>
-  <circle cx="36.2" cy="34.8" r="4.5" fill="url(#pgLiveDot)"/>
+  <!-- Cyan "live" dot, bottom-right inside the tile -->
+  <circle cx="35.5" cy="34.1" r="4.85" fill="url(#pgLiveDot)"/>
 </svg>
