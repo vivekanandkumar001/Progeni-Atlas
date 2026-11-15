@@ -60,14 +60,12 @@ export function JsonLd() {
       'Autonomous technical interviewing software featuring live adaptive voice AI, browser-based coding sandbox, multi-device proctoring, and instant calibrated scorecards.',
     offers: {
       '@type': 'Offer',
-      price: '1.00',
+      price: '0',
       priceCurrency: 'INR',
-      priceSpecification: {
-        '@type': 'UnitPriceSpecification',
-        price: '1.00',
-        priceCurrency: 'INR',
-        name: 'Duration-based billing: 1 Credit (₹1.00) per 3 minutes of interview time',
-      },
+      description:
+        'Free tier with 10 signup credits (one full AI mock interview). Paid usage: ₹1 = 1 credit, billed at 1 credit per 3 minutes of interview time.',
+      url: 'https://atlas.progeni.live/pricing',
+      availability: 'https://schema.org/InStock',
     },
     featureList: [
       'Autonomous two-way real-time voice & video AI interviewer',
