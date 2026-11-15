@@ -36,17 +36,33 @@ class VectorDBClient:
         self._initialize_client()
 
     def _initialize_client(self) -> None:
-        """Instantiate QdrantClient connected to cloud or local instance with in-memory fallback."""
+        """Instantiate QdrantClient connected to cloud or local instance with in-memory fallback.
+
+        Qdrant is currently NOT used by any feature (no code path imports the
+        vectordb client). Construction alone never proved connectivity — the
+        previous behaviour logged "Connected" for a dead cluster. Now we do a
+        real get_collections() probe: on failure the client degrades to a
+        non-persistent in-memory instance and reports honestly via .connected.
+        """
+        self.connected = False
         try:
             if QDRANT_URL:
-                self.client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-                logger.info(f"Connected to Qdrant Cloud at {QDRANT_URL}")
+                candidate = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=8)
             else:
-                self.client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, api_key=QDRANT_API_KEY)
-                logger.info(f"Connected to Qdrant at {QDRANT_HOST}:{QDRANT_PORT}")
+                candidate = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, api_key=QDRANT_API_KEY, timeout=8)
+            candidate.get_collections()
+            self.client = candidate
+            self.connected = True
+            logger.info("Connected to Qdrant at %s", QDRANT_URL or f"{QDRANT_HOST}:{QDRANT_PORT}")
         except Exception as e:
-            logger.warning(f"Failed to connect to Qdrant server ({e}). Falling back to in-memory Qdrant instance.")
-            self.client = QdrantClient(location=":memory:")
+            logger.warning(
+                f"Qdrant unreachable ({e}). Falling back to a non-persistent in-memory Qdrant instance; "
+                f"vector operations will silently degrade. Resume the cluster at https://cloud.qdrant.io to restore."
+            )
+            try:
+                self.client = QdrantClient(location=":memory:")
+            except Exception:
+                self.client = None
 
     def init_collections(self) -> None:
         """Define and ensure existence of required vector collections and payload indexes."""

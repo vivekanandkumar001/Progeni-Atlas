@@ -578,11 +578,11 @@ def check_qdrant_connection() -> dict:
     try:
         from qdrant_client import QdrantClient
         if QDRANT_URL:
-            client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+            client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=8)
             colls = client.get_collections()
             return {"status": "connected", "collections": [c.name for c in colls.collections]}
         else:
-            client = QdrantClient(host=os.environ.get("QDRANT_HOST", "localhost"), port=int(os.environ.get("QDRANT_PORT", "6333")))
+            client = QdrantClient(host=os.environ.get("QDRANT_HOST", "localhost"), port=int(os.environ.get("QDRANT_PORT", "6333")), timeout=8)
             return {"status": "connected", "collections": []}
     except Exception as e:
         logger.warning(f"Qdrant connection check failed: {e}")

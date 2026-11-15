@@ -133,7 +133,22 @@ Industry-style welcome-grant configuration, no hardcoding:
 
 ## 7. Known caveats
 
-* **Qdrant currently unreachable from production** (`Connection reset by peer` → `mock_fallback`). Resume semantic search degrades gracefully but silently — fix the Qdrant cloud cluster/API key.
+* **Qdrant unreachable from production** (`Connection reset by peer` → `mock_fallback` in `/api/health`).
+  Verified 2026-11-15: DNS resolves, TCP 443 connects, TLS handshake is reset by the peer —
+  classic Qdrant Cloud free-tier hibernation (or a deleted/paused cluster), not a code bug.
+  **Reality check: NO feature in this codebase actually consumes Qdrant** (`vectordb.py` is the
+  only consumer and nothing imports `vectordb_client`; resume/question/rubric vector paths were
+  never wired). The health endpoint reports `mock_fallback` truthfully.
+  Proper options, in order:
+  1. Resume the cluster: https://cloud.qdrant.io → Clusters → Resume (takes ~1–2 minutes), then
+     `curl -s https://api-atlas.progeni.live/api/health` — `"qdrant"` should become `connected`.
+  2. Or delete the dead dependency: unset QDRANT_URL/QDRANT_API_KEY and remove
+     `qdrant_client` from requirements.
+  3. (Code side, shipped 2026-11-15) vectordb client now probes connectivity for real and falls
+     back to a clearly-flagged non-persistent in-memory instance instead of logging "Connected"
+     for a dead cluster. Semantic search is NOT a production feature — do not rely on it.
+  "Resume semantic search degrades silently" note no longer applies — there is no semantic
+  search path to degrade.
 * Vercel serverless `maxDuration: 60` — LLM scorecard synthesis at session finish may be slow; Docker/VPS has no such cap.
 * Ratelimit storage defaults to memory in multi-instance deployments — configure shared Redis if you need cross-instance limits (`RATE_LIMIT_STORAGE_URI`).
 * MongoDB indexes: boot auto-creation only fires when `_meta.schema_version != 4`; run `scripts/migrate_db.py` explicitly on any fresh environment.
