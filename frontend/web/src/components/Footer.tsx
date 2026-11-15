@@ -96,6 +96,11 @@ export const Footer: React.FC = () => {
                   Frequently Asked Questions
                 </Link>
               </li>
+              <li>
+                <Link href="/insights/natural-language-search" className="text-ink-muted hover:text-accent-blue  transition-colors">
+                  Natural Language Search Guide
+                </Link>
+              </li>
             </ul>
           </div>
 

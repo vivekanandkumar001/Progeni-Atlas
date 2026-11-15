@@ -32,6 +32,7 @@
 - Careers: https://atlas.progeni.live/career
 - Contact & Inquiries: https://atlas.progeni.live/contact
 - Portfolio & Blueprints: https://atlas.progeni.live/portfolio
+- Natural Language Search Guide (NLP/NLU/NLG): https://atlas.progeni.live/insights/natural-language-search
 - AI Transparency: https://atlas.progeni.live/ai-transparency
 - Candidate Workspace: https://atlas.progeni.live/candidate
 - Recruiter Command Center: https://atlas.progeni.live/recruiter
