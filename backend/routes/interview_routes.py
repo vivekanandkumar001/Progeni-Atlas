@@ -2043,20 +2043,10 @@ def interview_transcribe_route(session_id):
                 f.write(raw_data)
 
         transcript_text = ""
-        openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
-        if openai_key and not openai_key.startswith("sk-proj-your-openai"):
-            try:
-                from openai import OpenAI
-                client = OpenAI(api_key=openai_key)
-                with open(temp_path, "rb") as af:
-                    transcription = client.audio.transcriptions.create(
-                        model=os.environ.get("STT_MODEL", "whisper-1") or "whisper-1",
-                        file=af,
-                        language="en"
-                    )
-                transcript_text = transcription.text.strip()
-            except Exception as w_err:
-                print(f"[Whisper Error] {w_err}")
+        stt_provider = ""
+        from core.stt_service import transcribe_file
+
+        transcript_text, stt_provider = transcribe_file(temp_path, language="en")
 
         # Cleanup temporary audio file
         try:
@@ -2066,7 +2056,7 @@ def interview_transcribe_route(session_id):
             pass
 
         if transcript_text:
-            return jsonify({"transcript": transcript_text, "success": True}), 200
+            return jsonify({"transcript": transcript_text, "success": True, "stt_provider": stt_provider}), 200
 
         return jsonify({
             "transcript": "",
