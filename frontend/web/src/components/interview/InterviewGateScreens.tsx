@@ -57,6 +57,33 @@ export const SessionExpiredScreen: React.FC<SessionExpiredScreenProps> = ({
   );
 };
 
+interface SessionVoidedScreenProps {
+  onReturnDashboard: () => void;
+  message?: string;
+}
+
+export const SessionVoidedScreen: React.FC<SessionVoidedScreenProps> = ({ onReturnDashboard, message }) => (
+  <div className="min-h-dvh w-full overflow-y-auto flex flex-col items-center justify-center bg-canvas text-ink p-8">
+    <video className="hidden" aria-hidden="true" />
+    <div className="max-w-xl text-center p-8 rounded-2xl bg-surface border border-line shadow-2xl space-y-4 backdrop-blur-xl">
+      <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 text-accent-amber flex items-center justify-center mx-auto">
+        <AlertTriangle className="w-6 h-6" />
+      </div>
+      <h2 className="text-xl font-bold text-ink">Interview Not Scored</h2>
+      <p className="text-sm text-ink-muted">
+        {message ?? 'This interview session was closed before any questions were attempted. You were NOT charged and nothing has been submitted for evaluation.'}
+      </p>
+      <p className="text-xs font-mono text-ink-muted">No charge • No scorecard issued • No recruiter was notified</p>
+      <button
+        onClick={onReturnDashboard}
+        className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg transition-all text-center cursor-pointer"
+      >
+        Return to Candidate Dashboard
+      </button>
+    </div>
+  </div>
+);
+
 interface InvalidSessionScreenProps {
   onReturnDashboard: () => void;
 }

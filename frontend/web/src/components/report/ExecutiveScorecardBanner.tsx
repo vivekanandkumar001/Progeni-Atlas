@@ -21,6 +21,8 @@ export const ExecutiveScorecardBanner: React.FC<ExecutiveScorecardBannerProps> =
   executiveSummary,
   hasScorecard
 }) => {
+  const isNotEvaluated = String(hiringRecommendation || '').toUpperCase().replace(/_/g, ' ') === 'NOT EVALUATED';
+
   return (
     <div className="bg-surface border border-line rounded-2xl p-6 md:p-8 backdrop-blur-md shadow-2xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative overflow-hidden">
       <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -mr-16 -mt-16" />
@@ -35,14 +37,22 @@ export const ExecutiveScorecardBanner: React.FC<ExecutiveScorecardBannerProps> =
           <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400 font-mono tracking-tight">
             {typeof overallScore === 'number' ? overallScore : '--'}
           </span>
-          <span className="text-lg font-mono text-ink-muted font-normal">/ 100</span>
+          {isNotEvaluated ? (
+            <span className="text-sm font-mono text-ink-muted font-normal">not scored</span>
+          ) : (
+            <span className="text-lg font-mono text-ink-muted font-normal">/ 100</span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-center lg:justify-start">
-          {hiringRecommendation ? (
+          {hiringRecommendation && !isNotEvaluated ? (
             <span className="bg-emerald-500/10 text-accent-emerald border border-emerald-500/30 px-3 py-1 rounded-full text-caption uppercase font-semibold text-xs inline-flex items-center gap-1.5">
               <Award className="w-3.5 h-3.5 text-accent-emerald" />
               <span>{hiringRecommendation.replace(/_/g, ' ')}</span>
+            </span>
+          ) : isNotEvaluated ? (
+            <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-caption uppercase font-semibold text-xs">
+              Not evaluated — no answers recorded
             </span>
           ) : (
             <span className="bg-surface-2 text-ink-muted border border-line px-3 py-1 rounded-full text-caption uppercase font-semibold text-xs">

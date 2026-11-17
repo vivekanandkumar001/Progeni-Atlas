@@ -266,8 +266,27 @@ export function MediaSourceProvider({ sessionId, children }: MediaSourceProvider
             let videoPublished = false;
             let audioPublished = false;
 
+            // Dedupe: skip re-publishing a track we already published
+            // (React StrictMode / repeated probes were double-publishing).
+            const alreadyPublished = (kind: string): boolean => {
+              try {
+                const source = kind === 'video' ? Track.Source.Camera : Track.Source.Microphone;
+                for (const pub of room.localParticipant.trackPublications.values()) {
+                  if (pub && pub.source === source) return true;
+                }
+              } catch {
+                // trackPublications shape varies between SDK versions — fall through and publish
+              }
+              return false;
+            };
+
             for (const track of targetStream.getTracks()) {
               if (track.readyState === 'live') {
+                if (alreadyPublished(track.kind)) {
+                  if (track.kind === 'video') videoPublished = true;
+                  if (track.kind === 'audio') audioPublished = true;
+                  continue;
+                }
                 try {
                   await room.localParticipant.publishTrack(track, {
                     name: track.kind === 'video' ? 'candidate-camera' : 'candidate-microphone',

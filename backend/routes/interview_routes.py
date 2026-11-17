@@ -316,36 +316,58 @@ def build_interview_contract(session_id, session_doc=None, current_turn=1, state
 
     total_allowed_seconds = duration_minutes * 60
     remaining_time = total_allowed_seconds
-    if session_doc and (session_doc.get("started_at") or session_doc.get("created_at")):
+    # Session clock starts only when the candidate actually starts (started_at).
+    # A recruiter-scheduled session that never started must never auto-expire,
+    # no matter how old its created_at is.
+    if session_doc and session_doc.get("started_at"):
         try:
-            base_time = session_doc.get("started_at") or session_doc.get("created_at")
+            base_time = session_doc.get("started_at")
             created_dt = datetime.fromisoformat(str(base_time).replace("Z", "+00:00"))
             elapsed = (datetime.now(timezone.utc) - created_dt).total_seconds()
             remaining_time = max(0, int(total_allowed_seconds - elapsed))
         except Exception:
-            remaining_time = max(0, total_allowed_seconds - (answered_turns * 600))
+            remaining_time = total_allowed_seconds
     else:
         remaining_time = total_allowed_seconds
 
-    # Global Hard Cap: When total session time reaches 0, auto-complete the interview
+    # Global Hard Cap: When total session time reaches 0, auto-complete the interview —
+    # ONLY if at least one turn was answered (service was delivered).
     if remaining_time <= 0:
-        is_finished = True
-        state = "COMPLETED"
-        status = "completed"
-        if session_doc and session_doc.get("status") != "completed":
+        _answered_now = answered_turns or 0
+        if _answered_now >= 1:
+            is_finished = True
+            state = "COMPLETED"
+            status = "completed"
+        else:
+            is_finished = True
+            state = "EXPIRED"
+            status = "expired"
+        if session_doc and session_doc.get("status") not in ("completed", "expired"):
             db_conn = get_mongo_db()
             if db_conn is not None:
                 try:
-                    db_conn.interview_sessions.update_one(
-                        {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
-                        {"$set": {
-                            "status": "completed",
-                            "state": "COMPLETED",
-                            "completed_reason": "session_time_expired",
-                            "updated_at": datetime.now(timezone.utc).isoformat()
-                        }}
-                    )
-                    generate_dynamic_scorecard(session_id, session_doc, request)
+                    if (answered_turns or 0) >= 1:
+                        db_conn.interview_sessions.update_one(
+                            {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
+                            {"$set": {
+                                "status": "completed",
+                                "state": "COMPLETED",
+                                "completed_reason": "session_time_expired",
+                                "updated_at": datetime.now(timezone.utc).isoformat()
+                            }}
+                        )
+                        generate_dynamic_scorecard(session_id, session_doc, request)
+                    else:
+                        # Zero answered turns: never marked COMPLETED or scored.
+                        db_conn.interview_sessions.update_one(
+                            {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
+                            {"$set": {
+                                "status": "expired",
+                                "state": "EXPIRED",
+                                "completed_reason": "session_expired_no_attempt",
+                                "updated_at": datetime.now(timezone.utc).isoformat()
+                            }}
+                        )
                 except Exception as exp_err:
                     print(f"[build_interview_contract session expiration warning] {exp_err}")
 
@@ -635,6 +657,20 @@ def generate_dynamic_scorecard(session_id, session_doc=None, req=None):
                     {"competency": f"{s2} & Problem Solving", "score": round(avg_cor * 10, 1), "weight": 35, "evidence": f"Based on correctness and technical reasoning ({avg_cor}/10)."},
                     {"competency": "Technical Communication", "score": round(avg_rel * 10, 1), "weight": 30, "evidence": f"Based on prompt relevance and structure ({avg_rel}/10)."}
                 ]
+
+    if not has_data and not transcript:
+        # Zero answered turns → this was never an interview. Never score, never
+        # issue a hiring recommendation. Report must show "Not evaluated".
+        recommendation = "NOT_EVALUATED"
+        overall_score = None
+        executive_summary = (
+            f"{cand_name} did not complete any interactive stages for the {job_title} role — "
+            f"no answers were recorded. This session was not scored, no evaluation was produced, "
+            f"and no hiring recommendation was issued."
+        )
+        strengths = []
+        concerns = []
+        competencies = []
 
     scorecard_payload = {
         "id": f"sc-{session_id[:8]}",
@@ -1519,17 +1555,45 @@ def interview_finish_route(session_id):
         org_id = None
 
         if db is not None:
-            db.interview_sessions.update_one(
-                {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
-                {"$set": {
-                    "id": session_id,
-                    "session_id": session_id,
-                    "status": "completed",
-                    "state": "COMPLETED",
-                    "finished_at": now_iso
-                }},
-                upsert=False
-            )
+            # Service-delivery gate: zero answered turns means no service was
+            # delivered → the session is voided, never marked COMPLETED, never
+            # notified as completed, never scored as a hiring signal.
+            zero_turns = False
+            try:
+                _answered = 0
+                if session_doc:
+                    _answered = session_doc.get("answered_turns")
+                    if not isinstance(_answered, int):
+                        _answered = len(session_doc.get("history") or [])
+                zero_turns = int(_answered or 0) < 1
+            except Exception:
+                zero_turns = False
+
+            if zero_turns:
+                db.interview_sessions.update_one(
+                    {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
+                    {"$set": {
+                        "id": session_id,
+                        "session_id": session_id,
+                        "status": "expired",
+                        "state": "EXPIRED",
+                        "completed_reason": "finished_with_zero_turns",
+                        "finished_at": now_iso
+                    }},
+                    upsert=False
+                )
+            else:
+                db.interview_sessions.update_one(
+                    {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
+                    {"$set": {
+                        "id": session_id,
+                        "session_id": session_id,
+                        "status": "completed",
+                        "state": "COMPLETED",
+                        "finished_at": now_iso
+                    }},
+                    upsert=False
+                )
             try:
                 db.interview_invitations.update_many(
                     {"$or": [{"session_id": session_id}, {"sessionId": session_id}]},
@@ -1563,7 +1627,7 @@ def interview_finish_route(session_id):
                 except Exception:
                     pass
 
-            if cand_id or cand_email:
+            if (cand_id or cand_email) and not zero_turns:
                 try:
                     db.candidate_notifications.insert_one({
                         "id": str(uuid.uuid4()),

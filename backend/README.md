@@ -94,7 +94,7 @@ Verified from `requirements.txt`, lockfiles, and active runtime modules:
 | **HTTP Client** | HTTPX | `0.28.1` | Asynchronous/synchronous HTTP client for OpenAI, Gemini, and Judge0 calls |
 | **WebRTC SDK** | LiveKit API | `>=1.0.0, <2.0.0` | Access token issuance and WebRTC video room grants |
 | **Media Storage** | Cloudinary | `1.46.2` | Persistent cloud asset storage for candidate resumes and media |
-| **PDF Generation** | ReportLab | `>=4.2.5, <5.0.0` | Server-side candidate evaluation dossier PDF compilation |
+| **PDF Generation** | ReportLab | `>=4.2.5, <5.0.0` | Server-side candidate evaluation dossier (print-optimized HTML, browser print-to-PDF) |
 | **Document Parsing** | PyMuPDF (`fitz`) & python-docx | Latest | Text and structure extraction from candidate resume files |
 | **Schema Validation Script** | `scripts/check_migrations.py` | Built-in | Automated schema drift and linear revision integrity checker |
 
@@ -538,7 +538,7 @@ stateDiagram-v2
 | `GET` | `/api/v1/interview-sessions/<id>/questions` | Candidate / Recruiter | Returns questions asked during the session. |
 | `GET` | `/api/v1/interview-sessions/<id>/scorecard` | Candidate / Recruiter | Returns the final scorecard: overall score, recommendation, strengths, concerns, and competency scores. |
 | `GET` | `/api/v1/interview-sessions/<id>/report` | Candidate / Recruiter | Returns aggregated evaluation dossier including session metadata and scorecards. |
-| `GET` | `/api/v1/interview-sessions/<id>/report/pdf` | Candidate / Recruiter | Generates and streams a PDF evaluation dossier via ReportLab. |
+| `GET` | `/api/v1/interview-sessions/<id>/report/pdf` | Candidate / Recruiter | Streams a print-optimized HTML evaluation dossier (save as PDF via browser print); not a binary application/pdf. |
 
 ### 8. Live Turn Flow: Start, Audio & Answers
 

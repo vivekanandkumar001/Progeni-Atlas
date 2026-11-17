@@ -480,11 +480,11 @@ export default function CandidateWalletPage() {
                 {wallet?.demoQuota?.remaining ?? 2}
               </span>
               <span className="text-sm font-semibold text-ink-muted">
-                of {wallet?.demoQuota?.totalAllowed ?? 3} Free Demos Left
+                of {wallet?.demoQuota?.totalAllowed ?? 2} Free Demos Left
               </span>
             </div>
             <p className="mt-3 text-xs text-ink-muted">
-              Rate: ₹2.00 / min (2 cr/min) applied after free demo rounds.
+              Rate: ₹0.50 / min (0.5 cr/min) applied after free demo rounds. Zero-turn sessions are free.
             </p>
           </div>
         </div>

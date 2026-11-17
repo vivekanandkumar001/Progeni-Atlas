@@ -43,6 +43,7 @@ import {
   ProctoringWaitingScreen,
   FullscreenStartGateScreen,
   SessionExpiredScreen,
+  SessionVoidedScreen,
 } from '@/components/interview/InterviewGateScreens';
 import { InterviewStatusBanner } from '@/components/interview/InterviewStatusBanner';
 import { InterviewQuestionAnswerPane } from '@/components/interview/InterviewQuestionAnswerPane';
@@ -124,6 +125,7 @@ export default function LiveInterviewRoomPage() {
   const [currentStageName, setCurrentStageName] = useState<string>('Introduction');
   const [sessionMode, setSessionMode] = useState<string>('real');
   const [apiError, setApiError] = useState<string | null>(null);
+  const [sessionVoided, setSessionVoided] = useState(false);
   const [practiceFeedback, setPracticeFeedback] = useState<string | null>(null);
   const [canAnswer, setCanAnswer] = useState<boolean>(false);
   const [retryTarget, setRetryTarget] = useState<string | null>(null);
@@ -221,6 +223,25 @@ export default function LiveInterviewRoomPage() {
     setRemainingSeconds(readAuthoritativeSeconds(contract.remaining_time_seconds));
     setQuestionRemainingSeconds(readAuthoritativeSeconds(contract.question_remaining_seconds));
     const state = String(contract.state || '').toUpperCase();
+    const answeredTurns = Number(contract.answered_turns ?? 0);
+    const noServiceDelivered = answeredTurns === 0;
+
+    if ((state === 'COMPLETED' || contract.status === 'completed' || contract.finished || contract.remaining_time_seconds === 0) && noServiceDelivered) {
+      // Session closed with ZERO answered turns — this is a void, not a completion.
+      // Never auto-"finish", never charge, never show success UI.
+      setDeadlineStatus('interview-expired');
+      setSessionVoided(true);
+      setApiError(null);
+      isConcludingRef.current = true; // block any accidental triggerSessionConclusion
+      return;
+    }
+    if (state === 'EXPIRED' || contract.status === 'expired') {
+      setDeadlineStatus('interview-expired');
+      setSessionVoided(true);
+      setApiError(null);
+      isConcludingRef.current = true; // block auto-conclusion
+      return;
+    }
     if (state === 'COMPLETED' || contract.status === 'completed' || contract.finished || contract.remaining_time_seconds === 0) {
       setDeadlineStatus('interview-expired');
       if (sessionId && !isConcludingRef.current) {
@@ -589,12 +610,26 @@ export default function LiveInterviewRoomPage() {
           success = true;
           setApiError(null);
           if (state.state === 'COMPLETED' || state.status === 'completed') {
+            const answered = Number((state as { answered_turns?: number }).answered_turns ?? 0);
             const isPractice = (state.mode || sessionMode) === 'practice';
+            if (answered === 0) {
+              // Zero-turn completion must not redirect to a "submitted" dashboard.
+              setSessionVoided(true);
+              setApiError(null);
+              setDeadlineStatus('interview-expired');
+              return;
+            }
             if (isPractice) {
               router.replace(`/candidate/interview/${sessionId}/report`);
             } else {
               router.replace('/candidate/dashboard?interview_completed=true');
             }
+            return;
+          }
+          if (state.state === 'EXPIRED' || state.status === 'expired') {
+            setSessionVoided(true);
+            setApiError(null);
+            setDeadlineStatus('interview-expired');
             return;
           }
           const mode = state.mode || sessionMode || 'real';
@@ -1237,6 +1272,10 @@ export default function LiveInterviewRoomPage() {
 
   if (!sessionId) {
     return <InvalidSessionScreen onReturnDashboard={() => router.push('/candidate/dashboard')} />;
+  }
+
+  if (sessionVoided) {
+    return <SessionVoidedScreen onReturnDashboard={() => router.push('/candidate/dashboard')} />;
   }
 
   if (apiError && (apiError.includes('Session expired') || apiError.includes('log in again') || apiError.includes('Authentication required'))) {

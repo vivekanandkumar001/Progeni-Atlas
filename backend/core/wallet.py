@@ -175,7 +175,49 @@ def settle_interview_billing_completion(session_id: str, session_doc: dict) -> f
 
     role_name = session_doc.get("job_title") or session_doc.get("role_title") or "Technical Assessment"
     is_demo = bool(session_doc.get("is_practice") or session_doc.get("session_type") == "demo")
-    
+
+    # Service-delivery check: count actually answered turns. Zero turns = NO
+    # service was delivered → void the session, charge ₹0, restore demo quota.
+    answered = session_doc.get("answered_turns")
+    if answered is None or not isinstance(answered, int):
+        try:
+            answered = len(session_doc.get("history") or [])
+        except Exception:
+            answered = 0
+
+    if (answered or 0) < 1:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        db.wallet_transactions.update_one(
+            {"id": tx_id},
+            {"$set": {
+                "id": tx_id,
+                "userId": target_user_id,
+                "sessionId": session_id,
+                "txRef": f"TXN-VOID-{session_id[:8].upper()}",
+                "entryType": "interview_void",
+                "category": "DEMO" if is_demo else "OUT",
+                "title": f"Session Voided: {role_name}",
+                "reason": "No service delivered — 0 answered turns. No charge applied.",
+                "amountCredits": 0.0,
+                "amountInr": 0.0,
+                "status": "VOIDED",
+                "createdAt": now_iso
+            }},
+            upsert=True
+        )
+        # Restore free-demo quota if this was a demo/practice session started
+        # but never answered.
+        if is_demo:
+            try:
+                db.wallets.update_one(
+                    {"userId": target_user_id, "demoQuota.completed": {"$gt": 0}},
+                    {"$inc": {"demoQuota.completed": -1, "demoQuota.remaining": 1},
+                     "$set": {"updated_at": now_iso}}
+                )
+            except Exception:
+                pass
+        return 0.0
+
     # Authoritative billing rate: 1 Rupee = 2 Minutes (0.5 credits/min)
     dur = session_doc.get("duration_minutes") or session_doc.get("durationMinutes") or 30
     try:
@@ -183,7 +225,22 @@ def settle_interview_billing_completion(session_id: str, session_doc: dict) -> f
     except Exception:
         duration_minutes = 30
 
-    cost = 0.0 if is_demo else round(duration_minutes * 0.5, 2)
+    # Pro-rated actual engagement (min 2-minute floor, capped at session duration).
+    billable_minutes = duration_minutes
+    started = session_doc.get("started_at")
+    if started:
+        try:
+            started_dt = datetime.fromisoformat(str(started).replace("Z", "+00:00"))
+            if started_dt.tzinfo is None:
+                started_dt = started_dt.replace(tzinfo=_tz.utc)
+            elapsed_sec = (datetime.now(timezone.utc) - started_dt).total_seconds()
+            import math
+            actual_minutes = max(2, math.ceil(max(0, elapsed_sec) / 60.0))
+            billable_minutes = min(duration_minutes, actual_minutes)
+        except Exception:
+            billable_minutes = duration_minutes
+
+    cost = 0.0 if is_demo else round(billable_minutes * 0.5, 2)
     now_iso = datetime.now(timezone.utc).isoformat()
 
     # Deduct wallet balance if non-demo
@@ -208,7 +265,7 @@ def settle_interview_billing_completion(session_id: str, session_doc: dict) -> f
             "entryType": "free_demo" if is_demo else "interview_settlement",
             "category": "DEMO" if is_demo else "OUT",
             "title": f"Interview Settlement: {role_name}",
-            "reason": "Complimentary Practice Session" if is_demo else f"Verified AI Screening Settlement ({cost:g} cr, {duration_minutes}m)",
+            "reason": "Complimentary Practice Session" if is_demo else f"Verified AI Screening Settlement ({cost:g} cr, {billable_minutes}m pro-rated)",
             "amountCredits": -cost,
             "amountInr": cost,
             "status": "COMPLETED",

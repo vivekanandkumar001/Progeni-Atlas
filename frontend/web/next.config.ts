@@ -73,7 +73,7 @@ const nextConfig: NextConfig = {
               // by our own CSP — otherwise analytics silently collects nothing.
               // jsDelivr removed from every directive: nothing on the site loads from it,
               // and an allowed CDN origin is a supply-chain injection path into our origin.
-              `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"} https://static.cloudflareinsights.com https://checkout.razorpay.com https://www.googletagmanager.com`,
+              `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isProd ? '' : " 'unsafe-eval'"} https://static.cloudflareinsights.com https://checkout.razorpay.com https://www.googletagmanager.com`,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob: https://*.razorpay.com https://www.googletagmanager.com https://www.google-analytics.com",
               "font-src 'self' data:",
