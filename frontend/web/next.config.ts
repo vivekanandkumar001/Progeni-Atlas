@@ -23,6 +23,9 @@ const allowedImageHosts = (
   .filter(Boolean);
 
 const nextConfig: NextConfig = {
+  experimental: {
+    agentUpgrade: "security",
+  },
   reactStrictMode: true,
   typescript: {
     ignoreBuildErrors: true,
