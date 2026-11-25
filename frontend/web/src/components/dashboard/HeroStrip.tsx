@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Award, Zap, Lock, CheckCircle2, X, Play, Flame } from 'lucide-react';
 import {
@@ -10,20 +10,19 @@ import {
   type CandidateDashboard,
   type CandidateProfile,
 } from '@/lib/api';
-import { getIsoWeekNumber } from '@/lib/dateTime';
 import { LOADING_RESUME_STATUS } from '@/constants/ui_strings';
 
 const MILESTONES = [
   { key: 'resume', label: 'Resume' },
   { key: 'skills', label: 'Skills' },
-  { key: 'baseline', label: 'Baseline' },
+  { key: 'profile', label: 'Profile' },
   { key: 'demo', label: 'Demo interview' },
   { key: 'scored', label: 'Scored interview' },
 ];
 
 /**
  * Flat hero strip. No border, no card — dense type, inline meta,
- * placement-prep milestone track.
+ * real candidate progress track.
  */
 export const HeroStrip: React.FC = () => {
   const [dashboard, setDashboard] = useState<CandidateDashboard | null>(null);
@@ -63,20 +62,23 @@ export const HeroStrip: React.FC = () => {
   const demoQuota = candidateDemoQuota(dashboard);
   const demosLeft = demoQuota?.remaining ?? 0;
   const demoTotal = demoQuota?.total ?? 0;
-
-  // Honest, derivable completeness score from real signals
-  const completeness = useMemo(() => {
-    let score = 0;
-    if (hasResume) score += 25;
-    if (skillCount > 0) score += 15;
-    if (skillCount >= 3) score += 10;
-    if (profile?.course || profile?.academic_year || profile?.headline) score += 10;
-    return Math.min(100, score);
-  }, [hasResume, skillCount, profile]);
-
-  const weekNo = useMemo(() => getIsoWeekNumber(new Date()), []);
+  const recentInterviews = dashboard?.recent_interviews ?? [];
   const readinessScore = dashboard?.candidate?.readinessScore;
   const hasReadinessScore = typeof readinessScore === 'number' && Number.isFinite(readinessScore);
+
+  const hasProfileDetails = Boolean(
+    profile?.course || profile?.academic_year || profile?.academicYear || profile?.headline,
+  );
+  const hasDemoCompleted =
+    (demoQuota?.used ?? 0) > 0 || recentInterviews.some((s) => Boolean(s.isDemo));
+  const hasScoredCompleted =
+    hasReadinessScore ||
+    recentInterviews.some((s) => typeof s.total_score === 'number' && Number.isFinite(s.total_score));
+
+  const eyebrowLabel =
+    [profile?.course, profile?.academic_year || profile?.academicYear].filter(Boolean).join(' · ') ||
+    dashboard?.candidate?.academicTag?.trim() ||
+    'Candidate Workspace';
 
   const resumeLabel =
     dashboard === null && profile === null
@@ -108,25 +110,30 @@ export const HeroStrip: React.FC = () => {
 
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
         <div className="min-w-0">
-          <p className="text-[11px] font-mono font-semibold text-ink-faint uppercase tracking-[0.18em] flex items-center gap-2">
+          <p className="text-[11px] font-mono font-semibold text-ink-faint uppercase tracking-[0.16em] flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-accent-cyan" />
-            Week {weekNo} · Placement Prep
+            {loading ? 'Candidate Workspace' : eyebrowLabel}
           </p>
-          <h1 className="mt-2 text-3xl sm:text-4xl md:text-5xl font-extrabold text-ink tracking-tight leading-[1.05]">
+          <h1 className="mt-1.5 text-2xl sm:text-[26px] font-bold text-ink tracking-tight leading-tight">
             {loading
               ? 'Loading your dashboard…'
               : firstName
-                ? `Back at it, ${firstName}`
+                ? `Welcome back, ${firstName}`
                 : 'Welcome back'}
           </h1>
-          <p className="mt-2 text-sm text-ink-muted max-w-lg leading-relaxed">
+          <p className="mt-1.5 text-sm text-ink-muted max-w-lg leading-relaxed">
             Two tracks, one goal. Close the gap one interview at a time — and make every score count.
           </p>
 
           {/* Prep milestone track — flat stepper */}
           <div className="mt-4 flex flex-wrap items-center gap-1.5 text-[11px]">
             {MILESTONES.map((m, i) => {
-              const done = (m.key === 'resume' && hasResume) || (m.key === 'skills' && skillCount > 0);
+              const done =
+                (m.key === 'resume' && hasResume) ||
+                (m.key === 'skills' && skillCount > 0) ||
+                (m.key === 'profile' && hasProfileDetails) ||
+                (m.key === 'demo' && hasDemoCompleted) ||
+                (m.key === 'scored' && hasScoredCompleted);
               return (
                 <React.Fragment key={m.key}>
                   <span
