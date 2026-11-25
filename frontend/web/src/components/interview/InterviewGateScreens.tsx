@@ -137,7 +137,12 @@ export const MediaPreparingScreen: React.FC<MediaPreparingScreenProps> = ({
           Media setup failed. Please check camera/microphone permissions and the LiveKit connection, then retry.
         </p>
       )}
-      <button onClick={onRetry} className="mt-6 rounded-xl bg-cyan-500 px-5 py-3 font-bold text-slate-950">
+      <p className="mt-5 text-xs text-ink-muted leading-relaxed">
+        If this keeps failing, it may be on our side — not yours. Your slot is safe:{' '}
+        <a href="/candidate/dashboard" className="text-accent-cyan hover:underline font-semibold">return to your dashboard</a>{' '}
+        to reschedule, or <a href="/contact" className="text-accent-cyan hover:underline font-semibold">contact us</a> and we&apos;ll make it right.
+      </p>
+      <button onClick={onRetry} className="mt-5 rounded-xl bg-cyan-500 px-5 py-3 font-bold text-slate-950">
         Retry media setup
       </button>
     </div>
@@ -160,33 +165,24 @@ export const ProctoringWaitingScreen: React.FC<ProctoringWaitingScreenProps> = (
   <div className="min-h-dvh w-full overflow-y-auto flex flex-col items-center justify-center bg-canvas text-ink p-8">
     <video ref={bindProctoringVideo} muted playsInline autoPlay className="hidden" aria-hidden="true" />
     <div className="max-w-xl text-center">
-      <div className="text-lg font-black">Proctoring preflight is not ready</div>
+      <div className="text-lg font-black">We couldn&apos;t set up your camera</div>
       <p className="mt-3 text-sm text-ink-muted">
-        Interview integrity monitoring is required. The interview cannot start until the proctoring detector is running on a live camera feed.
+        Nothing about your appearance or face is ever analysed. We only need the camera feed for the video call
+        itself — please check camera/mic permissions, or contact your recruiter to reschedule.
       </p>
-      {proctoringHealthState === 'INITIALIZING' && (
-        <p className="mt-4 text-sm text-accent-cyan font-mono">Initializing MediaPipe detector & WASM modules…</p>
-      )}
-      {proctoringHealthState === 'CAMERA_WAITING' && (
-        <p className="mt-4 text-sm text-accent-amber font-mono">Detector ready. Waiting for live camera frames…</p>
-      )}
-      {proctoringHealthState === 'READY' && (
-        <p className="mt-4 text-sm text-accent-amber font-mono">Camera feed live — analysing the first frames…</p>
-      )}
       {proctoringUnavailable && (
         <p className="mt-4 text-sm text-accent-rose">
-          Proctoring is not active. The detector or camera could not be started, so integrity checks cannot run.
+          The camera or microphone could not be started. You can retry, or reach out and we&apos;ll help.
         </p>
       )}
-      {!proctoringUnavailable &&
-        proctoringHealthState !== 'INITIALIZING' &&
-        proctoringHealthState !== 'CAMERA_WAITING' &&
-        proctoringHealthState !== 'READY' && (
-          <p className="mt-4 text-sm text-ink-muted">Waiting for the first camera frames to be analysed…</p>
-        )}
-      <button onClick={onRetry} className="mt-6 rounded-xl bg-cyan-500 px-5 py-3 font-bold text-slate-950">
-        Retry proctoring setup
-      </button>
+      <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <button onClick={onRetry} className="rounded-xl bg-cyan-500 px-5 py-3 font-bold text-slate-950">
+          Retry camera setup
+        </button>
+        <a href="/candidate/dashboard" className="text-xs text-ink-muted hover:text-ink font-semibold">
+          Return to dashboard
+        </a>
+      </div>
     </div>
   </div>
 );
@@ -194,15 +190,13 @@ export const ProctoringWaitingScreen: React.FC<ProctoringWaitingScreenProps> = (
 interface FullscreenStartGateScreenProps {
   bindProctoringVideo: (video: HTMLVideoElement | null) => (() => void) | undefined;
   proctoringHealthState: ProctoringHealthState;
-  facesObserved: number;
+  facesObserved?: number;
   apiError: string | null;
   onBeginInterview: () => void;
 }
 
 export const FullscreenStartGateScreen: React.FC<FullscreenStartGateScreenProps> = ({
   bindProctoringVideo,
-  proctoringHealthState,
-  facesObserved,
   apiError,
   onBeginInterview,
 }) => (
@@ -212,13 +206,11 @@ export const FullscreenStartGateScreen: React.FC<FullscreenStartGateScreenProps>
       <div className="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-accent-cyan flex items-center justify-center mx-auto">
         <AlertTriangle className="w-6 h-6" />
       </div>
-      <h2 className="text-xl font-bold text-ink">Ready to begin in fullscreen</h2>
+      <h2 className="text-xl font-bold text-ink">Ready when you are</h2>
       <p className="text-sm text-ink-muted">
-        This real interview requires fullscreen so integrity monitoring stays active for the whole session.
-        Press Begin Interview and allow fullscreen when your browser asks.
-      </p>
-      <p className="text-xs font-mono text-ink-muted">
-        Proctoring: {proctoringHealthState} &bull; faces observed: {facesObserved}
+        This is a live conversation with Sarah, our AI interviewer — your camera and microphone stay on for the
+        session, just like a real video call. A human reviews the evidence afterwards; nothing you say is
+        auto-scored and thrown away.
       </p>
       {apiError && <p className="text-sm text-accent-rose">{apiError}</p>}
       <button

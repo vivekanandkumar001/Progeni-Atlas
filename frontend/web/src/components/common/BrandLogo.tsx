@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 
@@ -14,6 +16,10 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   className = '',
   hideTextOnMobile = false,
 }) => {
+  // Multiple logos can share a page; SVG <defs> ids must be unique or the
+  // first gradient silently wins for every subsequent mark.
+  const gradientId = `brand-tile-gradient-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+
   return (
     <Link
       href={href}
@@ -30,12 +36,12 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           className="h-full w-full drop-shadow-xs"
           aria-hidden="true"
         >
-          <rect width="48" height="48" rx="11" fill="url(#brand-tile-gradient)" />
+          <rect width="48" height="48" rx="11" fill={`url(#${gradientId})`} />
           <circle cx="27" cy="18.6" r="7.4" stroke="#ffffff" strokeWidth="5.4" fill="none" />
           <rect x="13.4" y="11.2" width="6.6" height="25.8" rx="3.3" fill="#ffffff" />
           <circle cx="35.8" cy="34.6" r="4.6" fill="#22d3ee" />
           <defs>
-            <linearGradient id="brand-tile-gradient" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+            <linearGradient id={gradientId} x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
               <stop offset="0%" stopColor="#2f6bff" />
               <stop offset="55%" stopColor="#1d4ed8" />
               <stop offset="100%" stopColor="#0b1f3f" />

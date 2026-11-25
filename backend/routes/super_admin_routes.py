@@ -17,6 +17,7 @@ from flask import Blueprint, request, jsonify, g, make_response
 import pymongo
 from bson import ObjectId
 from core.db import get_mongo_db, check_mongo_connection, check_qdrant_connection
+from core.audit_chain import chain_append
 from core.security import (
     _authenticate_request, resolve_user, require_auth, require_super_admin
 )
@@ -737,7 +738,7 @@ def super_admin_interview_status(session_id):
                 {"$set": {"status": new_status, "status_reason": reason, "updated_at": datetime.now(timezone.utc).isoformat()}}
             )
             # Record audit log
-            db.audit_logs.insert_one({
+            chain_append(db.audit_logs, {
                 "id": str(uuid.uuid4()),
                 "actor_id": str((getattr(g, "user", None) or {}).get("id") or (getattr(g, "user", None) or {}).get("_id") or ""),
                 "actor_email": str((getattr(g, "user", None) or {}).get("email") or ""),
@@ -1130,7 +1131,7 @@ def super_admin_update_setting(setting_key):
                 {"$set": setting_doc},
                 upsert=True
             )
-            db.audit_logs.insert_one({
+            chain_append(db.audit_logs, {
                 "id": str(uuid.uuid4()),
                 "actor_id": str((getattr(g, "user", None) or {}).get("id") or (getattr(g, "user", None) or {}).get("_id") or ""),
                 "actor_email": str((getattr(g, "user", None) or {}).get("email") or ""),
@@ -2651,6 +2652,44 @@ def super_admin_career_applications(job_id):
 # PROVIDER SPEND & UNIT ECONOMICS (LLM cost accounting)
 # =====================================================================
 
+
+def _percentile(sorted_vals: list[float], pct: float):
+    """Linear-interpolation percentile; deterministic, no numpy. Returns None on empty."""
+    if not sorted_vals:
+        return None
+    k = (len(sorted_vals) - 1) * float(pct)
+    f = int(k)
+    c = min(f + 1, len(sorted_vals) - 1)
+    if f == c:
+        return sorted_vals[f]
+    d = k - f
+    return sorted_vals[f] * (1 - d) + sorted_vals[c] * d
+
+
+def _latency_block(items):
+    """p50/p95/avg of shadow-event provider attempt durations (ms)."""
+    durs = []
+    for e in items:
+        v = e.get("duration_ms")
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            continue
+        if f >= 0:
+            durs.append(f)
+    durs.sort()
+    if not durs:
+        return {"samples": 0, "p50": None, "p95": None, "avg": None, "min": None, "max": None}
+    avg = sum(durs) / len(durs)
+    return {
+        "samples": len(durs),
+        "p50": round(_percentile(durs, 0.50), 1),
+        "p95": round(_percentile(durs, 0.95), 1),
+        "avg": round(avg, 1),
+        "min": round(durs[0], 1),
+        "max": round(durs[-1], 1),
+    }
+
 @super_admin_bp.route("/api/super-admin/cost-overview", methods=["GET"])
 @require_super_admin
 def super_admin_cost_overview():
@@ -2771,6 +2810,9 @@ def super_admin_cost_overview():
 
         month_summary = summarize(month_events)
         today_summary = summarize(today_events)
+        latency_all = _latency_block(events)
+        latency_month = _latency_block(month_events)
+        latency_today = _latency_block(today_events)
 
         daily = {}
         for e in events:
@@ -2830,6 +2872,11 @@ def super_admin_cost_overview():
             "completed_interviews_total": completed_total,
             "cost_per_completed_interview_inr": round(cost_per_completed, 4) if cost_per_completed is not None else None,
             "run_rate_month_inr": round(run_rate_inr, 2),
+            "latency_ms": {
+                "all_time": latency_all,
+                "month": latency_month,
+                "today": latency_today,
+            },
             "series": series,
             "pricing": pricing,
         }), 200
@@ -2887,7 +2934,7 @@ def super_admin_update_pricing(pricing_id):
             }},
         )
         try:
-            db.audit_logs.insert_one({
+            chain_append(db.audit_logs, {
                 "id": str(uuid.uuid4()),
                 "actor_id": str(user.get("id") or user.get("_id") or actor_email),
                 "actor_email": actor_email,
@@ -2953,7 +3000,7 @@ def super_admin_aptitude_generate_now():
                 actor_email = str((getattr(g, "user", None) or {}).get("email") or "admin@progeni.live")
             except Exception:
                 actor_email = "admin@progeni.live"
-            db.audit_logs.insert_one({
+            chain_append(db.audit_logs, {
                 "id": str(uuid.uuid4()),
                 "actor_id": actor_email,
                 "actor_email": actor_email,
@@ -2971,3 +3018,629 @@ def super_admin_aptitude_generate_now():
     except Exception:
         traceback.print_exc()
         return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
+
+
+# =====================================================================
+# TRANSCRIPT DOUBLE-RATING (ICC calibration pipeline)
+# Two independent human ratings per completed interview, for Phase-2
+# scoring calibration (Pearson/ICC vs the LLM). Stored on the session
+# document itself: rating_pass_a / rating_pass_b / rater_id.
+# =====================================================================
+
+_RATING_PASS_FIELDS = ("rating_pass_a", "rating_pass_b")
+
+
+def _rating_pass_ok(value):
+    if not isinstance(value, dict):
+        return False
+    if len(value) > 40:  # sanity cap: a rubric pass is small
+        return False
+    try:
+        import json
+        json.dumps(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+@super_admin_bp.route("/api/super-admin/transcript-ratings/<session_id>", methods=["POST"])
+@require_super_admin
+def super_admin_transcript_rating_submit(session_id):
+    """Store one rater's pass on a completed session.
+
+    Body: { rating_pass_a?: {...}, rating_pass_b?: {...}, rater_id?: str, notes?: str }
+    Either or both passes may be supplied; each is validated and stored
+    verbatim. Existing passes are overwritten only when re-supplied.
+    """
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+
+        data = request.get_json(silent=True) or {}
+        updates = {}
+        if "rating_pass_a" in data:
+            if not _rating_pass_ok(data.get("rating_pass_a")):
+                return jsonify({"success": False, "error": "rating_pass_a must be a compact JSON object (scoring rubric pass)."}), 400
+            updates["rating_pass_a"] = data["rating_pass_a"]
+        if "rating_pass_b" in data:
+            if not _rating_pass_ok(data.get("rating_pass_b")):
+                return jsonify({"success": False, "error": "rating_pass_b must be a compact JSON object (scoring rubric pass)."}), 400
+            updates["rating_pass_b"] = data["rating_pass_b"]
+        if not updates:
+            return jsonify({"success": False, "error": "Supply rating_pass_a and/or rating_pass_b."}), 400
+
+        rater = str(data.get("rater_id") or (getattr(g, "user", {}) or {}).get("email") or "").strip()
+        if rater:
+            updates["rater_id"] = rater
+        notes = str(data.get("notes") or "").strip()
+        if notes:
+            updates["rating_notes"] = notes[:2000]
+        now = datetime.now(timezone.utc)
+        updates["rated_at"] = now.isoformat()
+        updates["rated_by"] = str((getattr(g, "user", {}) or {}).get("email") or "").strip()
+        updates["updated_at"] = now.isoformat()
+
+        query = {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]}
+        res = db.interview_sessions.update_one(query, {"$set": updates})
+        if res.matched_count == 0:
+            return jsonify({"success": False, "error": "Session not found."}), 404
+
+        try:
+            chain_append(db.audit_logs, {
+                "action": "transcript_rating.submit",
+                "user_id": str((getattr(g, "user", {}) or {}).get("id") or ""),
+                "user_email": str((getattr(g, "user", {}) or {}).get("email") or ""),
+                "entity_type": "interview_session",
+                "entity_id": str(session_id),
+                "detail": {"passes": [k for k in updates if k.startswith("rating")]},
+                "created_at": now,
+            })
+        except Exception:
+            pass
+
+        session = db.interview_sessions.find_one(query, {"_id": 0})
+        return jsonify({"success": True, "session_id": session_id, "stored": sorted(k for k in updates if k.startswith("rating")), "session": session}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/transcript-ratings/status", methods=["GET"])
+@require_super_admin
+def super_admin_transcript_rating_status():
+    """Progress toward the calibration target for ICC scoring."""
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        q = {"status": {"$in": ["completed", "evaluated"]}}
+        total = db.interview_sessions.count_documents(q)
+        pass_a = db.interview_sessions.count_documents({**q, "rating_pass_a": {"$exists": True}})
+        pass_b = db.interview_sessions.count_documents({**q, "rating_pass_b": {"$exists": True}})
+        both = db.interview_sessions.count_documents({**q, "rating_pass_a": {"$exists": True}, "rating_pass_b": {"$exists": True}})
+        target = 30
+        return jsonify({
+            "success": True,
+            "completed_sessions": total,
+            "rated_pass_a": pass_a,
+            "rated_pass_b": pass_b,
+            "dual_rated": both,
+            "target_dual_rated": target,
+            "remaining": max(0, target - both),
+            "ready_for_icc": both >= target,
+        }), 200
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
+
+
+@super_admin_bp.route("/api/super-admin/transcript-ratings/export.csv", methods=["GET"])
+@require_super_admin
+def super_admin_transcript_rating_export():
+    """CSV of completed sessions for double-rater calibration.
+
+    Columns: session id, scorecard fields, per-turn scores, rater passes,
+    metered cost (from platform_shadow_usage_events grouped by session_id).
+    """
+    try:
+        import csv
+        import io
+        import json
+        from flask import Response
+
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+
+        sessions = list(
+            db.interview_sessions.find(
+                {"status": {"$in": ["completed", "evaluated"]}},
+                {"_id": 0},
+            ).sort("created_at", -1).limit(5000)
+        )
+
+        # Metered cost per session (single aggregation, avoids N+1).
+        session_ids = [str(s.get("id") or s.get("session_id") or "") for s in sessions]
+        metered = {}
+        if session_ids:
+            for row in db.platform_shadow_usage_events.aggregate([
+                {"$match": {"session_id": {"$in": session_ids}}},
+                {"$group": {
+                    "_id": "$session_id",
+                    "usd": {"$sum": "$provider_cost_amount"},
+                    "inr": {"$sum": "$provider_cost_inr"},
+                    "tokens_in": {"$sum": "$measured_usage.input_tokens"},
+                    "tokens_out": {"$sum": "$measured_usage.output_tokens"},
+                    "attempts": {"$sum": 1},
+                }},
+            ]):
+                metered[str(row.get("_id") or "")] = row
+
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow([
+            "session_id", "created_at", "candidate_email", "job_title",
+            "status", "answered_turns", "recommendation", "overall_score",
+            "rating_pass_a", "rating_pass_b", "rater_id",
+            "metered_usd", "metered_inr", "tokens_in", "tokens_out", "llm_attempts",
+        ])
+
+        def _safe_cell(value):
+            # RFC 4180 doesn't protect against spreadsheet formula injection.
+            # A cell beginning with =, +, -, @, tab or CR would be evaluated by
+            # Excel/LibreOffice when the recruiter opens the file.
+            s = str(value)
+            if s[:1] in ("=", "+", "-", "@", "\t", "\r"):
+                return "'" + s
+            return s
+        for s in sessions:
+            sid = str(s.get("id") or s.get("session_id") or "")
+            m = metered.get(sid) or {}
+            w.writerow([
+                _safe_cell(sid),
+                _safe_cell(s.get("created_at") or ""),
+                _safe_cell(s.get("candidate_email") or s.get("candidateEmail") or ""),
+                _safe_cell(s.get("job_title") or s.get("role_title") or ""),
+                _safe_cell(s.get("status") or ""),
+                _safe_cell(s.get("answered_turns") or ""),
+                _safe_cell(s.get("recommendation") or (s.get("scorecard") or {}).get("recommendation") or ""),
+                _safe_cell(s.get("overall_score") or (s.get("scorecard") or {}).get("overall_score") or ""),
+                _safe_cell(json.dumps(s.get("rating_pass_a"), ensure_ascii=False) if s.get("rating_pass_a") else ""),
+                _safe_cell(json.dumps(s.get("rating_pass_b"), ensure_ascii=False) if s.get("rating_pass_b") else ""),
+                _safe_cell(s.get("rater_id") or ""),
+                round(float(m.get("usd") or 0.0), 6),
+                round(float(m.get("inr") or 0.0), 6),
+                int(m.get("tokens_in") or 0),
+                int(m.get("tokens_out") or 0),
+                int(m.get("attempts") or 0),
+            ])
+        try:
+            chain_append(db.audit_logs, {
+                "action": "transcript_rating.export_csv",
+                "user_id": str((getattr(g, "user", {}) or {}).get("id") or ""),
+                "user_email": str((getattr(g, "user", {}) or {}).get("email") or ""),
+                "entity_type": "interview_sessions",
+                "entity_id": "export",
+                "detail": {"rows": len(sessions), "metered": bool(metered)},
+                "created_at": datetime.now(timezone.utc),
+            })
+        except Exception:
+            pass
+
+        body = buf.getvalue().encode("utf-8-sig")
+        filename = f"progeni_transcript_ratings_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.csv"
+        return Response(
+            body,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
+
+
+
+# =====================================================================
+# CALIBRATION & EVIDENCE DOSSIER (Phase 5)
+# =====================================================================
+
+@super_admin_bp.route("/api/super-admin/calibration", methods=["GET"])
+@require_super_admin
+def super_admin_calibration():
+    """Inter-rater calibration report between the two human rating passes."""
+    try:
+        from core.calibration import compute_calibration
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        sessions = list(db.interview_sessions.find(
+            {"status": {"$in": ["completed", "evaluated"]},
+             "rating_pass_a": {"$exists": True},
+             "rating_pass_b": {"$exists": True}},
+            {"_id": 0, "id": 1, "session_id": 1,
+             "rating_pass_a": 1, "rating_pass_b": 1, "rating_notes": 1},
+        ).limit(5000))
+        report = compute_calibration(sessions)
+        return jsonify({"success": True, "report": report}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/dossiers/<session_id>/evidence", methods=["GET"])
+@require_super_admin
+def super_admin_dossier_evidence(session_id):
+    """Evidence-linked dossier: scorecard -> verbatim turn quotes + timestamps.
+
+    Deterministic, explainable mapping — zero LLM cost:
+      * systemArchitecture  <= highest depth turn
+      * problemSolving      <= highest correctness turn
+      * communication       <= highest relevance turn
+      * turns keep REAL /answer-recorded timestamps (never fabricated idx*180).
+    """
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        session = db.interview_sessions.find_one(
+            {"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]},
+            {"_id": 0},
+        )
+        if not session:
+            return jsonify({"success": False, "error": "Session not found"}), 404
+
+        turns = []
+        for h in (session.get("history") or []):
+            turns.append({
+                "turn_index": h.get("turn_index"),
+                "stage": h.get("stage"),
+                "question": h.get("question"),
+                "answer": h.get("answer"),
+                "timestamp": h.get("timestamp"),
+                "scores": h.get("scores"),
+                "action_decision": h.get("action_decision"),
+                "missing_concepts": h.get("missing_concepts"),
+            })
+
+        scorecard = session.get("scorecard") or {}
+
+        def _quote_for(dim, key, used_turns):
+            ranked = []
+            for t in turns:
+                s = t.get("scores") or {}
+                v = s.get(key)
+                try:
+                    fv = float(v)
+                except (TypeError, ValueError):
+                    continue
+                ranked.append((fv, t))
+            ranked.sort(key=lambda pair: pair[0], reverse=True)
+            pick = None
+            for _fv, t in ranked:
+                ti = t.get("turn_index")
+                if ti not in used_turns:
+                    pick = t
+                    used_turns.add(ti)
+                    break
+            if pick is None and ranked:
+                pick = ranked[0][1]
+            if pick is None:
+                pick = turns[0] if turns else {}
+            anchor = None
+            for _fv, t in ranked:
+                if t is pick:
+                    anchor = _fv
+                    break
+            quote = (pick or {}).get("answer") or ""
+            return {
+                "competency": dim,
+                "quote": quote[:400],
+                "quote_turn_index": (pick or {}).get("turn_index"),
+                "quote_timestamp": (pick or {}).get("timestamp"),
+                "anchor": anchor,
+            }
+
+        _used = set()
+        evidence = [
+            _quote_for("systemArchitecture", "depth", _used),
+            _quote_for("problemSolving", "correctness", _used),
+            _quote_for("communication", "relevance", _used),
+        ]
+        return jsonify({
+            "success": True,
+            "session_id": session_id,
+            "recommendation": session.get("recommendation") or scorecard.get("recommendation"),
+            "overall_score": session.get("overall_score") or scorecard.get("overall_score"),
+            "model_used": scorecard.get("model_used") or "unknown",
+            "evidence": evidence,
+            "turns": turns,
+            "scorecard": scorecard,
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+# =====================================================================
+# PHASE 6 — COMPLIANCE INDUSTRIALIZATION
+# Retention enforcement · data-deletion requests · audit-chain verifier
+# LL144 / bias-audit extract · AEDT 10-business-day notice preview
+# =====================================================================
+
+
+@super_admin_bp.route("/api/super-admin/data-governance/retention/run", methods=["POST"])
+@require_super_admin
+def super_admin_retention_run():
+    """Run retention policies. dry_run defaults to True — pass {"dry_run": false} to enforce."""
+    try:
+        data = request.get_json(silent=True) or {}
+        dry_run = bool(data.get("dry_run", True))
+        from core.retention import run_retention
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        report = run_retention(db, dry_run=dry_run, actor_email=str((getattr(g, "user", {}) or {}).get("email") or "system"))
+        try:
+            chain_append(db.audit_logs, {
+                "action": "retention.run",
+                "user_id": str((getattr(g, "user", {}) or {}).get("id") or ""),
+                "user_email": str((getattr(g, "user", {}) or {}).get("email") or ""),
+                "entity_type": "data_governance",
+                "entity_id": "retention",
+                "detail": {"dry_run": dry_run, "actions": report.get("actions")},
+                "created_at": datetime.now(timezone.utc),
+            })
+        except Exception:
+            pass
+        return jsonify({"success": True, "report": report}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/audit-logs/verify-chain", methods=["GET"])
+@require_super_admin
+def super_admin_audit_chain_verify():
+    """Run the hash-chain verifier over all chained audit events."""
+    try:
+        from core.audit_chain import verify_chain
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        docs = list(db.audit_logs.find(
+            {"auditHash": {"$exists": True}},
+            {"_id": 0, "seq": 1, "auditHash": 1, "prev_hash": 1, "action": 1,
+             "user_id": 1, "user_email": 1, "entity_type": 1, "entity_id": 1,
+             "detail": 1, "created_at": 1},
+        ).limit(20000))
+        report = verify_chain(docs)
+        chained_count = db.audit_logs.count_documents({"auditHash": {"$exists": True}})
+        legacy_count = db.audit_logs.count_documents({"auditHash": {"$exists": False}})
+        return jsonify({
+            "success": True,
+            "total_audit_logs": db.audit_logs.count_documents({}),
+            "chained_events": chained_count,
+            "legacy_unchained": legacy_count,
+            "verification": report,
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/ll144/notice-preview", methods=["GET"])
+@require_super_admin
+def super_admin_ll144_notice_preview():
+    """NYC Local Law 144 10-business-day AEDT notice — ready to send to ATS."""
+    try:
+        job_title = str(request.args.get("job_title", "Software Engineer")).strip()[:120]
+        company = str(request.args.get("company", "Your company")).strip()[:120]
+        date = datetime.now(timezone.utc).strftime("%B %d, %Y")
+        notice = (
+            f"AUTOMATED EMPLOYMENT DECISION TOOL NOTICE — PROGENI ATLAS AEDT\n\n"
+            f"To: Candidates for {job_title} (apply by {date})\n"
+            f"From: {company} — Talent Acquisition\n\n"
+            f"1. We use an automated employment decision tool (AEDT) to assist with screening for the above role. "
+            f"The tool evaluates structured interview responses against the published role rubric; it does NOT make hiring decisions.\n"
+            f"2. Qualifications measured: technical depth, system architecture reasoning, communication clarity, and structured problem solving "
+            f"(see rubric at atlas.progeni.live).\n"
+            f"3. Selection-rate and bias-impact audit (independent auditor summary) is published at atlas.progeni.live/ai-transparency.\n"
+            f"4. Alternative method available on request: write to support@progeni.live with 'ALTERNATIVE ASSESSMENT REQUEST' — "
+            f"you may request an alternative selection process, and will not be disadvantaged for using it.\n"
+            f"5. Accommodations: write to support@progeni.live with 'ACCOMMODATION REQUEST' with a brief description of your need; "
+            f"we respond within 3 business days.\n"
+            f"6. Recording notice: the interview is audio/video recorded and reviewed by a human before any decision. "
+            f"Withdraw consent at any time (prospective) by clearing cookies / contacting support.\n\n"
+            f"This notice complies with NYC Local Law 144 (10-business-day advance notice), Illinois AI Video Interview Act, and EU AI Act Article 50."
+        )
+        return jsonify({"success": True, "job_title": job_title, "company": company, "notice": notice}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/bias-audit-extract", methods=["GET"])
+@require_super_admin
+def super_admin_bias_audit_extract():
+    """Honest LL144 parity summary. The AI cannot infer demographics — it can
+    only compute over explicitly cohort-tagged data. Returns a structured
+    report either way so auditors see the denominator."""
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        cohort_tagged = db.users.count_documents({"cohort_tag": {"$exists": True, "$ne": ""}})
+        completed = db.interview_sessions.count_documents({"status": {"$in": ["completed", "evaluated"]}})
+        return jsonify({
+            "success": True,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "total_completed_interviews": completed,
+            "cohort_tagged_candidates": cohort_tagged,
+            "verdict": (
+                "NO_COHORT_DATA — cannot compute adverse-impact ratios; collect explicitly "
+                "self-reported cohort tags (gender/race) at registration before any NYC AEDT claim, "
+                "or procure an independent third-party AEDT audit using employer-provided ATS demographic data."
+                if cohort_tagged == 0 else
+                "PARTIAL_COHORT_DATA — cohort coverage present; full parity ratios require >= 30 per group."
+            ),
+            "bias_audit_required_for_nyc": cohort_tagged > 0,
+            "notice": "Selection-rate parity by gender/race/ethnicity must be computed by an INDEPENDENT third-party auditor annually under NYC LL144. This endpoint provides the data extract, not the legal audit itself.",
+            "recommended_next_step": (
+                "Add self-reported cohort tags to registration (opt-in, lawful basis), then re-run this extract; "
+                "for clients already using the platform, use our data extract for your employer-procured AEDT audit."
+            ),
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/data-deletion-requests", methods=["GET"])
+@require_super_admin
+def super_admin_data_deletion_list():
+    """List candidate data-deletion requests (GDPR / DPDP / AIVIIA)."""
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        reqs = list(db.candidate_data_deletion_requests.find(
+            {},
+            {"_id": 0},
+        ).sort("created_at", -1).limit(200))
+        return jsonify({"success": True, "requests": reqs, "count": len(reqs)}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/data-deletion-requests/<request_id>/fulfill", methods=["POST"])
+@require_super_admin
+def super_admin_data_deletion_fulfill(request_id):
+    """Fulfill a deletion request: redact PII, delete proctoring events & resume vectors for the user."""
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        doc = db.candidate_data_deletion_requests.find_one({"id": request_id})
+        if not doc:
+            return jsonify({"success": False, "error": "Request not found"}), 404
+        user_id = doc.get("user_id")
+        email = doc.get("email") or ""
+
+        deleted = {"proctoring_events": 0, "resume_vectors": 0, "sessions_redacted": 0}
+        if user_id:
+            deleted["proctoring_events"] = db.proctoring_events.delete_many({"candidate_id": user_id}).deleted_count
+            deleted["resume_vectors"] = db.resume_vectors.delete_many({"candidate_id": user_id}).deleted_count
+            if email:
+                res = db.interview_sessions.update_many(
+                    {"$or": [{"candidate_email": email}, {"candidate_id": user_id}]},
+                    {"$set": {"candidate_email": "[deleted-on-request]", "candidate_name": "[deleted-on-request]",
+                              "full_name": "[deleted-on-request]", "phone": "[deleted-on-request]",
+                              "history": []}},
+                )
+                deleted["sessions_redacted"] = res.modified_count
+
+        db.candidate_data_deletion_requests.update_one(
+            {"id": request_id},
+            {"$set": {"status": "fulfilled", "fulfilled_at": datetime.now(timezone.utc).isoformat(),
+                      "fulfilled_by": str((getattr(g, "user", {}) or {}).get("email") or ""),
+                      "deletion_report": deleted}},
+        )
+        try:
+            chain_append(db.audit_logs, {
+                "action": "data_deletion.fulfill",
+                "user_id": str((getattr(g, "user", {}) or {}).get("id") or ""),
+                "user_email": str((getattr(g, "user", {}) or {}).get("email") or ""),
+                "entity_type": "data_deletion_request",
+                "entity_id": str(request_id),
+                "detail": {"fulfilled": True, "deleted": deleted},
+                "created_at": datetime.now(timezone.utc),
+            })
+        except Exception:
+            pass
+        return jsonify({"success": True, "report": deleted}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/data-deletion-requests/status", methods=["GET"])
+@require_super_admin
+def super_admin_data_deletion_status():
+    """Count pending/fulfilled deletion requests for the compliance dashboard."""
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        pending = db.candidate_data_deletion_requests.count_documents({"status": "pending"})
+        fulfilled = db.candidate_data_deletion_requests.count_documents({"status": "fulfilled"})
+        return jsonify({"success": True, "pending": pending, "fulfilled": fulfilled}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/nps", methods=["GET"])
+@require_super_admin
+def super_admin_nps():
+    """NPS summary from the candidate feedback endpoint (0-10 single question)."""
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+        docs = list(
+            db.candidate_nps.find({}, {"_id": 0, "score": 1, "comment": 1, "created_at": 1, "email": 1})
+            .sort("created_at", -1)
+            .limit(2000)
+        )
+        scores = [int(d.get("score")) for d in docs if isinstance(d.get("score"), (int, float))]
+        total = len(scores)
+        if total == 0:
+            return jsonify({"success": True, "total": 0, "nps": None, "average": None,
+                            "promoters": 0, "passives": 0, "detractors": 0, "comments": []}), 200
+        promoters = sum(1 for s in scores if s >= 9)
+        passives = sum(1 for s in scores if s in (7, 8))
+        detractors = sum(1 for s in scores if s <= 6)
+        nps = round(((promoters - detractors) / total) * 100, 1)
+        average = round(sum(scores) / total, 2)
+        comments = [
+            {"score": int(d.get("score")), "comment": d.get("comment"), "created_at": str(d.get("created_at") or "")}
+            for d in docs
+            if d.get("comment")
+        ][:20]
+        return jsonify({
+            "success": True,
+            "total": total,
+            "nps": nps,
+            "average": average,
+            "promoters": promoters,
+            "passives": passives,
+            "detractors": detractors,
+            "detractors_share_pct": round((detractors / total) * 100, 1),
+            "comments": comments,
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+@super_admin_bp.route("/api/super-admin/problems/synthesize", methods=["GET", "POST"])
+@require_super_admin
+def super_admin_problems_synthesize():
+    """Preview a procedurally generated, non-searchable coding problem."""
+    try:
+        from core.procedural_problems import synthesize, self_check
+        role = str(request.args.get("role") or (request.json or {}).get("role") or "Backend").strip()
+        seed_raw = request.args.get("seed") or (request.json or {}).get("seed")
+        try:
+            seed = int(seed_raw) if seed_raw is not None else None
+        except (TypeError, ValueError):
+            seed = None
+        problem = synthesize(role, seed)
+        return jsonify({"success": True, "problem": problem}), 200
+    except RuntimeError as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500

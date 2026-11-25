@@ -497,7 +497,7 @@ def extract_skills(text: str, skills_text: str = "") -> list[str]:
             found_skills.add(canonical)
 
     # Also check direct taxonomy canonical names
-    for cat, skill_list in SKILL_TAXONOMY.items():
+    for _, skill_list in SKILL_TAXONOMY.items():
         for skill in skill_list:
             if skill in found_skills:
                 continue
@@ -508,11 +508,6 @@ def extract_skills(text: str, skills_text: str = "") -> list[str]:
                 found_skills.add(skill)
 
     return sorted(list(found_skills))
-
-
-def derive_skills(text: str) -> list[str]:
-    """Lightweight skill extraction interface preserved for backward compatibility."""
-    return extract_skills(text)
 
 
 # ---------------------------------------------------------------- 7. Education Extraction
@@ -754,13 +749,3 @@ def parse_resume_text(text: str) -> dict[str, Any]:
         "certifications": certifications,
         "languages": [l for l in sections.get("languages_text", "").splitlines() if l.strip()],
     }
-
-
-def parse_resume(data: bytes, mime_type: str | None = None) -> dict[str, Any]:
-    """Full end-to-end resume parser: file extraction -> normalization -> sectioning -> structured JSON."""
-    text = extract_text(data, mime_type)
-    return parse_resume_text(text)
-
-
-def max_upload_bytes() -> int:
-    return settings.MAX_UPLOAD_BYTES

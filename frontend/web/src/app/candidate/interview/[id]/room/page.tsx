@@ -23,7 +23,7 @@ if (typeof window !== 'undefined' && !(window as unknown as Record<string, unkno
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ConnectionState } from 'livekit-client';
-import { useMediaSource } from '@/lib/media/MediaSourceProvider';
+import { MediaSourceProvider, useMediaSource } from '@/lib/media/MediaSourceProvider';
 import type { ProctoringHealthState } from '@/lib/proctoring/proctoringHealth';
 import { useInterviewProctoring } from '@/lib/hooks/useInterviewProctoring';
 import { useInterviewerSpeech, safeHash, logAudioEvent } from '@/lib/hooks/useInterviewerSpeech';
@@ -60,6 +60,7 @@ import {
   runInterviewPreflight,
   reportInterviewMediaState,
   retryInterviewStage,
+  transcribeInterviewAudio,
   InterviewContract,
   apiFetch,
   isValidSessionId,
@@ -84,21 +85,11 @@ const DEFAULT_FALLBACK_STAGES = [
   'Wrap-Up',
 ];
 
-export type AnswerFlowState =
-  | 'AI_SPEAKING'
-  | 'LISTENING_FOR_ANSWER'
-  | 'ANSWER_ACTIVE'
-  | 'SILENCE_PENDING'
-  | 'SUBMITTING'
-  | 'EVALUATING'
-  | 'AI_RESPONDING'
-  | 'NEXT_QUESTION';
+import { POST_PREFLIGHT_STATES, type AnswerFlowState } from './room-types';
+export type { AnswerFlowState };
 
-export default function LiveInterviewRoomPage() {
-  const params = useParams();
+function LiveInterviewRoom({ sessionId }: { sessionId: string }) {
   const router = useRouter();
-  const rawId = (params?.id as string) || '';
-  const sessionId = isValidSessionId(rawId) ? rawId : '';
 
   // Keep browser Back inside the candidate workflow. A room can be opened from
   // a deep link (with the public landing page behind it in history), so going
@@ -147,6 +138,7 @@ export default function LiveInterviewRoomPage() {
   const answerFlowStateRef = useRef<AnswerFlowState>('AI_SPEAKING');
   const isAnswerCaptureClosedRef = useRef<boolean>(true);
   const questionGenerationTokenRef = useRef<number>(1);
+  const thinkingBridgeTimerRef = useRef<number | null>(null);
   const hasStartedSpeakingRef = useRef<boolean>(false);
 
   const setFlowState = useCallback((nextState: AnswerFlowState) => {
@@ -196,6 +188,72 @@ export default function LiveInterviewRoomPage() {
   const activeQuestionRef = useRef<string | null>(null);
   const question_id_ref = useRef<string | null>(null);
   const submitQuestionTimeoutRef = useRef<((expiredQuestionId: string, partialAnswer: string) => Promise<boolean>) | null>(null);
+
+  // -------------------------------------------------------------------
+  // Server-grade answer transcription. While the candidate speaks we record
+  // their mic locally; at submit we race a bounded server transcription and
+  // prefer it over browser ASR hypotheses — the answer of record should be
+  // the server's transcript, not Chrome's guess (unless the candidate typed).
+  // -------------------------------------------------------------------
+  const answerAudioRecorderRef = useRef<MediaRecorder | null>(null);
+  const answerAudioChunksRef = useRef<Blob[]>([]);
+  const answerAudioMimeRef = useRef<string>('audio/webm');
+
+  const startAnswerAudioCapture = useCallback(() => {
+    try {
+      if (typeof window === 'undefined' || typeof MediaRecorder === 'undefined') return;
+      if (!stream) return;
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length === 0) return;
+      const existing = answerAudioRecorderRef.current;
+      if (existing && existing.state !== 'inactive') return;
+      const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((t) =>
+        typeof MediaRecorder.isTypeSupported === 'function' ? MediaRecorder.isTypeSupported(t) : false
+      ) || 'audio/webm';
+      const chunks: Blob[] = [];
+      const recorder = new MediaRecorder(new MediaStream(audioTracks), { mimeType: mime });
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data && event.data.size > 0) chunks.push(event.data);
+      };
+      answerAudioChunksRef.current = chunks;
+      answerAudioMimeRef.current = mime;
+      answerAudioRecorderRef.current = recorder;
+      recorder.start(250);
+    } catch {
+      /* capture is best-effort — the browser path still works */
+    }
+  }, [stream]);
+
+  useEffect(() => {
+    if (answerFlowState === 'ANSWER_ACTIVE') startAnswerAudioCapture();
+  }, [answerFlowState, startAnswerAudioCapture]);
+
+  const stopAndTranscribeAnswer = useCallback(async (): Promise<string | null> => {
+    const recorder = answerAudioRecorderRef.current;
+    if (!recorder) return null;
+    answerAudioRecorderRef.current = null;
+    const mime = answerAudioMimeRef.current;
+    const blob = await new Promise<Blob | null>((resolve) => {
+      const finish = () => {
+        const chunks = answerAudioChunksRef.current;
+        answerAudioChunksRef.current = [];
+        resolve(chunks.length > 0 ? new Blob(chunks, { type: mime }) : null);
+      };
+      if (recorder.state === 'inactive') { finish(); return; }
+      recorder.onstop = finish;
+      try { recorder.stop(); } catch { resolve(null); }
+    });
+    if (!blob || blob.size < 1500 || !sessionId) return null;
+    try {
+      const text = await Promise.race<string | null>([
+        transcribeInterviewAudio(sessionId, blob).catch(() => null),
+        new Promise<null>((resolve) => { window.setTimeout(() => resolve(null), 3000); }),
+      ]);
+      return text && text.trim() ? text.trim() : null;
+    } catch {
+      return null;
+    }
+  }, [sessionId]);
   useEffect(() => {
     activeQuestionRef.current = questionId;
     question_id_ref.current = questionId;
@@ -323,6 +381,7 @@ export default function LiveInterviewRoomPage() {
     playbackState,
     speakQuestion,
     playInstantBackchannel,
+    playThinkingBridge,
     stopCurrentPlayback,
     handleReplayAudio,
     activeDialogueIdRef,
@@ -330,7 +389,6 @@ export default function LiveInterviewRoomPage() {
     failedDialogueKeysRef,
     setPlaybackState,
     audioRef,
-    getAudioAnalyser,
   } = useInterviewerSpeech({
     sessionId,
     stream,
@@ -386,13 +444,13 @@ export default function LiveInterviewRoomPage() {
 
     const isPractice = sessionMode === 'practice';
     const thankYouSpoken = isPractice
-      ? 'Thank you so much for your effort! The practice drill is now complete. We are generating your scorecard and evaluation report now.'
-      : 'Thank you for your time and responses! Your interview has concluded. We are finalizing your evaluation and submitting your results.';
+      ? 'Thank you for the conversation — practice makes sharper answers. The drill is complete; your feedback summary is on its way.'
+      : 'Thank you for your time — that was a genuine conversation. The hiring team will review everything personally and reach out within a few business days.';
 
     setConcludingMessage(
       isPractice
-        ? 'Thank you for completing your practice drill! Generating your scorecard and report...'
-        : 'Thank you for completing your interview! Finalizing your responses and submitting results...'
+        ? 'Thank you for the drill! Your personalized feedback is on its way to your inbox.'
+        : 'Thank you — the hiring team will review this conversation personally and reach out within a few business days.'
     );
 
     setAiState('speaking');
@@ -465,13 +523,6 @@ export default function LiveInterviewRoomPage() {
     const effectiveMode = forcedMode || sessionMode || 'real';
     const isRealMode = effectiveMode === 'real';
 
-    const POST_PREFLIGHT_STATES = [
-      'MEDIA_READY', 'INTERVIEW_STARTED', 'AI_GREETING', 'QUESTION_GENERATING',
-      'QUESTION_READY', 'INTERVIEWER_SPEAKING', 'LISTENING', 'CANDIDATE_RESPONDING',
-      'TRANSCRIBING', 'ANSWER_READY', 'EVALUATING', 'INTERVIEWER_RESPONDING',
-      'FOLLOW_UP_OR_NEXT_QUESTION', 'INTERVIEW_COMPLETING', 'FINAL_SCORING', 'COMPLETED'
-    ];
-
     try {
       // Step 1: Check server state first. If state is already MEDIA_READY or later, skip preflight.
       let currentState: string | undefined = undefined;
@@ -493,9 +544,7 @@ export default function LiveInterviewRoomPage() {
             livekit_connected: isRealMode ? liveKitConnected : true,
             livekit_publishing: Boolean(stream && stream.getTracks().some((t) => t.readyState === 'live')),
             fullscreen: Boolean(document.fullscreenElement),
-            face_detected: proctoringFaceCountRef.current > 0,
-            face_count: proctoringFaceCountRef.current,
-            proctoring_model_loaded: proctoringReady && !proctoringUnavailable,
+            disclosure_accepted: true,
           });
         } catch (preflightErr: any) {
           const errMsg = preflightErr instanceof Error ? preflightErr.message : String(preflightErr);
@@ -576,14 +625,17 @@ export default function LiveInterviewRoomPage() {
     } catch {
       // Audio unlock exception swallowed gracefully
     }
+    const fullscreenSupported =
+      typeof document !== 'undefined' &&
+      typeof (document.documentElement as HTMLElement & { requestFullscreen?: unknown })?.requestFullscreen === 'function';
     try {
-      if (!document.fullscreenElement) {
+      if (fullscreenSupported && !document.fullscreenElement) {
         await document.documentElement.requestFullscreen();
       }
     } catch {
       // Fall through: the explicit check below reports the refusal.
     }
-    if (!document.fullscreenElement) {
+    if (fullscreenSupported && !document.fullscreenElement) {
       setApiError('Fullscreen is required for a real interview. Allow fullscreen when your browser asks, then press Begin again.');
       return;
     }
@@ -640,7 +692,10 @@ export default function LiveInterviewRoomPage() {
             if (!stream || (mode === 'real' && proctoringUnavailable)) return;
             if (mode === 'real') {
               if (!liveKitConnected) return;
-              if (!document.fullscreenElement) {
+              const fullscreenSupportedHere =
+                typeof document !== 'undefined' &&
+                typeof (document.documentElement as HTMLElement & { requestFullscreen?: unknown })?.requestFullscreen === 'function';
+              if (fullscreenSupportedHere && !document.fullscreenElement) {
                 setNeedsRealStartGate(true);
                 return;
               }
@@ -731,13 +786,25 @@ export default function LiveInterviewRoomPage() {
     setFlowState('SUBMITTING');
     setAiState('evaluating');
 
+    // Server transcript of the actual audio (bounded wait). Typed answers and
+    // manual edits stay authoritative; voice answers prefer Groq/Whisper.
+    const serverTranscript = await stopAndTranscribeAnswer();
+
     // 3. Acquire canonical transcript safely (avoid stale React state snapshots)
-    const rawText = resolveAnswerSubmissionText({
-      speechTranscript: transcriptAtSubmit,
-      candidateAnswer: candidateAnswerRef.current,
-      answerOverride,
-      isUserEditing: isUserEditingRef.current,
-    });
+    const typedOrEdited = Boolean(answerOverride && answerOverride.trim()) || isUserEditingRef.current;
+    const rawText = typedOrEdited
+      ? resolveAnswerSubmissionText({
+          speechTranscript: transcriptAtSubmit,
+          candidateAnswer: candidateAnswerRef.current,
+          answerOverride,
+          isUserEditing: isUserEditingRef.current,
+        })
+      : (serverTranscript ?? resolveAnswerSubmissionText({
+          speechTranscript: transcriptAtSubmit,
+          candidateAnswer: candidateAnswerRef.current,
+          answerOverride,
+          isUserEditing: false,
+        }));
     const textToSend = rawText.trim();
 
     if (!textToSend || !sessionId) {
@@ -778,6 +845,12 @@ export default function LiveInterviewRoomPage() {
 
     // Sub-30ms Conversational Backchannel: Instant acoustic affirmation while LLM processes
     playInstantBackchannel();
+    // If the model takes its time, fill the dead air with the "let me think"
+    // bridge instead of leaving the candidate staring at a spinner.
+    const thinkTimer = window.setTimeout(() => {
+      if (answerFlowStateRef.current === 'EVALUATING') playThinkingBridge();
+    }, 700);
+    thinkingBridgeTimerRef.current = thinkTimer;
 
     const currentQuestionToken = questionGenerationTokenRef.current;
 
@@ -793,6 +866,11 @@ export default function LiveInterviewRoomPage() {
         latestCodeRef.current.language || undefined,
       );
 
+      if (thinkingBridgeTimerRef.current) {
+        window.clearTimeout(thinkingBridgeTimerRef.current);
+        thinkingBridgeTimerRef.current = null;
+      }
+
       // Guard against races where the turn might have progressed
       if (questionGenerationTokenRef.current !== currentQuestionToken) {
         console.warn('[Submit] Ignoring response for stale question token');
@@ -801,8 +879,9 @@ export default function LiveInterviewRoomPage() {
 
       setFlowState('AI_RESPONDING');
 
-      if (res.finished || (remainingSeconds !== null && remainingSeconds <= 0)) {
-        void triggerSessionConclusion(res.finished ? undefined : 'time_expired');
+      // Only the server decides the interview is over — never the local clock.
+      if (res.finished) {
+        void triggerSessionConclusion(undefined);
         return;
       }
 
@@ -863,6 +942,10 @@ export default function LiveInterviewRoomPage() {
         isAnswerCaptureClosedRef.current = false;
       }
     } catch (err: unknown) {
+      if (thinkingBridgeTimerRef.current) {
+        window.clearTimeout(thinkingBridgeTimerRef.current);
+        thinkingBridgeTimerRef.current = null;
+      }
       if ((err as { errorCode?: string })?.errorCode === 'question_expired') {
         void submitQuestionTimeoutRef.current?.(submittedQuestionId, textToSend);
         return;
@@ -1104,8 +1187,9 @@ export default function LiveInterviewRoomPage() {
     submitQuestionTimeoutRef.current = submitQuestionTimeout;
   }, [submitQuestionTimeout]);
 
-  // When interview timer expires (remainingSeconds reaches 0):
-  // Conclude session immediately and redirect without leaving room stuck at 00:00!
+  // The client countdown is informational. When it hits zero the client MUST NOT
+  // conclude on its own — the server is authoritative. Re-fetch /state, resync to
+  // server truth, and only conclude if the server agrees the session is over.
   useEffect(() => {
     const state = String(serverState?.state || '').toUpperCase();
     const terminal = ['COMPLETED', 'EXPIRED', 'CANCELLED', 'FAILED'].includes(state);
@@ -1116,15 +1200,37 @@ export default function LiveInterviewRoomPage() {
     ) return;
 
     overallReconcileInFlightRef.current = true;
-    setCanAnswer(false);
-    isAnswerCaptureClosedRef.current = true;
-    cancelSilenceTimerRef.current();
-    stopSpeechRecognition();
-    stopVadRef.current();
-    stopCurrentPlayback('time_expired');
-    setDeadlineStatus('interview-expired');
-    void triggerSessionConclusion('time_expired');
-  }, [sessionId, serverState?.state, remainingSeconds, isConcluding, stopCurrentPlayback, stopSpeechRecognition, triggerSessionConclusion]);
+    void (async () => {
+      try {
+        const fresh = await getInterviewState(sessionId);
+        applyContract(fresh as unknown as InterviewContract);
+        const s = String(fresh?.state || '').toUpperCase();
+        const serverDone =
+          s === 'COMPLETED' || s === 'EXPIRED' || fresh?.status === 'completed' || fresh?.status === 'expired'
+          || fresh?.finished === true
+          || Number(fresh?.remaining_time_seconds ?? 1) === 0;
+        if (serverDone) {
+          setCanAnswer(false);
+          isAnswerCaptureClosedRef.current = true;
+          cancelSilenceTimerRef.current();
+          stopSpeechRecognition();
+          stopVadRef.current();
+          stopCurrentPlayback('time_expired');
+          setDeadlineStatus('interview-expired');
+          void triggerSessionConclusion(fresh?.finished ? undefined : 'time_expired');
+        }
+        // else: server still owes the candidate time — applyContract resynced the
+        // ticker to the authoritative value and the interview continues untouched.
+      } catch {
+        // Network failure at the zero boundary: never kill a live session locally.
+        // Clear the local zero so the effect does not spin; the candidate keeps
+        // answering and the server enforces the true deadline on the next action.
+        setRemainingSeconds(null);
+      } finally {
+        overallReconcileInFlightRef.current = false;
+      }
+    })();
+  }, [sessionId, serverState?.state, remainingSeconds, isConcluding, applyContract, stopCurrentPlayback, stopSpeechRecognition, triggerSessionConclusion]);
 
   // When per-question timer expires (questionRemainingSeconds reaches 0):
   // Auto-advance to the next question automatically, capturing partial answer if available.
@@ -1334,8 +1440,6 @@ export default function LiveInterviewRoomPage() {
         stages={stages}
         remainingSeconds={remainingSeconds}
         proctoringStatus={proctoringStatus}
-        proctoringHealthState={proctoringHealthState}
-        faceCount={proctoringFaceCountRef.current}
         mediaSource={source}
         onEndSessionClick={() => {
           if (!isConcluding) setShowExitModal(true);
@@ -1351,8 +1455,8 @@ export default function LiveInterviewRoomPage() {
         {deadlineStatus === 'loading' && 'Loading authoritative interview state…'}
         {deadlineStatus === 'active' && (
           questionRemainingSeconds === null
-            ? 'Interview active · deadlines continue while you are away.'
-            : `Question time remaining: ${String(Math.floor(questionRemainingSeconds / 60)).padStart(2, '0')}:${String(questionRemainingSeconds % 60).padStart(2, '0')} · deadlines continue while you are away.`
+            ? 'Interview active · your time keeps running, so stay with us.'
+            : `Question time remaining: ${String(Math.floor(questionRemainingSeconds / 60)).padStart(2, '0')}:${String(questionRemainingSeconds % 60).padStart(2, '0')} · your time keeps running, so stay with us.`
         )}
         {deadlineStatus === 'question-expired' && 'Question time expired.'}
         {deadlineStatus === 'advancing' && 'Question time expired · saving the available response and advancing…'}
@@ -1397,9 +1501,7 @@ export default function LiveInterviewRoomPage() {
             <AIAvatarViewport
               aiState={aiState}
               name="Sarah Chen"
-              role="Staff Technical Lead (Interviewer)"
-              audioElement={audioRef.current}
-              analyserNode={getAudioAnalyser()}
+              role="AI Interviewer · Staff Technical Lead"
               compact
             />
           </div>
@@ -1473,6 +1575,9 @@ export default function LiveInterviewRoomPage() {
                   });
                   isUserEditingRef.current = true;
                   setActiveTab('context');
+                }}
+                onPasteDetected={() => {
+                  void recordProctoringEvent('paste_event', 'Large code paste in the interview editor');
                 }}
               />
             )}
@@ -1580,5 +1685,23 @@ export default function LiveInterviewRoomPage() {
         concludingMessage={concludingMessage}
       />
     </div>
+  );
+}
+
+/** Page-level provider: the media stack is scoped to the live room only. */
+export default function LiveInterviewRoomPage() {
+  const params = useParams();
+  const router = useRouter();
+  const rawId = (params?.id as string) || '';
+  const sessionId = isValidSessionId(rawId) ? rawId : '';
+
+  if (!sessionId) {
+    return <InvalidSessionScreen onReturnDashboard={() => router.push('/candidate/dashboard')} />;
+  }
+
+  return (
+    <MediaSourceProvider sessionId={sessionId}>
+      <LiveInterviewRoom sessionId={sessionId} />
+    </MediaSourceProvider>
   );
 }

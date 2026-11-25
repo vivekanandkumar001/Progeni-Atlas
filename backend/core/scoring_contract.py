@@ -7,6 +7,7 @@ decision rules shared between Practice Sessions and Recruiter Evaluation Scoreca
 
 from __future__ import annotations
 import enum
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -49,18 +50,183 @@ DEFAULT_WEIGHTS: dict[str, float] = {
     c["name"]: c["weight"] for c in STANDARD_COMPETENCIES
 }
 
+# ---------------------------------------------------------------------------
+# Behavioral anchors (0-4) — rubric used by the LLM judge and recruiter overrides.
+# 0 = absent/negative, 4 = exceptional. Scores must align to these, never vibes.
+# ---------------------------------------------------------------------------
+
+ANCHOR_SCALES: dict[str, dict[int, str]] = {
+    "technicalDepth": {
+        0: "Cannot state a working approach at all; fundamental gaps on the asked technology.",
+        1: "Names concepts without depth; cannot explain trade-offs or rationale beyond memorized speech.",
+        2: "Solid working knowledge; can implement with guidance; explains the 'what', struggles with the 'why'.",
+        3: "Deep, precise expertise; frames decisions by trade-off; handles novel follow-ups with minimal scaffolding.",
+        4: "Principal-level judgment; anticipates failure modes unprompted; teaches the interviewer something new.",
+    },
+    "systemArchitecture": {
+        0: "Design contradicts core distributed-systems properties (consistency, availability, partition tolerance).",
+        1: "Boxes-and-arrows diagram; no capacity model, no failure handling, no scaling story.",
+        2: "Functional design; handles the happy path; partial failure modeling.",
+        3: "Production-grade design: capacity estimation, failure domains, observability, cost awareness, evolution path.",
+        4: "Architecture-of-the-quarter level: anticipates org boundaries, migration risk, and long-term operability.",
+    },
+    "communication": {
+        0: "Incoherent; cannot articulate a requirement in their own words.",
+        1: "Answers in jargon; cannot calibrate to the listener; unclear on what they actually chose.",
+        2: "Clear, structured explanation listenable on a video call; some hedging, decent clarity.",
+        3: "Crisp, structured, listener-aware; states assumptions, decisions, and evidence explicitly.",
+        4: "Communicates like the person you'd want in an incident bridge; precise, calm, persuasive with evidence.",
+    },
+    "problemSolving": {
+        0: "No strategy; jumps straight to code/solution without requirements.",
+        1: "Follows the template; struggles to adapt when the constraint changes mid-flight.",
+        2: "Sensible decomposition; enumerates steps; testable end-to-end with hints.",
+        3: "Systematically decomposes ambiguity; proposes falsifiable checks; recovers from dead-ends fast.",
+        4: "Beats the interviewer; reframes the problem when the frame itself is wrong; finds the load-bearing invariant.",
+    },
+}
+
+ANCHOR_RUBRIC_BLOCK = (
+    "Behavioral anchors on a 0-100 scale — score against these, never against vibes. "
+    "20 = foundational, 40 = partial, 60 = competent, 80 = strong, 100 = exceptional:\n"
+    + "\n".join(
+        f"- {dim}: " + " | ".join(
+            f"{int(k * 25)} = '{v}'" for k, v in sorted(scale.items())
+        )
+        for dim, scale in ANCHOR_SCALES.items()
+    )
+)
+
+
+def second_pass_dimensions(competency_scores: list[dict[str, Any]]) -> list[str]:
+    """Pick the two weakest competency dimensions for adversarial re-check."""
+    scored = []
+    for item in competency_scores or []:
+        try:
+            name = str(item.get("competency") or "").strip()
+            score = float(item.get("score"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if name:
+            scored.append((name, score))
+    scored.sort(key=lambda pair: pair[1])
+    return [name for name, _ in scored[:2]]
+
+
+# ---------------------------------------------------------------------------
+# Recommendation contract — ONE threshold source for every surface.
+# 0-100 score: >=85 STRONG_HIRE, >=70 HIRE, >=55 LEAN_HIRE, else REJECT.
+# AI-generated recommendation text is NEVER trusted: it is re-derived from the
+# score. Only an explicit human decision (documented field names below) wins.
+# ---------------------------------------------------------------------------
+
+RECOMMENDATION_THRESHOLDS: tuple[tuple[float, str], ...] = (
+    (85.0, Recommendation.STRONG_HIRE.value),
+    (70.0, Recommendation.HIRE.value),
+    (55.0, Recommendation.LEAN_HIRE.value),
+)
+
+# Fields that represent a deliberate recruiter/hiring-manager decision. The
+# free-form AI field "recommendation"/"final_recommendation" is deliberately
+# excluded — it is generated, not human-authored, and must not override score.
+HUMAN_RECOMMENDATION_OVERRIDE_FIELDS: tuple[str, ...] = (
+    "recommendation_override",
+    "manual_recommendation",
+    "recruiter_recommendation",
+    "recruiter_decision",
+    "hiring_manager_decision",
+    "human_recommendation",
+    "manual_decision",
+)
+
+# If one of these flags is set, a stored recommendation/final_recommendation is
+# treated as the human decision rather than an AI artifact.
+HUMAN_OVERRIDE_FLAG_FIELDS: tuple[str, ...] = (
+    "manual_review_override",
+    "human_review_override",
+    "recruiter_override_applied",
+)
+
+_RECOMMENDATION_ALIASES: dict[str, str] = {
+    "STRONG HIRE": Recommendation.STRONG_HIRE.value,
+    "STRONG_HIRE": Recommendation.STRONG_HIRE.value,
+    "HIRE": Recommendation.HIRE.value,
+    "LEAN HIRE": Recommendation.LEAN_HIRE.value,
+    "LEAN_HIRE": Recommendation.LEAN_HIRE.value,
+    "LEAN NO HIRE": Recommendation.REJECT.value,
+    "NO HIRE": Recommendation.REJECT.value,
+    "NO_HIRE": Recommendation.REJECT.value,
+    "REJECT": Recommendation.REJECT.value,
+}
+
+
+def _normalize_recommendation_label(value: Any) -> str | None:
+    """Normalise a stored decision label to a Recommendation enum value."""
+    if isinstance(value, dict):
+        value = value.get("recommendation") or value.get("value") or value.get("decision")
+    if value is None or isinstance(value, bool):
+        return None
+    label = re.sub(r"[\s\-]+", "_", str(value).strip().upper())
+    return _RECOMMENDATION_ALIASES.get(label)
+
 
 def compute_recommendation(overall_score: float) -> str:
-    """Map a 0-100 overall score to a standardized Recommendation enum string."""
+    """Map a 0-100 overall score using RECOMMENDATION_THRESHOLDS.
+
+    >=85 STRONG_HIRE, >=70 HIRE, >=55 LEAN_HIRE, otherwise REJECT. There is no
+    path from a high score to REJECT. Callers with no scored answers should
+    leave the recommendation null / NOT_EVALUATED instead of calling this.
+    """
     score = float(overall_score)
-    if score >= 85.0:
-        return Recommendation.STRONG_HIRE.value
-    elif score >= 75.0:
-        return Recommendation.HIRE.value
-    elif score >= 65.0:
-        return Recommendation.LEAN_HIRE.value
-    else:
-        return Recommendation.REJECT.value
+    for threshold, label in RECOMMENDATION_THRESHOLDS:
+        if score >= threshold:
+            return label
+    return Recommendation.REJECT.value
+
+
+def extract_human_recommendation_override(source: Any) -> str | None:
+    """Return an explicit human decision stored on a session/scorecard, if any.
+
+    Documented override fields are checked first. A boolean override flag plus
+    a stored recommendation also counts. AI-generated recommendations alone do
+    not: those are always replaced by the score-derived value.
+    """
+    if not isinstance(source, dict):
+        return None
+
+    for key in HUMAN_RECOMMENDATION_OVERRIDE_FIELDS:
+        normalized = _normalize_recommendation_label(source.get(key))
+        if normalized:
+            return normalized
+
+    has_override_flag = any(bool(source.get(key)) for key in HUMAN_OVERRIDE_FLAG_FIELDS)
+    if has_override_flag:
+        for key in ("recommendation", "final_recommendation"):
+            normalized = _normalize_recommendation_label(source.get(key))
+            if normalized:
+                return normalized
+
+    nested = source.get("scorecard")
+    if isinstance(nested, dict) and nested is not source:
+        return extract_human_recommendation_override(nested)
+    return None
+
+
+def resolve_recommendation(
+    overall_score: float,
+    *,
+    source: Any = None,
+    human_override: str | None = None,
+) -> str:
+    """Single decision path: explicit human override wins, otherwise the score.
+
+    ``source`` is a session or scorecard dict inspected for documented human
+    override fields. ``human_override`` is an already-extracted override.
+    """
+    override = _normalize_recommendation_label(human_override) or extract_human_recommendation_override(source)
+    if override:
+        return override
+    return compute_recommendation(overall_score)
 
 
 def extract_turn_scores(turn: dict[str, Any]) -> tuple[float, float, float]:

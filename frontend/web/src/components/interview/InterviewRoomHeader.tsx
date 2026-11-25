@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Clock, ShieldCheck, AlertTriangle, PhoneOff, Circle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, ShieldCheck, PhoneOff, ChevronDown, ChevronUp } from 'lucide-react';
 import { BrandLogo } from '@/components/common/BrandLogo';
+import { formatTimer } from '@/lib/formatters';
 
 interface InterviewRoomHeaderProps {
   sessionId: string;
@@ -11,15 +12,6 @@ interface InterviewRoomHeaderProps {
   stages: string[];
   remainingSeconds: number | null;
   proctoringStatus: 'secure' | 'face_warning' | 'tab_warning';
-  proctoringHealthState?:
-    | 'INITIALIZING'
-    | 'CAMERA_WAITING'
-    | 'READY'
-    | 'DETECTING'
-    | 'NO_FACE'
-    | 'MULTIPLE_FACES'
-    | 'ERROR';
-  faceCount?: number;
   mediaSource?: 'local' | 'phone' | 'none';
   onEndSessionClick: () => void;
   isConcluding?: boolean;
@@ -31,28 +23,22 @@ export const InterviewRoomHeader: React.FC<InterviewRoomHeaderProps> = ({
   stages,
   remainingSeconds,
   proctoringStatus,
-  proctoringHealthState,
-  faceCount,
   mediaSource = 'local',
   onEndSessionClick,
   isConcluding = false,
 }) => {
+  // Elapsed-conversation clock (stops at zero via parent when concluding — it
+  // measures the conversation, not a fake recording).
   const [elapsedRecSeconds, setElapsedRecSeconds] = useState<number>(0);
   const [showTechDetails, setShowTechDetails] = useState<boolean>(false);
 
-  // Recording timer counter
   useEffect(() => {
+    if (isConcluding) return;
     const timer = setInterval(() => {
       setElapsedRecSeconds((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
-
-  const formatTimer = (totalSec: number) => {
-    const mins = Math.floor(Math.max(0, totalSec) / 60);
-    const secs = Math.max(0, totalSec) % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, [isConcluding]);
 
   const isLowTime = remainingSeconds !== null && remainingSeconds < 5 * 60;
 
@@ -66,10 +52,10 @@ export const InterviewRoomHeader: React.FC<InterviewRoomHeaderProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 whitespace-nowrap">
           <BrandLogo href="/candidate/dashboard" hideTextOnMobile={true} />
 
-          <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/25 text-accent-rose font-mono text-[10px] sm:text-xs shrink-0 whitespace-nowrap">
-            <Circle className="w-2 h-2 fill-rose-500 animate-pulse text-rose-500 shrink-0" />
+          <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-accent-cyan font-mono text-[10px] sm:text-xs shrink-0 whitespace-nowrap">
+            <span className="w-2 h-2 rounded-full bg-accent-cyan animate-pulse shrink-0" />
             <span className="whitespace-nowrap font-medium">
-              <span className="hidden sm:inline">REC </span>
+              <span className="hidden sm:inline">LIVE </span>
               {formatTimer(elapsedRecSeconds)}
             </span>
           </div>
@@ -117,93 +103,21 @@ export const InterviewRoomHeader: React.FC<InterviewRoomHeaderProps> = ({
 
         {/* RIGHT: PROCTORING INTEGRITY, TIMER & ACTION BUTTONS */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 whitespace-nowrap ml-auto">
-          {/* Proctoring Status Pill */}
+          {/* Disclosed counters — facts for a human reviewer, never a verdict */}
           <div
             className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg border text-[11px] font-mono transition-colors shrink-0 whitespace-nowrap ${
               proctoringStatus === 'tab_warning'
-                ? 'bg-rose-500/10 border-rose-500/30 text-accent-rose'
-                : proctoringHealthState === 'DETECTING'
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-accent-emerald'
-                : proctoringHealthState === 'CAMERA_WAITING'
                 ? 'bg-amber-500/10 border-amber-500/30 text-accent-amber'
-                : proctoringHealthState === 'NO_FACE'
-                ? 'bg-amber-500/10 border-amber-500/30 text-accent-amber'
-                : proctoringHealthState === 'MULTIPLE_FACES'
-                ? 'bg-rose-500/10 border-rose-500/30 text-accent-rose'
-                : proctoringHealthState === 'ERROR'
-                ? 'bg-rose-500/10 border-rose-500/30 text-accent-rose'
-                : 'bg-indigo-500/10 border-indigo-500/30 text-accent-indigo'
+                : 'bg-emerald-500/10 border-emerald-500/30 text-accent-emerald'
             }`}
-            title={
-              proctoringStatus === 'tab_warning'
-                ? 'Focus Warning'
-                : proctoringHealthState === 'DETECTING'
-                ? 'Proctoring Active — Face Detected'
-                : proctoringHealthState === 'NO_FACE'
-                ? 'No Face Detected'
-                : proctoringHealthState === 'MULTIPLE_FACES'
-                ? 'Multiple Faces Detected'
-                : proctoringHealthState === 'CAMERA_WAITING'
-                ? 'Waiting for Camera Frames'
-                : proctoringHealthState === 'READY'
-                ? 'Camera Pipeline Ready — Awaiting First Classification'
-                : proctoringHealthState === 'INITIALIZING'
-                ? 'Initializing Proctoring Detector'
-                : 'Proctoring Status'
-            }
+            title={proctoringStatus === 'tab_warning'
+              ? 'A few tab switches were noted — a human reviews everything afterwards.'
+              : 'No integrity counters tripped.'}
           >
-            {proctoringStatus === 'tab_warning' ? (
-              <>
-                <AlertTriangle className="w-3.5 h-3.5 text-accent-rose shrink-0" />
-                <span className="font-medium whitespace-nowrap">
-                  <span className="hidden sm:inline">Focus Warning</span>
-                  <span className="inline sm:hidden text-[10px]">Warning</span>
-                </span>
-              </>
-            ) : proctoringHealthState === 'DETECTING' ? (
-              <>
-                <ShieldCheck className="w-3.5 h-3.5 text-accent-emerald shrink-0" />
-                <span className="hidden md:inline font-medium whitespace-nowrap">Proctoring Active</span>
-              </>
-            ) : proctoringHealthState === 'NO_FACE' ? (
-              <>
-                <AlertTriangle className="w-3.5 h-3.5 text-accent-amber shrink-0" />
-                <span className="hidden sm:inline font-medium whitespace-nowrap">No Face</span>
-              </>
-            ) : proctoringHealthState === 'MULTIPLE_FACES' ? (
-              <>
-                <AlertTriangle className="w-3.5 h-3.5 text-accent-rose shrink-0" />
-                <span className="font-medium whitespace-nowrap">
-                  <span className="hidden sm:inline">Multiple Faces ({faceCount ?? '>1'})</span>
-                  <span className="inline sm:hidden text-[10px]">{faceCount ?? '>1'} Faces</span>
-                </span>
-              </>
-            ) : proctoringHealthState === 'INITIALIZING' ? (
-              <>
-                <Circle className="w-2.5 h-2.5 fill-indigo-400 animate-pulse text-indigo-400 shrink-0" />
-                <span className="hidden sm:inline font-medium whitespace-nowrap">Initializing…</span>
-              </>
-            ) : proctoringHealthState === 'CAMERA_WAITING' ? (
-              <>
-                <Circle className="w-2.5 h-2.5 fill-amber-400 animate-pulse text-amber-400 shrink-0" />
-                <span className="hidden sm:inline font-medium whitespace-nowrap">Camera Waiting…</span>
-              </>
-            ) : proctoringHealthState === 'READY' ? (
-              <>
-                <Circle className="w-2.5 h-2.5 fill-cyan-400 animate-pulse text-cyan-400 shrink-0" />
-                <span className="hidden sm:inline font-medium whitespace-nowrap">Camera Ready</span>
-              </>
-            ) : proctoringHealthState === 'ERROR' ? (
-              <>
-                <AlertTriangle className="w-3.5 h-3.5 text-accent-rose shrink-0" />
-                <span className="hidden sm:inline font-medium whitespace-nowrap">Detector Error</span>
-              </>
-            ) : (
-              <>
-                <ShieldCheck className="w-3.5 h-3.5 text-accent-emerald shrink-0" />
-                <span className="hidden md:inline font-medium whitespace-nowrap">Proctoring Active</span>
-              </>
-            )}
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline font-medium whitespace-nowrap">
+              {proctoringStatus === 'tab_warning' ? 'Noted for review' : 'Session calm'}
+            </span>
           </div>
 
           {/* Remaining Time Counter */}

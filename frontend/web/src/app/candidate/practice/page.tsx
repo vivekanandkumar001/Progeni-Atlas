@@ -4,7 +4,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { PracticeLabClient } from '@/components/practice/PracticeLabClient';
 
 export const metadata: Metadata = {
-  title: 'AI Practice Suite | Progeni Atlas',
+  title: 'AI Practice Suite',
   description: 'Practice live AI-powered technical interviews and interactive drills tailored to your target job and skills.',
 };
 

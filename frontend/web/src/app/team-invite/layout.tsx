@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-  title: 'Team invitation — Progeni Atlas',
+  title: 'Team invitation',
   description: 'Accept an invitation to join an organization on Progeni Atlas.',
   robots: { index: false, follow: false },
 };

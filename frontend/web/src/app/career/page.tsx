@@ -15,7 +15,6 @@ import {
   Zap,
   CheckCircle2,
   X,
-  Upload,
   Send,
   Building2 } from 'lucide-react';
 
@@ -160,7 +159,12 @@ export default function CareerPage() {
               href="#openings"
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/20 hover:brightness-110 transition-all"
             >
-              View Open Roles ({jobs.length}) </a>
+              {loadingJobs
+                ? 'View Open Roles'
+                : jobs.length > 0
+                  ? `View Open Roles (${jobs.length})`
+                  : 'View Careers'}
+            </a>
           </div>
         </div>
       </section>
@@ -343,7 +347,7 @@ export default function CareerPage() {
                     value={applicantName}
                     onChange={(e) => setApplicantName(e.target.value)}
                     placeholder="Please enter your full name"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong bg-inset text-sm text-ink transition-colors hover:border-ink-faint focus:outline-none focus:border-accent-blue focus:bg-surface"
                   />
                 </div>
 
@@ -357,7 +361,7 @@ export default function CareerPage() {
                     value={applicantEmail}
                     onChange={(e) => setApplicantEmail(e.target.value)}
                     placeholder="Please enter your email address"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong bg-inset text-sm text-ink transition-colors hover:border-ink-faint focus:outline-none focus:border-accent-blue focus:bg-surface"
                   />
                 </div>
 
@@ -370,7 +374,7 @@ export default function CareerPage() {
                     value={applicantLinkedIn}
                     onChange={(e) => setApplicantLinkedIn(e.target.value)}
                     placeholder="Please enter LinkedIn, GitHub, or portfolio URL"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong bg-inset text-sm text-ink transition-colors hover:border-ink-faint focus:outline-none focus:border-accent-blue focus:bg-surface"
                   />
                 </div>
 
@@ -383,7 +387,7 @@ export default function CareerPage() {
                     value={applicantNote}
                     onChange={(e) => setApplicantNote(e.target.value)}
                     placeholder="Please briefly highlight your relevant experience and projects..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong bg-inset text-sm text-ink transition-colors hover:border-ink-faint focus:outline-none focus:border-accent-blue focus:bg-surface"
                   />
                 </div>
 
@@ -400,7 +404,7 @@ export default function CareerPage() {
         </div>
       )}
 
-      <Footer />
+      <Footer hasOpenRoles={!loadingJobs && jobs.length > 0} />
     </main>
   );
 }

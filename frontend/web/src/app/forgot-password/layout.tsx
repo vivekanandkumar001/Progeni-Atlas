@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-  title: 'Reset password — Progeni Atlas',
+  title: 'Reset password',
   description: 'Reset the password for your Progeni Atlas account.',
   robots: { index: false, follow: false },
 };

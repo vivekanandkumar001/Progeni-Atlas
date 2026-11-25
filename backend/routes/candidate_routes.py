@@ -12,7 +12,7 @@ import re
 import traceback
 from datetime import datetime, timezone, timedelta
 from core.http_utils import generic_500
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, send_from_directory, Response
 
 from core.db import get_mongo_db
 from core.security import (
@@ -20,7 +20,9 @@ from core.security import (
 )
 from core.context import get_current_candidate
 from core.constants import BASE_DIR, UPLOAD_DIR, TECH_SKILLS_TAXONOMY
-from core.wallet import get_user_wallet_balance
+from core.wallet import get_demo_quota, get_user_wallet_balance
+from core.scoring_contract import resolve_recommendation
+from routes.interview_routes import derive_job_context, session_has_scored_answers
 import json
 from bson import ObjectId
 
@@ -32,6 +34,380 @@ from core.catalog import (
 from app.services.llm_service import LLMError, evaluate_answer
 
 candidate_bp = Blueprint("candidate_bp", __name__)
+
+
+# ---------------------------------------------------------------------------
+# Shared candidate DTO helpers
+# ---------------------------------------------------------------------------
+
+def _candidate_owner_filter(user_id: str, email: str) -> dict | None:
+    """One owner filter for dashboard, interviews and invitation queries."""
+    terms: list[dict] = []
+    uid = str(user_id or "").strip()
+    normalized_email = str(email or "").strip().lower()
+    if uid:
+        terms.extend([{"candidate_id": uid}, {"userId": uid}, {"user_id": uid}])
+    if normalized_email:
+        terms.extend([{"candidate_email": normalized_email}, {"email": normalized_email}])
+    return {"$or": terms} if terms else None
+
+
+def backfill_completed_session_notifications(db, user: dict | None) -> int:
+    """Idempotently restore missing completion notices for the caller's sessions.
+
+    Historical finished sessions predate the /finish notification write. This
+    read-time backfill only inserts notifications (never emails and never
+    mutates a session). A stable ``interview_completed:<session_id>`` id plus
+    ``$setOnInsert`` keeps repeated dashboard/notification reads harmless.
+    """
+    if db is None:
+        return 0
+    user = user if isinstance(user, dict) else {}
+    user_id = str(user.get("id") or user.get("_id") or "").strip()
+    email = str(user.get("email") or "").strip().lower()
+    owner_filter = _candidate_owner_filter(user_id, email)
+    if not owner_filter:
+        return 0
+
+    completed_terms = {
+        "$or": [
+            {"status": {"$in": ["completed", "evaluated", "COMPLETED", "EVALUATED"]}},
+            {"state": {"$in": ["COMPLETED", "EVALUATED", "completed", "evaluated"]}},
+        ]
+    }
+    try:
+        sessions = list(db.interview_sessions.find(
+            {"$and": [owner_filter, completed_terms]},
+            {
+                "id": 1, "_id": 1, "session_id": 1, "job_title": 1,
+                "role_title": 1, "candidate_id": 1, "candidate_email": 1,
+            },
+        ).limit(200))
+    except Exception:
+        return 0
+
+    inserted = 0
+    for session in sessions:
+        session = session if isinstance(session, dict) else {}
+        session_id = str(
+            session.get("id") or session.get("session_id") or session.get("_id") or ""
+        ).strip()
+        if not session_id:
+            continue
+        dedupe_key = f"interview_completed:{session_id}"
+        try:
+            existing = db.candidate_notifications.find_one({"$or": [
+                {"dedupe_key": dedupe_key},
+                {"_id": dedupe_key},
+                {"sessionId": session_id},
+                {"session_id": session_id},
+                {"payload.sessionId": session_id},
+            ]})
+            if existing:
+                continue
+            job_title = str(session.get("job_title") or session.get("role_title") or "Technical Assessment")
+            now_iso = datetime.now(timezone.utc).isoformat()
+            doc = {
+                "_id": dedupe_key,
+                "id": str(uuid.uuid4()),
+                "dedupe_key": dedupe_key,
+                "candidate_id": user_id,
+                "candidate_email": email,
+                "notification_type": "interview_completed",
+                "title": f"Interview Completed: {job_title}",
+                "body": (
+                    f"Your interview for {job_title} is complete. Personal feedback is on its way "
+                    f"to your inbox — the hiring team will review the conversation and reach out with next steps."
+                ),
+                "payload": {"sessionId": session_id, "type": "interview_completed"},
+                "sessionId": session_id,
+                "is_read": False,
+                "created_at": now_iso,
+            }
+            result = db.candidate_notifications.update_one(
+                {"_id": dedupe_key}, {"$setOnInsert": doc}, upsert=True
+            )
+            if result is None or getattr(result, "upserted_id", None) is not None \
+                    or getattr(result, "matched_count", 0) == 0:
+                inserted += 1
+        except Exception:
+            # Backfill is best-effort and must never break a notifications read.
+            continue
+    return inserted
+
+
+def _candidate_session_item(session: dict | None, skills: list[str], *, completed: bool) -> dict | None:
+    """Project one session into the candidate DTO returned by every list surface.
+
+    Role/company/duration/date come from the shared derivation. A completed
+    item is only publishable when at least one genuinely scored answer exists;
+    stale stored scores and AI recommendations are re-derived, not trusted.
+    """
+    s = session if isinstance(session, dict) else {}
+    config = s.get("config") if isinstance(s.get("config"), dict) else {}
+    context = derive_job_context(s)
+    session_id = str(s.get("id") or s.get("_id") or s.get("session_id") or "")
+    is_practice = bool(
+        config.get("is_practice")
+        or s.get("is_practice")
+        or s.get("session_type") in ("mock", "practice")
+    )
+    is_demo = bool(
+        s.get("is_demo")
+        or s.get("demo_number")
+        or config.get("is_demo")
+        or config.get("demo_number")
+        or s.get("session_type") == "demo"
+    )
+    item = {
+        "sessionId": session_id,
+        "id": session_id,
+        "roleTitle": context["roleTitle"],
+        "job_title": context["roleTitle"],
+        "companyName": context["companyName"],
+        "company_name": context["companyName"],
+        "interviewDate": context["interviewDate"],
+        "sessionType": s.get("session_type", "live"),
+        "isPractice": is_practice,
+        "isDemo": is_demo,
+        "demoNumber": config.get("demo_number") or s.get("demo_number"),
+        "durationMinutes": context["durationMinutes"],
+        "status": s.get("status", "scheduled"),
+    }
+
+    if completed:
+        if not session_has_scored_answers(s):
+            return None
+        score_raw = None
+        for key in ("total_score", "score", "overall_score"):
+            if s.get(key) is not None:
+                score_raw = s.get(key)
+                break
+        score = None
+        recommendation = "NOT_EVALUATED"
+        if score_raw is not None:
+            try:
+                score = round(float(score_raw), 1)
+                recommendation = resolve_recommendation(score, source=s)
+            except (TypeError, ValueError):
+                score = None
+        completed_at = s.get("completed_at") or s.get("finished_at") or s.get("ended_at")
+        duration = f"{context['durationMinutes']} min" if context["durationMinutes"] else None
+        item.update({
+            "completedAt": completed_at,
+            "completed_at": completed_at,
+            "score": score,
+            "recommendation": recommendation,
+            "duration": duration,
+            "reportUrl": f"/candidate/interview/{session_id}/report",
+            "recordingUrl": s.get("recording_url"),
+            "keyHighlights": list(s.get("key_highlights") or []),
+        })
+        return item
+
+    scheduled_at = s.get("scheduled_at") or s.get("scheduled_time")
+    item.update({
+        "title": context["roleTitle"],
+        "company": context["companyName"],
+        "scheduledTime": scheduled_at,
+        "scheduled_at": scheduled_at,
+        "interviewerName": "Progeni Atlas (Autonomous Screener)",
+        "stage": s.get("current_stage", "Technical & Scenario Probe"),
+        "lobbyUrl": f"/candidate/interview/{session_id}/lobby",
+    })
+    return item
+
+
+def _looks_like_demo_profile(user: dict | None) -> bool:
+    """Detect known seeded profile values so they are not shown as real data."""
+    user = user if isinstance(user, dict) else {}
+    values = [
+        user.get("bio"),
+        user.get("github_url"),
+        user.get("linkedin_url"),
+        user.get("portfolio_url"),
+        user.get("college_name"),
+    ]
+    haystack = " ".join(str(value or "") for value in values).casefold()
+    markers = (
+        "alex-morgan",
+        "over 5 years of experience",
+        "example.com",
+    )
+    return any(marker in haystack for marker in markers)
+
+
+# ---------------------------------------------------------------------------
+# Resume delivery helpers
+# ---------------------------------------------------------------------------
+
+def resume_proxy_url(resume_doc: dict | None) -> str:
+    """Return the same-origin, authenticated URL the frontend should open."""
+    if not resume_doc or not resume_doc.get("file_url"):
+        return ""
+    resume_id = resume_doc.get("id") or resume_doc.get("_id")
+    if not resume_id:
+        return ""
+    return f"/api/candidate/resume/{resume_id}/file"
+
+
+def _user_owns_resume(resume_doc: dict, user: dict) -> bool:
+    role = str(user.get("role") or "").strip().lower()
+    if role == "super_admin":
+        return True
+    uid = str(user.get("id") or user.get("_id") or "").strip()
+    email = str(user.get("email") or "").strip().lower()
+    if not uid and not email:
+        return False
+    doc_ids = {
+        str(resume_doc.get("candidate_id") or resume_doc.get("user_id") or resume_doc.get("userId") or ""),
+    }
+    doc_emails = {
+        str(resume_doc.get("candidate_email") or resume_doc.get("user_email") or resume_doc.get("email") or "").strip().lower()
+    }
+    return bool((uid and uid in doc_ids) or (email and email in doc_emails))
+
+
+def _find_authorized_resume(db, user: dict, resume_id: str) -> dict | None:
+    if db is None or not user or not resume_id:
+        return None
+    queries = [{"id": resume_id}, {"_id": resume_id}]
+    try:
+        queries.append({"_id": ObjectId(resume_id)})
+    except Exception:
+        pass
+    doc = db.candidate_resumes.find_one({"$or": queries})
+    if not doc or not _user_owns_resume(doc, user):
+        return None
+    return doc
+
+
+def _cloudinary_public_id(file_url: str) -> tuple[str, str] | None:
+    """Extract (public_id, format) from a Cloudinary raw/authenticated URL."""
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(str(file_url or ""))
+        if "cloudinary.com" not in parsed.netloc.lower():
+            return None
+        parts = [p for p in parsed.path.split("/") if p]
+        resource_type = None
+        for marker in ("raw", "image", "video"):
+            if marker in parts:
+                resource_type = marker
+                parts = parts[parts.index(marker) + 1:]
+                break
+        if not resource_type:
+            return None
+        # Cloudinary puts delivery type, signed transformation tokens (s--…--)
+        # and version (v123) before the actual public ID. All of them are
+        # metadata, not part of the stored asset path.
+        parts = [
+            part for part in parts
+            if part not in ("upload", "private", "authenticated")
+            and not (part.startswith("s--") and part.endswith("--"))
+            and not (len(part) > 1 and part[0] == "v" and part[1:].isdigit())
+        ]
+        if not parts:
+            return None
+        if resource_type == "raw":
+            # Raw uploads keep the filename (including its extension) in the
+            # public ID. Passing only the stem to the Admin API signs a URL for
+            # a different/nonexistent asset and makes resume preview fail 404.
+            return "/".join(parts), ""
+        stem, ext = os.path.splitext(parts[-1])
+        public_id = "/".join(parts[:-1] + [stem]) if stem else "/".join(parts)
+        return public_id, ext.lstrip(".")
+    except Exception:
+        return None
+
+
+def _signed_cloudinary_url(file_url: str) -> str | None:
+    """Mint a short-lived signed download URL for an authenticated raw asset."""
+    parsed_asset = _cloudinary_public_id(file_url)
+    if not parsed_asset:
+        return None
+    public_id, fmt = parsed_asset
+    try:
+        import cloudinary
+        from cloudinary import utils as cloudinary_utils
+
+        cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
+        api_key = os.environ.get("CLOUDINARY_API_KEY")
+        api_secret = os.environ.get("CLOUDINARY_API_SECRET")
+        # Many deployments provide only CLOUDINARY_URL. The cloudinary SDK can
+        # read it on import, but an explicit config here is more reliable and
+        # avoids falling back to an unconfigured (or another tenant's) account.
+        if not all([cloud_name, api_key, api_secret]):
+            from urllib.parse import unquote, urlparse
+
+            parsed = urlparse(os.environ.get("CLOUDINARY_URL") or "")
+            if parsed.scheme == "cloudinary" and parsed.hostname:
+                cloud_name = cloud_name or parsed.hostname
+                api_key = api_key or unquote(parsed.username or "")
+                api_secret = api_secret or unquote(parsed.password or "")
+        if cloud_name and api_key and api_secret:
+            cloudinary.config(cloud_name=cloud_name, api_key=api_key, api_secret=api_secret, secure=True)
+        return cloudinary_utils.private_download_url(
+            public_id,
+            fmt,
+            resource_type="raw",
+            type="authenticated",
+            expires_at=int(time.time()) + 300,
+            attachment=False,
+        )
+    except Exception as exc:
+        print(f"[Resume] signed Cloudinary URL failed: {exc}")
+        return None
+
+
+@candidate_bp.route("/api/candidate/resume/<resume_id>/file", methods=["GET"])
+@require_auth
+def download_candidate_resume_file(resume_id: str):
+    """Same-origin authenticated proxy for the caller's own resume only."""
+    try:
+        user = getattr(g, "user", None)
+        if not user:
+            return jsonify({"error": "Authentication required"}), 401
+        db = get_mongo_db()
+        doc = _find_authorized_resume(db, user, resume_id)
+        if not doc:
+            return jsonify({"error": "Resume not found or not accessible"}), 404
+
+        from werkzeug.utils import secure_filename
+        file_url = str(doc.get("file_url") or "")
+        file_name = secure_filename(os.path.basename(str(doc.get("file_name") or "resume.pdf"))) or "resume.pdf"
+        mime_type = doc.get("mime_type") or "application/octet-stream"
+
+        if file_url.startswith("/uploads/resumes/"):
+            basename = os.path.basename(file_url)
+            resumes_dir = os.path.join(UPLOAD_DIR, "resumes")
+            if not basename or not os.path.isfile(os.path.join(resumes_dir, basename)):
+                return jsonify({"error": "Resume file not found"}), 404
+            response = send_from_directory(
+                resumes_dir, basename, mimetype=mime_type, as_attachment=False,
+                download_name=file_name,
+            )
+            response.headers["Cache-Control"] = "private, no-store"
+            return response
+
+        signed_url = _signed_cloudinary_url(file_url)
+        if not signed_url:
+            return jsonify({"error": "Resume storage is unavailable"}), 502
+        import requests
+        upstream = requests.get(signed_url, timeout=20, stream=True)
+        if upstream.status_code != 200:
+            return jsonify({"error": "Resume file not found or not accessible"}), 404
+        headers = {
+            "Content-Type": upstream.headers.get("Content-Type") or mime_type,
+            "Content-Disposition": f'inline; filename="{file_name}"',
+            "Cache-Control": "private, no-store",
+        }
+        return Response(upstream.content, status=200, headers=headers)
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
 
 @candidate_bp.route("/api/candidate/dashboard", methods=["GET"])
 @candidate_bp.route("/api/candidate/dashboard-data", methods=["GET"])
@@ -55,42 +431,54 @@ def get_candidate_dashboard_data():
         academic_tag = f"{course} {branch} • {year}"
 
         user_id = str(user.get("id") or user.get("_id"))
-        session_row = None
-        if db is not None and user_id:
-            session_row = db.interview_sessions.find_one(
-                {"$or": [{"candidate_id": user_id}, {"candidate_email": user.get("email") or ""}]},
-                sort=[("created_at", -1)]
-            )
+        user_email = str(user.get("email") or "").strip().lower()
+        owner_filter = _candidate_owner_filter(user_id, user_email)
+        sessions: list[dict] = []
+        if db is not None and owner_filter:
+            sessions = list(db.interview_sessions.find(owner_filter).sort("created_at", -1).limit(40))
 
+        terminal_statuses = {"completed", "evaluated", "expired", "cancelled", "canceled", "terminated", "closed", "finished"}
         upcoming = None
-        if session_row:
-            upcoming = {
-                "id": str(session_row.get("id") or session_row.get("_id")),
-                "title": session_row.get("job_title") or f"{skills[0] if skills else 'Technical'} Systems Screening",
-                "company": session_row.get("company_name") or "Progeni Atlas Assessment Drive",
-                "status": session_row.get("status", "scheduled"),
-                "stage": session_row.get("current_stage", "round_1"),
-                "scheduledTime": session_row.get("scheduled_time", "Scheduled"),
-                "scheduled_at": session_row.get("scheduled_at") or session_row.get("scheduled_time", datetime.now(timezone.utc).isoformat()),
-                "durationMinutes": session_row.get("duration_minutes", 45),
-            }
+        for session in sessions:
+            if str(session.get("status") or "").strip().lower() in terminal_statuses:
+                continue
+            upcoming = _candidate_session_item(session, skills, completed=False)
+            break
 
-        # Calculate readiness & competency scores from verified skills and practice history
+        recent_interviews = []
+        for session in sessions:
+            if str(session.get("status") or "").strip().lower() not in ("completed", "evaluated"):
+                continue
+            item = _candidate_session_item(session, skills, completed=True)
+            if item:
+                recent_interviews.append(item)
+            if len(recent_interviews) >= 5:
+                break
+
+        # Readiness comes only from genuine evidence: scored non-demo interviews
+        # first, then completed practice drills. No inferred 88/100 baseline.
         practice_sessions = _load_practice_sessions(user_id) if user_id else []
         stats = _build_practice_stats(practice_sessions)
-        avg_score = stats.get("averageScore", 88) if stats.get("totalDrillsCompleted", 0) > 0 else 88
-        readiness_score = stats.get("readinessPercentage", 88) if stats.get("totalDrillsCompleted", 0) > 0 else 88
-
-        # Derive competencies from candidate's top extracted resume skills
-        display_skills = skills[:4] if skills else ["System Design", "Problem Solving", "Code Quality", "Communication"]
-        competency_scores = [
-            {
-                "name": f"{s} Architecture & Design" if i % 2 == 0 else f"{s} Engineering Proficiency",
-                "score": round(max(7.2, min(9.6, avg_score / 10.0 + (i * 0.2) - 0.2)), 1),
-                "percent": int(max(72, min(96, avg_score + (i * 2) - 2)))
-            }
-            for i, s in enumerate(display_skills)
+        scored_values = [
+            float(item["score"])
+            for item in recent_interviews
+            if not item.get("isDemo") and isinstance(item.get("score"), (int, float))
         ]
+        if scored_values:
+            readiness_score = round(sum(scored_values) / len(scored_values))
+        elif stats.get("totalDrillsCompleted", 0) > 0 and stats.get("readinessPercentage") is not None:
+            readiness_score = round(float(stats["readinessPercentage"]))
+        else:
+            readiness_score = None
+
+        competency_scores = []
+        if readiness_score is not None:
+            for i, skill in enumerate(skills[:4]):
+                competency_scores.append({
+                    "name": f"{skill} Architecture & Design" if i % 2 == 0 else f"{skill} Engineering Proficiency",
+                    "score": round(max(0.0, min(10.0, readiness_score / 10.0 + (i * 0.2) - 0.2)), 1),
+                    "percent": int(max(0, min(100, readiness_score + (i * 2) - 2))),
+                })
 
         resume_status = {
             "fileName": resume_doc.get("file_name") if resume_doc else "No resume uploaded",
@@ -102,6 +490,7 @@ def get_candidate_dashboard_data():
         unread_notifications = 0
         if db is not None and user_id:
             try:
+                backfill_completed_session_notifications(db, user)
                 notif_filter = {"$or": [{"candidate_id": user_id}]}
                 if user and user.get("email"):
                     notif_filter["$or"].append({"candidate_email": user.get("email").strip().lower()})
@@ -110,6 +499,7 @@ def get_candidate_dashboard_data():
                 pass
 
         profile_completion = 85 if user and user.get("course") else 40
+        demo_quota = get_demo_quota(user, db)
 
         return jsonify({
             # Standard CandidateDashboard fields expected by frontend
@@ -119,11 +509,12 @@ def get_candidate_dashboard_data():
             "skill_count": len(skills),
             "unread_notifications": unread_notifications,
             "upcoming_interviews": [upcoming] if upcoming else [],
-            "recent_interviews": [],
-            "free_demos_total": 2,
-            "free_demos_used": 0,
-            "free_demos_remaining": 2,
-            "demo_duration_limit_minutes": 30,
+            "recent_interviews": recent_interviews,
+            "free_demos_total": demo_quota["free_demos_total"],
+            "free_demos_used": demo_quota["free_demos_used"],
+            "free_demos_remaining": demo_quota["free_demos_remaining"],
+            "demo_duration_limit_minutes": demo_quota["demo_duration_limit_minutes"],
+            "demoQuota": demo_quota,
 
             # Legacy / Dashboard-data backwards compatibility fields
             "candidate": {
@@ -131,8 +522,8 @@ def get_candidate_dashboard_data():
                 "academicTag": academic_tag,
                 "status": "Active Candidate",
                 "readinessScore": readiness_score,
-                "percentileRank": max(5, 100 - readiness_score),
-                "growthChange": 5,
+                "percentileRank": (max(0, 100 - readiness_score) if readiness_score is not None else None),
+                "growthChange": 0,
             },
             "upcomingSession": upcoming,
             "competencyScores": competency_scores,
@@ -210,11 +601,15 @@ def get_candidate_profile():
                 "id": str(resume_doc.get("id") or resume_doc.get("_id")),
                 "fileName": resume_doc.get("file_name", "Resume.pdf"),
                 "fileSizeFormatted": f"{size_mb} MB" if size_mb >= 0.1 else f"{round(size_bytes/1024, 1)} KB",
-                "fileUrl": resume_doc.get("file_url", ""),
+                "fileUrl": resume_proxy_url(resume_doc),
                 "uploadedAt": resume_doc.get("uploaded_at"),
                 "extractedSkills": resume_doc.get("extracted_skills", []),
                 "isActive": bool(resume_doc.get("is_active", True))
             }
+
+        demo_profile = _looks_like_demo_profile(user)
+        def profile_value(key: str) -> str:
+            return "" if demo_profile else str(user.get(key) or "")
 
         return jsonify({
             "id": str(user.get("id") or user.get("_id")),
@@ -227,20 +622,21 @@ def get_candidate_profile():
             "academic_year": user.get("academic_year") or user.get("education_status") or "",
             "education_status": user.get("education_status") or "",
             "years_experience": user.get("years_experience"),
-            "collegeName": user.get("college_name") or "",
-            "college_name": user.get("college_name") or "",
-            "bio": user.get("bio") or "",
-            "githubUrl": user.get("github_url") or "",
-            "github_url": user.get("github_url") or "",
-            "linkedinUrl": user.get("linkedin_url") or "",
-            "linkedin_url": user.get("linkedin_url") or "",
-            "portfolioUrl": user.get("portfolio_url") or "",
-            "portfolio_url": user.get("portfolio_url") or "",
+            "collegeName": profile_value("college_name"),
+            "college_name": profile_value("college_name"),
+            "bio": profile_value("bio"),
+            "githubUrl": profile_value("github_url"),
+            "github_url": profile_value("github_url"),
+            "linkedinUrl": profile_value("linkedin_url"),
+            "linkedin_url": profile_value("linkedin_url"),
+            "portfolioUrl": profile_value("portfolio_url"),
+            "portfolio_url": profile_value("portfolio_url"),
             "skillsSummary": skills,
             "twoFactorEnabled": bool(user.get("two_factor_enabled", False)),
             "avatarUrl": user.get("avatar_url"),
             "resume": resume_data,
             "is_email_verified": bool(user.get("is_email_verified", True)),
+            "isDemoProfile": demo_profile,
             "role": user.get("role", "candidate")
         })
     except Exception as e:
@@ -331,6 +727,9 @@ def get_candidate_notifications():
         db = get_mongo_db()
         notifications = []
         if db is not None:
+            # Historical completed sessions predate the completion-notification
+            # write; restore missing notices before reading the inbox.
+            backfill_completed_session_notifications(db, user)
             notif_filter = {"$or": [{"candidate_id": candidate_id}]}
             if email:
                 notif_filter["$or"].append({"candidate_email": email})
@@ -537,8 +936,8 @@ def candidate_resume_endpoint():
                         "file_size_bytes": f_size,
                         "fileSizeBytes": f_size,
                         "fileSizeFormatted": size_fmt,
-                        "file_url": r.get("file_url", ""),
-                        "fileUrl": r.get("file_url", ""),
+                        "file_url": resume_proxy_url(r),
+                        "fileUrl": resume_proxy_url(r),
                         "status": "PARSED",
                         "is_active": r.get("is_active", True),
                         "isActive": r.get("is_active", True),
@@ -559,8 +958,8 @@ def candidate_resume_endpoint():
                     "file_size_bytes": f_size,
                     "fileSizeBytes": f_size,
                     "fileSizeFormatted": size_fmt,
-                    "file_url": resume_doc.get("file_url", ""),
-                    "fileUrl": resume_doc.get("file_url", ""),
+                    "file_url": resume_proxy_url(resume_doc),
+                    "fileUrl": resume_proxy_url(resume_doc),
                     "status": "PARSED",
                     "is_active": True,
                     "isActive": True,
@@ -697,8 +1096,8 @@ def candidate_resume_endpoint():
                     "file_size_bytes": file_size,
                     "fileSizeBytes": file_size,
                     "fileSizeFormatted": size_fmt,
-                    "fileUrl": file_url,
-                    "file_url": file_url,
+                    "fileUrl": resume_proxy_url({"id": res_id, "file_url": file_url}),
+                    "file_url": resume_proxy_url({"id": res_id, "file_url": file_url}),
                     "uploadedAt": now_iso,
                     "uploaded_at": now_iso,
                     "status": "PARSED",
@@ -861,51 +1260,20 @@ def get_candidate_interviews():
         upcoming = []
         completed = []
 
-        if db is not None and (user_id or user_email):
-            filter_conditions = []
-            if user_id:
-                filter_conditions.append({"candidate_id": user_id})
-                filter_conditions.append({"userId": user_id})
-            if user_email:
-                filter_conditions.append({"candidate_email": user_email})
-            cursor = db.interview_sessions.find({"$or": filter_conditions}).sort("created_at", -1).limit(40)
-
+        owner_filter = _candidate_owner_filter(user_id, user_email)
+        if db is not None and owner_filter:
+            cursor = db.interview_sessions.find(owner_filter).sort("created_at", -1).limit(40)
+            terminal_statuses = {"completed", "evaluated", "expired", "cancelled", "canceled", "terminated", "closed", "finished"}
             for s in cursor:
-                sess_id = str(s.get("id") or s.get("_id"))
-                status = s.get("status", "scheduled")
-                is_practice = bool((s.get("config") or {}).get("is_practice") or s.get("session_type") in ("mock", "practice"))
-                item = {
-                    "sessionId": sess_id,
-                    "roleTitle": s.get("job_title") or f"{skills[0] if skills else 'Full-Stack'} Systems Engineer",
-                    "companyName": s.get("company_name") or ("Progeni Atlas Practice Drive" if is_practice else "Progeni Atlas Assessment Drive"),
-                    "sessionType": s.get("session_type", "live"),
-                    "isPractice": is_practice,
-                    "durationMinutes": s.get("duration_minutes", 10 if is_practice else 45),
-                    "status": status,
-                }
+                status = str(s.get("status") or "scheduled").strip().lower()
                 if status in ("completed", "evaluated"):
-                    score = s.get("total_score") or s.get("score") or 0
-                    item.update({
-                        "completedAt": s.get("completed_at") or datetime.now(timezone.utc).isoformat(),
-                        "score": round(float(score)),
-                        "recommendation": s.get("final_recommendation") or ("STRONG_HIRE" if float(score) >= 85 else ("HIRE" if float(score) >= 70 else "LEAN_HIRE")),
-                        "duration": f"{s.get('duration_minutes', 45)} min",
-                        "reportUrl": f"/candidate/interview/{sess_id}/report",
-                        "recordingUrl": s.get("recording_url") or f"/recordings/{sess_id}.webm",
-                        "keyHighlights": s.get("key_highlights") or [
-                            f"Demonstrated proficiency with {skills[0] if skills else 'System Design'} architecture.",
-                            f"Articulation of {skills[1] if len(skills) > 1 else 'scalable'} engineering patterns."
-                        ]
-                    })
-                    completed.append(item)
-                else:
-                    item.update({
-                        "scheduledTime": s.get("scheduled_at") or s.get("scheduled_time") or datetime.now(timezone.utc).isoformat(),
-                        "interviewerName": "Progeni Atlas (Autonomous Screener)",
-                        "stage": s.get("current_stage", "Technical & Scenario Probe"),
-                        "lobbyUrl": f"/candidate/interview/{sess_id}/lobby"
-                    })
-                    upcoming.append(item)
+                    item = _candidate_session_item(s, skills, completed=True)
+                    if item:
+                        completed.append(item)
+                elif status not in terminal_statuses:
+                    item = _candidate_session_item(s, skills, completed=False)
+                    if item:
+                        upcoming.append(item)
 
         return jsonify({
             "success": True,
@@ -2031,3 +2399,119 @@ def get_candidate_practice_history():
 
 
 
+
+
+# =====================================================================
+# PHASE 6 — CANDIDATE DATA-DELETION REQUEST (DPDP / GDPR Art. 17 / AIVIIA)
+# Honoured within 30 days via the super-admin fulfill flow.
+# =====================================================================
+
+@candidate_bp.route("/api/candidate/data-deletion-request", methods=["POST"])
+@require_auth
+def candidate_data_deletion_request():
+    """File a right-to-erasure request. No interview verdict exists here until fulfilment."""
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+
+        user = getattr(g, "user", {}) or {}
+        uid = str(user.get("id") or user.get("user_id") or "").strip()
+        email = str(user.get("email") or "").strip().lower()
+        if not uid or not email:
+            return jsonify({"success": False, "error": "Account identity unavailable"}), 400
+
+        data = request.get_json(silent=True) or {}
+        reason = str(data.get("reason") or "").strip()[:500]
+        req_id = f"ddr-{ObjectId()}"
+        import datetime as _dt
+        now = _dt.datetime.now(_dt.timezone.utc)
+        db.candidate_data_deletion_requests.insert_one({
+            "id": req_id,
+            "user_id": uid,
+            "email": email,
+            "reason": reason,
+            "status": "pending",
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        })
+        try:
+            from core.audit_chain import chain_append
+            chain_append(db.audit_logs, {
+                "action": "data_deletion.request",
+                "user_id": uid,
+                "user_email": email,
+                "entity_type": "data_deletion_request",
+                "entity_id": req_id,
+                "detail": {"reason_provided": bool(reason)},
+                "created_at": now,
+            })
+        except Exception:
+            pass
+        return jsonify({
+            "success": True,
+            "request_id": req_id,
+            "message": "Deletion request received. Processing completes within 30 days; you will be notified.",
+        }), 201
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500
+
+
+# =====================================================================
+# PHASE 7 — CANDIDATE NET PROMOTER SCORE (NPS)
+# One question. No gating, optional comment, no incentives.
+# =====================================================================
+
+@candidate_bp.route("/api/candidate/nps", methods=["POST"])
+@require_auth
+def candidate_nps():
+    """Record the single post-interview NPS question (0-10 + optional comment)."""
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"success": False, "error": "Database unavailable"}), 503
+
+        user = getattr(g, "user", {}) or {}
+        uid = str(user.get("id") or user.get("user_id") or "").strip()
+        email = str(user.get("email") or "").strip().lower()
+        if not uid:
+            return jsonify({"success": False, "error": "Account identity unavailable"}), 400
+
+        data = request.get_json(silent=True) or {}
+        try:
+            score = int(data.get("score"))
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "error": "score must be an integer 0-10."}), 400
+        if score < 0 or score > 10:
+            return jsonify({"success": False, "error": "score must be an integer 0-10."}), 400
+
+        comment = str(data.get("comment") or "").strip()[:600]
+        session_id = str(data.get("session_id") or "").strip()[:64]
+        now = datetime.now(timezone.utc)
+
+        db.candidate_nps.insert_one({
+            "user_id": uid,
+            "email": email,
+            "score": score,
+            "comment": comment or None,
+            "session_id": session_id or None,
+            "created_at": now.isoformat(),
+        })
+        try:
+            from core.audit_chain import chain_append
+            chain_append(db.audit_logs, {
+                "action": "candidate.nps",
+                "user_id": uid,
+                "user_email": email,
+                "entity_type": "candidate_nps",
+                "entity_id": session_id or uid,
+                "detail": {"score": score},
+                "created_at": now,
+            })
+        except Exception:
+            pass
+        return jsonify({"success": True, "message": "Thank you — your feedback shapes the product."}), 201
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": generic_500(e)}), 500

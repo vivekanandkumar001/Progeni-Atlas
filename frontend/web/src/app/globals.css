@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
    Design tokens — light by default; dark via [data-theme="dark"].
@@ -56,6 +56,9 @@
 
   /* Subtle card elevation */
   --brand-glow: rgba(37, 99, 235, 0.12);
+  --input-glow-cyan: 0 2px 10px -3px rgba(2, 132, 199, 0.22);
+  --input-glow-indigo: 0 2px 10px -3px rgba(79, 70, 229, 0.22);
+  --input-glow-rose: 0 2px 10px -3px rgba(225, 29, 72, 0.22);
 
   /* Enterprise polish — layered, restrained elevation for dashboard surfaces */
   --shadow-card: 0 1px 1px hsl(215 32% 16% / 0.05), 0 6px 20px -6px hsl(215 32% 16% / 0.09);
@@ -106,6 +109,9 @@
   --on-brand: #020617;
 
   --brand-glow: rgba(96, 165, 250, 0.35);
+  --input-glow-cyan: 0 2px 12px -3px rgba(56, 189, 248, 0.26);
+  --input-glow-indigo: 0 2px 12px -3px rgba(129, 140, 248, 0.26);
+  --input-glow-rose: 0 2px 12px -3px rgba(251, 113, 133, 0.26);
 
   /* Enterprise polish — dark values: depth from glow, not strong shadows */
   --shadow-card: 0 1px 1px hsl(0 0% 0% / 0.35), 0 10px 28px -8px hsl(0 0% 0% / 0.45), inset 0 1px 0 hsl(215 35% 96% / 0.04);
@@ -213,10 +219,72 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Accessible focus indicators for keyboard navigation */
-  *:focus-visible {
-    outline: 2px solid var(--accent-cyan) !important;
-    outline-offset: 2px !important;
+  /* Accessible focus indicators for keyboard navigation (excludes text/number
+     fields, textareas, and selects so they keep a single crisp border) */
+  :is(a, button, summary, [role="button"], [tabindex]):focus-visible,
+  input:is([type="checkbox"], [type="radio"], [type="range"], [type="file"]):focus-visible {
+    outline: 2px solid var(--accent-cyan);
+    outline-offset: 2px;
+  }
+
+  /* Ensure form inputs/textareas/selects never render a second outer outline,
+     while giving every field across the app consistent hover & focus polish */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]),
+  textarea,
+  select {
+    outline: none;
+    transition: border-color 150ms cubic-bezier(0.2, 0.7, 0.2, 1),
+                box-shadow 150ms cubic-bezier(0.2, 0.7, 0.2, 1),
+                background-color 150ms cubic-bezier(0.2, 0.7, 0.2, 1),
+                color 150ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([readonly]):not(:disabled):not(.bg-transparent):hover,
+  textarea:not([readonly]):not(:disabled):not(.bg-transparent):hover,
+  select:not(:disabled):not(.bg-transparent):hover {
+    border-color: var(--line-strong);
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):focus,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):focus-visible,
+  textarea:focus,
+  textarea:focus-visible,
+  select:focus,
+  select:focus-visible {
+    outline: none;
+    outline-offset: 0;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([readonly]):not(:disabled):not(.bg-transparent):focus,
+  textarea:not([readonly]):not(:disabled):not(.bg-transparent):focus,
+  select:not(:disabled):not(.bg-transparent):focus {
+    border-color: var(--accent-cyan);
+    box-shadow: var(--input-glow-cyan);
+  }
+
+  input[aria-invalid="true"]:not([readonly]):not(:disabled):focus,
+  textarea[aria-invalid="true"]:not([readonly]):not(:disabled):focus,
+  select[aria-invalid="true"]:not(:disabled):focus {
+    border-color: var(--accent-rose);
+    box-shadow: var(--input-glow-rose);
+  }
+
+  input[type="number"],
+  input[inputmode="numeric"],
+  input[type="tel"] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Keep browser autofill aligned with active light/dark theme tokens */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: var(--ink);
+    -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+    transition: background-color 9999s ease-out 0s;
+    caret-color: var(--ink);
   }
 
   /* Keep scrollbars and native controls in step with the active theme */

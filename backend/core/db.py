@@ -587,17 +587,3 @@ def check_qdrant_connection() -> dict:
     except Exception as e:
         logger.warning(f"Qdrant connection check failed: {e}")
         return {"status": "mock_fallback", "error": generic_500(e)}
-
-# Stubs for obsolete postgres connection pooling
-PG_URI = None
-def init_db_pool(minconn=1, maxconn=10):
-    return None
-
-def get_db_pool():
-    return None
-
-def close_db_pool():
-    pass
-
-def init_postgres_schema():
-    return True

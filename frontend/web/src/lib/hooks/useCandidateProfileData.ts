@@ -36,6 +36,7 @@ export interface CandidateProfileData {
   portfolioUrl: string;
   skillsSummary: string[];
   resume: ResumeData | null;
+  isDemoProfile: boolean;
 }
 
 export const EMPTY_PROFILE: CandidateProfileData = {
@@ -52,6 +53,7 @@ export const EMPTY_PROFILE: CandidateProfileData = {
   portfolioUrl: '',
   skillsSummary: [],
   resume: null,
+  isDemoProfile: false,
 };
 
 export function profileToForm(record: ProfileRecord): CandidateProfileData {
@@ -78,6 +80,7 @@ export function profileToForm(record: ProfileRecord): CandidateProfileData {
         )
       : [],
     resume: null,
+    isDemoProfile: Boolean(record.isDemoProfile),
   };
 }
 

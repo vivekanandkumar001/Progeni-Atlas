@@ -19,7 +19,7 @@ const BAR_COLORS = ['bg-cyan-400', 'bg-emerald-400', 'bg-indigo-400', 'bg-sky-40
  */
 export const CompetencyMap: React.FC = () => {
   const [competencies, setCompetencies] = useState<AggregatedCompetency[] | null>(null);
-  const [sessionCount, setSessionCount] = useState(0);
+  const [scoredSessionCount, setScoredSessionCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,9 +34,9 @@ export const CompetencyMap: React.FC = () => {
           ? (sessions as any).completed
           : [];
       const completed = sessionList.filter((session: any) => session.status === 'completed' || session.completedAt);
-      setSessionCount(completed.length);
 
       if (completed.length === 0) {
+        setScoredSessionCount(0);
         setCompetencies([]);
         return;
       }
@@ -45,18 +45,23 @@ export const CompetencyMap: React.FC = () => {
       if (cancelled) return;
 
       const totals = new Map<string, { sum: number; count: number }>();
+      let sessionsWithCompetencyData = 0;
       for (const card of scorecards) {
         if (!card) continue;
+        let hasScoredCompetency = false;
         for (const comp of card.competencies) {
           if (typeof comp.score !== 'number') continue;
           const key = comp.competency.trim();
           if (!key) continue;
+          hasScoredCompetency = true;
           const entry = totals.get(key) ?? { sum: 0, count: 0 };
           entry.sum += comp.score;
           entry.count += 1;
           totals.set(key, entry);
         }
+        if (hasScoredCompetency) sessionsWithCompetencyData += 1;
       }
+      setScoredSessionCount(sessionsWithCompetencyData);
 
       const aggregated = [...totals.entries()]
         .map(([name, { sum, count }]) => ({
@@ -83,7 +88,9 @@ export const CompetencyMap: React.FC = () => {
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <h2 className="kicker">Competency map</h2>
         <span className="text-[11px] text-ink-faint font-mono">
-          {sessionCount > 0 ? `${sessionCount} scored session${sessionCount === 1 ? '' : 's'}` : 'No scored sessions'}
+          {scoredSessionCount > 0
+            ? `${scoredSessionCount} scored session${scoredSessionCount === 1 ? '' : 's'}`
+            : 'No scored sessions'}
         </span>
       </div>
 
@@ -95,7 +102,7 @@ export const CompetencyMap: React.FC = () => {
       ) : !hasData ? (
         <div className="border-t border-line pt-5">
           <p className="text-xs text-ink-muted leading-relaxed">
-            Scores appear once you complete an interview. They are averaged across every scored session.
+            Scores appear once an interview includes competency feedback. They are averaged across every session with scored competency data.
           </p>
           <Link
             href="/candidate/practice"

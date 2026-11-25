@@ -27,7 +27,7 @@ export const Hero: React.FC = () => {
         transition={{ duration: 0.6, delay: 0.1 }}
         className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-ink tracking-tight leading-[1.15] max-w-4xl mb-5 font-sans"
       >
-        Hire 10x Faster with AI-Led Video Interviews
+        Candidates talk. AI listens and documents. Your team decides.
       </motion.h1>
 
       {/* Subheadline */}
@@ -37,7 +37,7 @@ export const Hero: React.FC = () => {
         transition={{ duration: 0.6, delay: 0.2 }}
         className="text-sm md:text-base text-ink-muted max-w-2xl leading-relaxed mb-8 font-normal"
       >
-        Screen hundreds of candidates simultaneously through natural face-to-face AI conversations. Save countless hours of scheduling while giving every applicant an equal, unbiased chance.
+        A two-way, adaptive technical interview with evidence behind every score — quoted verbatim, reviewed by a human before any decision. No verdict from the machine. Ever.
       </motion.p>
 
       {/* Dual Action Buttons */}

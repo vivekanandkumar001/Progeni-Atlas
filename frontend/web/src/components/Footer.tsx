@@ -3,9 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { BrandLogo } from '@/components/common/BrandLogo';
-import { ShieldCheck, Sparkles, Heart } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
-export const Footer: React.FC = () => {
+type FooterProps = {
+  hasOpenRoles?: boolean;
+};
+
+export const Footer: React.FC<FooterProps> = ({ hasOpenRoles = false }) => {
   return (
     <footer className="w-full border-t border-line bg-surface-deep text-ink">
       {/* Upper Main Footer Grid */}
@@ -33,9 +37,9 @@ export const Footer: React.FC = () => {
 
           {/* Navigation Links: Platform & Services */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-ink  mb-4">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-ink  mb-4">
               Platform &amp; Services
-            </h4>
+            </h2>
             <ul className="space-y-2.5 text-sm">
               <li>
                 <Link href="/services" className="text-ink-muted hover:text-accent-blue  transition-colors">
@@ -67,9 +71,9 @@ export const Footer: React.FC = () => {
 
           {/* Navigation Links: Showcase & Pricing */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-ink  mb-4">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-ink  mb-4">
               Explore &amp; Plans
-            </h4>
+            </h2>
             <ul className="space-y-2.5 text-sm">
               <li>
                 <Link href="/portfolio" className="text-ink-muted hover:text-accent-blue  transition-colors">
@@ -78,7 +82,7 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <Link href="/pricing" className="text-ink-muted hover:text-accent-blue  transition-colors font-medium">
-                  Pay Us Now (Pricing)
+                  Pricing
                 </Link>
               </li>
               <li>
@@ -92,7 +96,7 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/#faq" className="text-ink-muted hover:text-accent-blue  transition-colors">
+                <Link href="/services#faq" className="text-ink-muted hover:text-accent-blue  transition-colors">
                   Frequently Asked Questions
                 </Link>
               </li>
@@ -106,9 +110,9 @@ export const Footer: React.FC = () => {
 
           {/* Navigation Links: Company */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-ink  mb-4">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-ink  mb-4">
               Company
-            </h4>
+            </h2>
             <ul className="space-y-2.5 text-sm">
               <li>
                 <Link href="/about" className="text-ink-muted hover:text-accent-blue  transition-colors">
@@ -118,9 +122,11 @@ export const Footer: React.FC = () => {
               <li>
                 <Link href="/career" className="text-ink-muted hover:text-accent-blue  transition-colors flex items-center gap-1.5 font-medium">
                   Career
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-accent-emerald  font-bold border border-emerald-500/20">
-                    We&apos;re Hiring
-                  </span>
+                  {hasOpenRoles && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-accent-emerald  font-bold border border-emerald-500/20">
+                      We&apos;re Hiring
+                    </span>
+                  )}
                 </Link>
               </li>
               <li>

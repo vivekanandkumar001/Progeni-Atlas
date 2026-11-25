@@ -30,6 +30,8 @@ import {
   timeoutInterviewQuestion,
   apiFetch,
   apiJson,
+  candidateDemoQuota,
+  fetchCandidateInterviews,
   clearSession,
   formatBytes,
   getAccessToken,
@@ -438,6 +440,10 @@ test('apiJson returns null for non-2xx, 204 and non-JSON responses', async () =>
 });
 
 test('apiJson caches successful GETs, honors skipCache, and never caches failures', async () => {
+  // Caching is deliberately scoped to an authenticated user; anonymous
+  // responses must never be reused across callers.
+  installBrowserStubs();
+  persistSession(undefined, undefined, { email: 'cache@example.com' });
   const responses = [jsonResponse({ v: 1 }), jsonResponse({ v: 2 })];
   const calls = stubFetch([
     ['/api/candidate/profile?unit=cache', () => responses.shift()],
@@ -459,6 +465,8 @@ test('apiJson caches successful GETs, honors skipCache, and never caches failure
 });
 
 test('apiJson deduplicates concurrent identical GETs', async () => {
+  installBrowserStubs();
+  persistSession(undefined, undefined, { email: 'dedup@example.com' });
   const path = '/api/candidate/interviews?unit=dedup'; // 30s TTL
   let resolveFetch;
   const calls = [];
@@ -542,4 +550,51 @@ test('question timeout sends only the explicit in-memory partial response and qu
     question_id: 'question-2',
     partial_answer: 'partial transcript',
   });
+});
+
+/* ------------------------------------ candidate data normalization */
+
+test('candidateDemoQuota uses one authoritative value and never invents a quota', () => {
+  assert.deepEqual(
+    candidateDemoQuota({
+      demoQuota: { totalAllowed: 2, completed: 2, remaining: 0 },
+      free_demos_remaining: 2, // stale legacy mismatch must not win
+    }),
+    { total: 2, used: 2, remaining: 0 },
+  );
+  assert.deepEqual(
+    candidateDemoQuota({ free_demos_total: 2, free_demos_used: 0, free_demos_remaining: 2 }),
+    { total: 2, used: 0, remaining: 2 },
+  );
+  assert.equal(candidateDemoQuota(null), null);
+  assert.equal(candidateDemoQuota({}), null);
+});
+
+test('candidate interview normalization carries demo labels into the UI', async () => {
+  stubFetch([
+    [
+      '/api/candidate/interviews',
+      jsonResponse([
+        {
+          id: 'sess_demo_1234',
+          status: 'completed',
+          completedAt: '2026-11-22T18:14:00Z',
+          durationMinutes: 10,
+          isDemo: true,
+          demoNumber: 2,
+          config: { is_demo: true, demo_number: 2 },
+        },
+      ]),
+    ],
+  ]);
+
+  const rows = await fetchCandidateInterviews();
+
+  assert.equal(rows?.length, 1);
+  const row = rows[0];
+  assert.equal(row.isDemo, true);
+  assert.equal(row.demoNumber, 2);
+  assert.equal(row.scheduled_at, '2026-11-22T18:14:00Z');
+  assert.equal(row.duration_minutes, 10);
+  assert.equal(row.reportUrl, '/candidate/interview/sess_demo_1234/report');
 });

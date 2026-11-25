@@ -12,7 +12,7 @@ import { PrepChecklist } from '@/components/dashboard/PrepChecklist';
 import { ResumeSyncFooter } from '@/components/dashboard/ResumeSyncFooter';
 
 export const metadata: Metadata = {
-  title: 'Candidate Home | Progeni Atlas',
+  title: 'Candidate Home',
   description:
     'Your placement preparation command center — interviews, aptitude assessments, competency map, recent activity and practice drills in one flat workspace.',
 };

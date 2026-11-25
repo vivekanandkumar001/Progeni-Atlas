@@ -538,7 +538,7 @@ export const CameraMicPreview: React.FC<CameraMicPreviewProps> = ({
               <select
                 value={selectedVideoId}
                 onChange={(e) => handleVideoDeviceChange(e.target.value)}
-                className="w-full appearance-none px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-xs focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 cursor-pointer pr-10"
+                className="w-full appearance-none px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-xs transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan cursor-pointer pr-10"
               >
                 {(probeResult?.videoInputs || []).length > 0 ? (
                   probeResult?.videoInputs.map((d, i) => (
@@ -564,7 +564,7 @@ export const CameraMicPreview: React.FC<CameraMicPreviewProps> = ({
               <select
                 value={selectedAudioId}
                 onChange={(e) => handleAudioDeviceChange(e.target.value)}
-                className="w-full appearance-none px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-xs focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 cursor-pointer pr-10"
+                className="w-full appearance-none px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-xs transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan cursor-pointer pr-10"
               >
                 {(probeResult?.audioInputs || []).length > 0 ? (
                   probeResult?.audioInputs.map((d, i) => (

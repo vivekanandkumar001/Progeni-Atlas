@@ -1,22 +1,33 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import {
   Mail,
-  Phone,
-  MapPin,
   Clock,
   Send,
   CheckCircle2,
   Sparkles,
-  Building2,
   ShieldCheck,
   MessageSquare,
-  HelpCircle,
 } from 'lucide-react';
+
+type ContactCard = {
+  icon: React.ElementType;
+  title: string;
+  desc: string;
+  value: string;
+  sub: string;
+  href?: string;
+};
+
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || 'support@progeni.live';
+const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL?.trim() || 'sales@progeni.live';
+const SUPPORT_HOURS_UTC = process.env.NEXT_PUBLIC_SUPPORT_HOURS_UTC?.trim() || 'Monday–Friday';
+const SUPPORT_HOURS = /(?:UTC|GMT)/i.test(SUPPORT_HOURS_UTC)
+  ? SUPPORT_HOURS_UTC
+  : `${SUPPORT_HOURS_UTC} UTC`;
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -38,27 +49,29 @@ export default function ContactPage() {
     }, 3000);
   };
 
-  const contactCards = [
+  const contactCards: ContactCard[] = [
     {
       icon: Mail,
-      title: 'Email Us Directly',
-      desc: 'Our enterprise solutions team responds within 4 business hours.',
-      value: 'sales@progeni.live',
-      sub: 'support@progeni.live',
+      title: 'Sales & Enterprise',
+      desc: 'Demonstrations, pricing, ATS integrations and volume licensing.',
+      value: SALES_EMAIL,
+      sub: 'We reply within one business day',
+      href: `mailto:${SALES_EMAIL}`,
     },
     {
-      icon: Phone,
-      title: 'Global Phone Line',
-      desc: 'Monday – Friday, 9:00 AM – 6:00 PM EST.',
-      value: '+1 (800) 555-PULSE',
-      sub: '+44 20 7946 0912 (UK/EU)',
+      icon: MessageSquare,
+      title: 'Product Support',
+      desc: 'Account, interview, wallet and billing assistance.',
+      value: SUPPORT_EMAIL,
+      sub: 'We reply within one business day',
+      href: `mailto:${SUPPORT_EMAIL}`,
     },
     {
-      icon: MapPin,
-      title: 'Headquarters',
-      desc: 'Visit our primary innovation and engineering hub.',
-      value: '500 Howard Street, Suite 400',
-      sub: 'San Francisco, CA 94105',
+      icon: Clock,
+      title: 'Support Hours',
+      desc: 'Our published support window.',
+      value: SUPPORT_HOURS,
+      sub: 'Email outside these hours is answered the next business day',
     },
   ];
 
@@ -101,9 +114,9 @@ export default function ContactPage() {
                 <span className="text-xs font-bold text-accent-cyan uppercase tracking-wider block mb-1">
                   DIRECT CONTACT
                 </span>
-                <h2 className="text-2xl font-black text-ink">We&apos;re Always Accessible</h2>
+                <h2 className="text-2xl font-black text-ink">Reach Us Directly</h2>
                 <p className="text-xs sm:text-sm text-ink-muted mt-2 leading-relaxed">
-                  Reach out through any of our direct channels or submit an enterprise inquiry form.
+                  Email the right team directly or submit an enterprise inquiry below.
                 </p>
               </div>
 
@@ -120,12 +133,18 @@ export default function ContactPage() {
                           <Icon className="w-5 h-5" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-bold text-ink">{card.title}</h4>
+                          <h3 className="text-sm font-bold text-ink">{card.title}</h3>
                           <p className="text-[11px] text-ink-muted">{card.desc}</p>
                         </div>
                       </div>
                       <div className="pt-2 border-t border-line text-xs font-mono">
-                        <p className="font-bold text-accent-blue ">{card.value}</p>
+                        {card.href ? (
+                          <a href={card.href} className="block font-bold text-accent-blue hover:underline">
+                            {card.value}
+                          </a>
+                        ) : (
+                          <p className="font-bold text-accent-blue ">{card.value}</p>
+                        )}
                         <p className="text-ink-muted text-[11px] mt-0.5">{card.sub}</p>
                       </div>
                     </div>
@@ -144,73 +163,77 @@ export default function ContactPage() {
             {/* Right Column: Contact Inquiry Form (7 cols) */}
             <div className="lg:col-span-7">
               <div className="p-8 sm:p-10 rounded-xl border border-line bg-surface-deep shadow-xl relative">
-                <h3 className="text-xl font-bold text-ink mb-1">Send an Inquiry</h3>
+                <h2 className="text-xl font-bold text-ink mb-1">Send an Inquiry</h2>
                 <p className="text-xs text-ink-muted mb-6">
-                  Fill in your details below and our team will get in touch promptly.
+                  Fill in your details below and our team will respond within one business day.
                 </p>
 
                 {submitted ? (
                   <div className="py-12 text-center space-y-3">
                     <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto animate-bounce" />
-                    <h4 className="text-xl font-bold text-ink">Inquiry Submitted Successfully!</h4>
+                    <h3 className="text-xl font-bold text-ink">Inquiry Submitted Successfully!</h3>
                     <p className="text-xs text-ink-muted max-w-sm mx-auto">
-                      Thank you for contacting Progeni Atlas. A technical solutions specialist will contact you at <span className="font-semibold text-ink">{email || 'your email'}</span> within 4 hours.
+                      Thank you for contacting Progeni Atlas. A technical solutions specialist will contact you at <span className="font-semibold text-ink">{email || 'your email'}</span> within one business day.
                     </p>
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-ink mb-1">
+                        <label htmlFor="contact-full-name" className="block text-xs font-bold text-ink mb-1">
                           Full Name *
                         </label>
                         <input
+                          id="contact-full-name"
                           type="text"
                           required
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           placeholder="Please enter your full name"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-sm text-ink transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-ink mb-1">
+                        <label htmlFor="contact-email" className="block text-xs font-bold text-ink mb-1">
                           Work Email *
                         </label>
                         <input
+                          id="contact-email"
                           type="email"
                           required
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="Please enter your work email address"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-sm text-ink transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue"
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-ink mb-1">
+                        <label htmlFor="contact-company" className="block text-xs font-bold text-ink mb-1">
                           Company / Organization
                         </label>
                         <input
+                          id="contact-company"
                           type="text"
                           value={company}
                           onChange={(e) => setCompany(e.target.value)}
                           placeholder="Please enter your company name"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-sm text-ink transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-ink mb-1">
+                        <label htmlFor="contact-inquiry-type" className="block text-xs font-bold text-ink mb-1">
                           Inquiry Type
                         </label>
                         <select
+                          id="contact-inquiry-type"
                           value={inquiryType}
                           onChange={(e) => setInquiryType(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-sm text-ink transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue"
                         >
                           <option value="Enterprise Demo">Schedule Enterprise Demo</option>
                           <option value="Pricing & Licensing">Pricing &amp; Volume Licensing</option>
@@ -222,16 +245,17 @@ export default function ContactPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-ink mb-1">
+                      <label htmlFor="contact-message" className="block text-xs font-bold text-ink mb-1">
                         How can we help? *
                       </label>
                       <textarea
+                        id="contact-message"
                         rows={4}
                         required
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         placeholder="Please tell us about your team size, expected interview volume, or specific technical stacks..."
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface text-sm text-ink transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue"
                       />
                     </div>
 

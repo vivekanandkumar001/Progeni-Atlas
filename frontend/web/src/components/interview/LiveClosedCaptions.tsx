@@ -32,7 +32,7 @@ export const LiveClosedCaptions: React.FC<LiveClosedCaptionsProps> = ({ subtitle
     <div className="w-full rounded-2xl bg-surface border border-line backdrop-blur-md overflow-hidden shadow-2xl transition-all">
       
       {/* HEADER / SINGLE LINE LIVE STRIP */}
-      <div className="p-3 px-4 flex items-center justify-between gap-3">
+      <div className="p-3 px-4 flex items-center justify-between gap-3" role="status" aria-live="polite" aria-atomic="true">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {/* Speaker Tag */}
           <span
@@ -51,7 +51,7 @@ export const LiveClosedCaptions: React.FC<LiveClosedCaptionsProps> = ({ subtitle
           </span>
 
           {/* Subtitle Text */}
-          <p className="text-xs text-ink font-medium truncate flex-1 leading-tight">
+          <p className="text-xs text-ink font-medium flex-1 leading-tight line-clamp-2">
             {activeSubtitle ? `“${activeSubtitle.text}”` : 'Waiting for interviewer…'}
           </p>
         </div>

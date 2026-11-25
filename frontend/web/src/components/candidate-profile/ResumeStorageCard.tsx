@@ -90,6 +90,7 @@ export function ResumeStorageCard({
         ref={fileInputRef}
         type="file"
         accept=".pdf"
+        aria-label="Choose resume PDF to upload"
         onChange={onFileSelect}
         className="hidden"
       />

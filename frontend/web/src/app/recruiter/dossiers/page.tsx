@@ -5,6 +5,19 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { RecruiterHeader } from '@/components/dashboard/RecruiterHeader';
 import { exportCandidateDossierPdf } from '@/lib/export-pdf-dossier';
+import { useToast } from '@/lib/hooks/useToast';
+import {
+  isPastUnconducted,
+  getStudentStatus,
+  formatInterviewDateTime,
+} from '@/lib/recruiter-dashboard';
+import type {
+  CandidateDossier,
+  ScoreBreakdown,
+  StudentStatus,
+} from '@/app/recruiter/dashboard/dashboard-types';
+export { isPastUnconducted, getStudentStatus, formatInterviewDateTime };
+export type { StudentStatus, ScoreBreakdown, CandidateDossier };
 import {
  Users,
  Search,
@@ -35,157 +48,6 @@ import {
  Check
 } from 'lucide-react';
 
-interface ScoreBreakdown {
- technicalDepth: number;
- systemArchitecture: number;
- communication: number;
- problemSolving: number;
-}
-
-interface CandidateDossier {
- id: string;
- sessionId?: string;
- name: string;
- email: string;
- targetPosition: string;
- jobProfileId?: string | null;
- department: string;
- aiMatchScore?: number | null;
- recommendation?: 'STRONG_HIRE'|'HIRE'|'LEAN_HIRE'|'REJECT'| string | null;
- status: string;
- stage: string;
- appliedDate: string;
- scheduledAt?: string | null;
- scheduledDate?: string | null;
- scheduledTime?: string | null;
- interviewDuration?: string | null;
- skills: string[];
- summary?: string | null;
- breakdown: ScoreBreakdown | null;
- keyHighlights: string[];
- hiringStatus?: string;
- studentStatus?: string;
-}
-
-function formatInterviewDateTime(
- scheduledAt?: string | null,
- scheduledDate?: string | null,
- scheduledTime?: string | null
-): { date: string; time: string; isScheduled: boolean } {
- if (scheduledDate) {
- let dateStr = scheduledDate;
- try {
- const parts = scheduledDate.split('-');
- if (parts.length === 3) {
- const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
- dateStr = d.toLocaleDateString('en-US', {
- month: 'short',
- day: 'numeric',
- year: 'numeric',
- });
- }
- } catch {}
-
- let timeStr = '';
- if (scheduledTime) {
- const tParts = scheduledTime.split(':');
- if (tParts.length >= 2) {
- let hour = parseInt(tParts[0], 10);
- const minute = tParts[1].slice(0, 2);
- const ampm = hour >= 12 ? 'PM': 'AM';
- hour = hour % 12 || 12;
- timeStr =`${hour}:${minute} ${ampm}`;
- } else {
- timeStr = scheduledTime;
- }
- }
-
- return { date: dateStr, time: timeStr, isScheduled: true };
- }
-
- if (scheduledAt) {
- try {
- const d = new Date(scheduledAt);
- if (!isNaN(d.getTime())) {
- const date = d.toLocaleDateString('en-US', {
- month: 'short',
- day: 'numeric',
- year: 'numeric',
- });
- const time = d.toLocaleTimeString('en-US', {
- hour: 'numeric',
- minute: '2-digit',
- hour12: true,
- });
- return { date, time, isScheduled: true };
- }
- } catch {}
- }
-
- return { date: 'Not Scheduled', time: '', isScheduled: false };
-}
-
-export function isPastUnconducted(candidate: CandidateDossier): boolean {
- if (candidate.aiMatchScore != null) return false;
- const sess = String(candidate.status ||'').toLowerCase();
- if (sess === 'completed') return false;
- if (sess.includes('abandon') || sess.includes('cancel') || sess.includes('backout')) return true;
- const stage = String(candidate.stage ||'').toLowerCase();
- if (stage.includes('miss') || stage.includes('abandon')) return true;
- const rec = String(candidate.recommendation ||'').toUpperCase();
- if (rec === 'MISSED'|| rec === 'ABANDONED') return true;
- if (candidate.scheduledAt) {
- try {
- const schedTime = new Date(candidate.scheduledAt).getTime();
- if (!isNaN(schedTime) && schedTime + 15 * 60 * 1000 < Date.now()) {
- return true;
- }
- } catch {
- return false;
- }
- } else if (candidate.scheduledDate) {
- try {
- const t = candidate.scheduledTime ||'10:00';
- const schedTime = new Date(`${candidate.scheduledDate}T${t}:00`).getTime();
- if (!isNaN(schedTime) && schedTime + 15 * 60 * 1000 < Date.now()) {
- return true;
- }
- } catch {
- return false;
- }
- }
- return false;
-}
-
-export type StudentStatus = 'selected'|'rejected'|'inprocess'|'backout';
-
-export function getStudentStatus(candidate: CandidateDossier): StudentStatus {
- if (candidate.studentStatus) {
- const s = String(candidate.studentStatus).toLowerCase().replace(/[-_\s]/g, '');
- if (s === 'selected') return 'selected';
- if (s === 'rejected') return 'rejected';
- if (s === 'backout') return 'backout';
- if (s === 'inprocess') return 'inprocess';
- }
-
- // Automatically mark past unconducted or missed session as backout
- if (isPastUnconducted(candidate)) return 'backout';
-
- const hiring = String(candidate.hiringStatus ||'').toLowerCase().replace(/[-_\s]/g, '');
- if (hiring.includes('select') || hiring.includes('hire') || hiring.includes('offer')) return 'selected';
- if (hiring.includes('reject')) return 'rejected';
- if (hiring.includes('backout') || hiring.includes('decline') || hiring.includes('withdraw')) return 'backout';
- if (hiring.includes('inprocess') || hiring.includes('panel') || hiring.includes('shortlist') || hiring.includes('progress')) return 'inprocess';
-
- const sess = String(candidate.status ||'').toLowerCase().replace(/[-_\s]/g, '');
- if (sess.includes('abandon') || sess.includes('cancel') || sess.includes('backout') || sess.includes('decline')) return 'backout';
-
- const rec = String(candidate.recommendation ||'').toUpperCase();
- if (rec === 'STRONG_HIRE'|| rec === 'HIRE') return 'selected';
- if (rec === 'REJECT') return 'rejected';
-
- return 'inprocess';
-}
 
 export default function CandidateDossiersPage() {
  const [candidates, setCandidates] = useState<CandidateDossier[]>([]);
@@ -209,7 +71,7 @@ export default function CandidateDossiersPage() {
  const [inviteJobId, setInviteJobId] = useState('');
 
  // TOAST
- const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success'|'error'} | null>(null);
+ const { toastMessage, showToast } = useToast();
  const [updatingDecision, setUpdatingDecision] = useState(false);
 
  // Webhook Sync Hub State
@@ -367,10 +229,7 @@ export default function CandidateDossiersPage() {
  const [rescheduling, setRescheduling] = useState(false);
  const [isExporting, setIsExporting] = useState(false);
 
- const showToast = (text: string, type: 'success'|'error'= 'success') => {
- setToastMessage({ text, type });
- setTimeout(() => setToastMessage(null), 4000);
- };
+
 
  const handleExportDossiers = async (format: 'xlsx'|'csv'= 'xlsx') => {
  try {
@@ -864,6 +723,35 @@ export default function CandidateDossiersPage() {
 
  <td className="py-4 px-6 text-right whitespace-nowrap"onClick={(e) => e.stopPropagation()}>
  <div className="flex items-center justify-end gap-2">
+ <button
+ type="button"
+ onClick={async () => {
+   try {
+     const res = await apiFetch(`/api/recruiter/dossiers/${encodeURIComponent(c.sessionId!)}/ats-scorecard`, { method: 'GET' });
+     if (!res.ok) {
+       const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+       throw new Error(typeof body.error === 'string' ? body.error : 'ATS export failed');
+     }
+     const blob = await res.blob();
+     const url = window.URL.createObjectURL(blob);
+     const a = document.createElement('a');
+     a.href = url;
+     a.download = `ats-scorecard-${String(c.sessionId).slice(0, 24)}.json`;
+     document.body.appendChild(a);
+     a.click();
+     a.remove();
+     window.URL.revokeObjectURL(url);
+     showToast('ATS scorecard JSON downloaded.', 'success');
+   } catch (err) {
+     showToast(err instanceof Error ? err.message : 'ATS export failed', 'error');
+   }
+ }}
+ className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[38px] rounded-xl bg-surface-2 hover:bg-surface-3 text-ink border border-line text-xs font-medium cursor-pointer transition-all"
+ title="Download Greenhouse-compatible ATS scorecard JSON for this dossier"
+ >
+ <Download className="w-3.5 h-3.5 text-accent-emerald"/>
+ <span>ATS</span>
+ </button>
  {c.sessionId && (
  c.stage?.toLowerCase().includes('in progress') || c.stage?.toLowerCase().includes('live') || c.stage?.toLowerCase().includes('ongoing') ? (
  <Link

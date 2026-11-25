@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { LegalShell, LegalSection, LegalBullets } from '@/components/legal/LegalShell';
 
 export const metadata: Metadata = {
-  title: 'AI Transparency & AEDT Notice | Progeni Atlas',
+  title: 'AI Transparency & AEDT Notice',
   description:
     'How the AI interviewer works, what is scored and why, what our models never infer, the NYC Local Law 144 / EU AI Act notices you are entitled to, and how to request a human review of your evaluation.',
 };
@@ -77,7 +77,7 @@ export default function AiTransparencyPage() {
             <ul className="list-disc pl-4 space-y-1 text-[13px]">
               <li>Accent, dialect, micro-expressions, gait, gaze</li>
               <li>Personality “types”, EQ-from-face, ethnicity, gender, age cues</li>
-              <li>Camera presence alone (used only as an anti-cheat integrity flag)</li>
+              <li>Camera presence alone (used only to keep the session on camera for the call itself)</li>
               <li>Demographic or socioeconomic signals of any kind</li>
               <li>Past surnames, location, school prestige beyond resume evidence</li>
             </ul>
@@ -89,16 +89,17 @@ export default function AiTransparencyPage() {
         <p>
           We do not run emotion recognition, attractiveness models, voice biometric identity matching for marketing,
           ethnicity classifiers or health inference anywhere in the candidate pipeline — and we will not ship them.
-          Proctoring signals (tab switch, copy/paste, multi-face) are strictly boolean integrity flags surfaced for the
-          human reviewer; they are not used in scoring.
+          Proctoring signals (tab switch, copy/paste, fullscreen exit) are strictly disclosed counts surfaced for the
+          human reviewer; they are not used in scoring. We do not perform gaze, face, emotion or presence analysis,
+          on-device or otherwise.
         </p>
       </LegalSection>
 
       <LegalSection id="bias" title="5. Bias monitoring & independent audit">
         <LegalBullets
           items={[
-            <><strong>Parity monitoring</strong> — every release ships score-distribution comparisons across cohorts (gender, self-declared ethnicity, age band, region) for the same job profile and question set.</>,
-            <><strong>Calibration set</strong> — a fixed human-labelled calibration corpus regression-tests judge prompts before changes ship; unjustifiable score drift blocks the release.</>,
+            <><strong>Parity monitoring</strong> — score-distribution comparisons across cohorts (gender, self-declared ethnicity, age band, region) for the same job profile and question set are part of our release review; full automation of this is in progress and will be disclosed when live.</>,
+            <><strong>Calibration set</strong> — a fixed human-labelled calibration corpus is being assembled for judge-prompt regression testing; until it is complete we disclose only qualitative judge reviews, not quantitative rater-agreement metrics.</>,
             <><strong>Third-party audit</strong> — employers deploying us to screen within New York City must procure an annual independent bias audit. We provide the audit-data extract + summary on request (turnaround: 10 working days).</>,
             <><strong>Override path</strong> — rejection recommendations are advisory; any system-derived recommendation can be overturned by the hiring manager with one click, and overturned decisions are logged for drift analysis.</>,
           ]}
@@ -148,12 +149,12 @@ export default function AiTransparencyPage() {
               {[
                 ['Model family', 'GPT-class via OpenAI / Gemini · openRouter fallback · deterministic rubric judge'],
                 ['Fine-tuning', 'Prompt-conditioned evaluation, no per-candidate training'],
-                ['Tools', 'LiveKit WebRTC, MediaPipe vision (on-device), Qdrant rubric retrieval, PyMuPDF'],
+                ['Tools', 'LiveKit WebRTC, Groq Whisper (speech-to-text), Azure Neural TTS, PyMuPDF'],
                 ['Inputs', 'Resume text (PDF/DOCX), JD text, live transcript, screen integrity signals'],
                 ['Outputs', 'turn scores, overall score 0-100, recommendation band, dossier'],
                 ['Failure modes', 'Hallucinated micro-facts (mitigated by bounded generation + rubric-conditioned judging); silence inflation (capped by per-turn timers)'],
                 ['Limits', 'Not psychometric-grade; one session ≠ capability; accent-agnostic by transcript'],
-                ['Last evaluation', 'November 2026 — score distributions parity-balanced across cohorts'],
+                ['Last evaluation', 'November 2026 — judge prompts reviewed manually against recorded sessions; full statistical parity reporting is being assembled'],
               ].map(([k, v]) => (
                 <tr key={k} className="border-b border-line last:border-0">
                   <td className="align-top px-4 py-2 font-semibold text-ink w-44">{k}</td>

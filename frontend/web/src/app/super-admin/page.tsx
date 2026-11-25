@@ -28,11 +28,10 @@ import {
   formatNumber,
   saFetch,
   type AuditLogItem,
+  type AuditResponse,
   type Overview,
   type SystemHealth,
 } from '@/lib/super-admin';
-
-type AuditResponse = { success: boolean; logs?: AuditLogItem[]; items?: AuditLogItem[] };
 
 export default function SuperAdminOverviewPage() {
   const router = useRouter();

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { RecruiterHeader } from '@/components/dashboard/RecruiterHeader';
+import { useToast } from '@/lib/hooks/useToast';
 import {
   FileCheck,
   Plus,
@@ -74,6 +75,61 @@ export interface IndustryBlueprint {
   recommendedInstructions: string;
 }
 
+// Offline fallback mirrors backend/routes/recruiter_routes.py's
+// INDUSTRY_ROLE_BLUEPRINTS constant (role families, not NAICS sectors).
+export const FALLBACK_BLUEPRINTS: IndustryBlueprint[] = [
+  {
+    id: 'fullstack',
+    title: 'Full-Stack Software Engineer',
+    department: 'Engineering',
+    targetLevel: 'Senior',
+    description: 'Balanced evaluation across front-to-back delivery, API design, data persistence, and interactive user experience.',
+    weights: { technicalDepth: 35, systemArchitecture: 25, problemSolving: 20, communication: 20 },
+    skills: ['TypeScript', 'React', 'Node.js', 'PostgreSQL', 'REST/GraphQL', 'Docker'],
+    recommendedInstructions: 'Evaluate full-stack proficiency: clean component state management, typed backend contracts, database queries, and modular API design.'
+  },
+  {
+    id: 'backend',
+    title: 'Backend & Distributed Systems Engineer',
+    department: 'Infrastructure',
+    targetLevel: 'Senior',
+    description: 'Deep focus on distributed concurrency, event streams, microservice fault tolerance, and high-throughput data layers.',
+    weights: { technicalDepth: 35, systemArchitecture: 35, problemSolving: 20, communication: 10 },
+    skills: ['Go / Java / Python', 'Distributed Systems', 'Apache Kafka', 'PostgreSQL / Redis', 'gRPC', 'Kubernetes'],
+    recommendedInstructions: 'Emphasize distributed concurrency, network partition recovery, ACID vs BASE transactions, database indexing, and backpressure management.'
+  },
+  {
+    id: 'frontend',
+    title: 'Frontend Platform & UI Architect',
+    department: 'Engineering',
+    targetLevel: 'Senior',
+    description: 'High focus on component hierarchy, client-side caching, rendering performance (Core Web Vitals), and accessibility.',
+    weights: { technicalDepth: 40, systemArchitecture: 20, problemSolving: 20, communication: 20 },
+    skills: ['React / Next.js', 'TypeScript', 'Performance Optimization', 'Web Vitals', 'State Machines', 'CSS Architecture'],
+    recommendedInstructions: 'Probe client-side performance, state management trade-offs, bundle splitting, hydration latency, and modular component reusability.'
+  },
+  {
+    id: 'devops',
+    title: 'DevOps & Cloud Reliability Engineer (SRE)',
+    department: 'Infrastructure',
+    targetLevel: 'Senior',
+    description: 'Strong architectural weighting on automated CI/CD pipelines, container orchestration, observability, and incident recovery.',
+    weights: { technicalDepth: 30, systemArchitecture: 40, problemSolving: 15, communication: 15 },
+    skills: ['Kubernetes', 'Terraform', 'AWS / GCP', 'CI/CD Pipelines', 'Prometheus / Grafana', 'Linux Systems'],
+    recommendedInstructions: 'Focus on infrastructure-as-code, zero-downtime rolling deployments, chaos engineering, observability telemetry, and automated self-healing.'
+  },
+  {
+    id: 'aiml',
+    title: 'AI & Machine Learning Systems Engineer',
+    department: 'AI Research',
+    targetLevel: 'Senior',
+    description: 'Focused on vector embeddings, LLM inference pipelines, model evaluation metrics, and low-latency feature stores.',
+    weights: { technicalDepth: 40, systemArchitecture: 25, problemSolving: 25, communication: 10 },
+    skills: ['Python', 'PyTorch / TensorFlow', 'Vector Databases (Qdrant)', 'LLM Fine-tuning', 'FastAPI', 'Model Serving'],
+    recommendedInstructions: 'Test understanding of embedding pipelines, retrieval-augmented generation (RAG) latency bottlenecks, model quantization, and evaluation benchmarks.'
+  }
+];
+
 export default function EvaluationRubricsPage() {
   const [rubrics, setRubrics] = useState<EvaluationRubric[]>([]);
   const [taxonomy, setTaxonomy] = useState<StandardCompetency[]>([]);
@@ -97,6 +153,7 @@ export default function EvaluationRubricsPage() {
   const [newJobLevel, setNewJobLevel] = useState('Senior');
   const [newJobDesc, setNewJobDesc] = useState('');
   const [newJobSkills, setNewJobSkills] = useState('');
+  const [newJobBlueprintId, setNewJobBlueprintId] = useState('');
   const [savingJob, setSavingJob] = useState(false);
 
   // EDIT WEIGHTS STATE
@@ -108,15 +165,11 @@ export default function EvaluationRubricsPage() {
   });
   const [editLevel, setEditLevel] = useState('Senior');
   const [editInstructions, setEditInstructions] = useState('');
+  const [appliedBlueprintId, setAppliedBlueprintId] = useState('');
   const [updatingRubric, setUpdatingRubric] = useState(false);
 
   // TOAST STATE
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-
-  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
-    setToastMessage({ text, type });
-    setTimeout(() => setToastMessage(null), 4000);
-  };
+  const { toastMessage, showToast } = useToast();
 
   const [error, setError] = useState<string | null>(null);
 
@@ -173,6 +226,7 @@ export default function EvaluationRubricsPage() {
     setEditWeights(rubric.weights || { technicalDepth: 40, systemArchitecture: 30, communication: 15, problemSolving: 15 });
     setEditLevel(rubric.experienceLevel || 'Senior');
     setEditInstructions(rubric.customInstructions || '');
+    setAppliedBlueprintId(rubric.blueprintId || '');
   };
 
   // Weight Calculation & Auto-Normalization
@@ -201,6 +255,7 @@ export default function EvaluationRubricsPage() {
     setEditWeights(bp.weights);
     setEditLevel(bp.targetLevel);
     setEditInstructions(bp.recommendedInstructions);
+    setAppliedBlueprintId(bp.id);
     showToast(`Loaded '${bp.title}' blueprint template!`, 'success');
   };
 
@@ -210,6 +265,7 @@ export default function EvaluationRubricsPage() {
     setNewJobLevel(bp.targetLevel);
     setNewJobDesc(bp.description);
     setNewJobSkills(bp.skills.join(', '));
+    setNewJobBlueprintId(bp.id);
     setShowCreateJobModal(true);
     showToast(`Pre-filled position from '${bp.title}'!`, 'success');
   };
@@ -235,22 +291,31 @@ export default function EvaluationRubricsPage() {
           weights: editWeights,
           experienceLevel: editLevel,
           customInstructions: editInstructions,
+          blueprintId: appliedBlueprintId || editingRubric.blueprintId || '',
         }),
       });
 
       setRubrics((prev) =>
         prev.map((r) =>
           r.id === editingRubric.id
-            ? { ...r, weights: editWeights, experienceLevel: editLevel, customInstructions: editInstructions }
+            ? {
+                ...r,
+                weights: editWeights,
+                experienceLevel: editLevel,
+                customInstructions: editInstructions,
+                blueprintId: appliedBlueprintId || r.blueprintId || '',
+              }
             : r
         )
       );
 
       showToast(`Standardized rubric for '${editingRubric.title}' published successfully!`, 'success');
       setEditingRubric(null);
+      setAppliedBlueprintId('');
     } catch {
       showToast(`Rubric updated locally.`, 'success');
       setEditingRubric(null);
+      setAppliedBlueprintId('');
     } finally {
       setUpdatingRubric(false);
     }
@@ -273,6 +338,9 @@ export default function EvaluationRubricsPage() {
           experienceLevel: newJobLevel,
           jobDescription: newJobDesc,
           skillsRequired: skillsArray,
+          blueprintId: newJobBlueprintId || undefined,
+          weights: blueprints.find((bp) => bp.id === newJobBlueprintId)?.weights,
+          customInstructions: blueprints.find((bp) => bp.id === newJobBlueprintId)?.recommendedInstructions,
         }),
       });
 
@@ -286,9 +354,10 @@ export default function EvaluationRubricsPage() {
             department: data.job.department,
             experienceLevel: data.job.experienceLevel,
             skillsRequired: data.job.skillsRequired,
-            weights: { technicalDepth: 40, systemArchitecture: 30, communication: 15, problemSolving: 15 },
+            weights: data.job.weights || { technicalDepth: 40, systemArchitecture: 30, communication: 15, problemSolving: 15 },
             status: 'Active',
-            customInstructions: `Focus on technical depth and code clarity for ${data.job.title}.`,
+            customInstructions: data.job.customInstructions || `Focus on technical depth and code clarity for ${data.job.title}.`,
+            blueprintId: data.job.blueprintId || '',
           };
           setRubrics((prev) => [newRubric, ...prev]);
         }
@@ -298,6 +367,7 @@ export default function EvaluationRubricsPage() {
       setNewJobTitle('');
       setNewJobDesc('');
       setNewJobSkills('');
+      setNewJobBlueprintId('');
       setShowCreateJobModal(false);
     } catch {
       showToast(`Position created locally.`, 'success');
@@ -421,7 +491,7 @@ export default function EvaluationRubricsPage() {
             }`}
           >
             <Compass className="w-4 h-4 text-accent-emerald" />
-            <span>Industry Role Blueprints (5)</span>
+            <span>Industry Role Blueprints ({blueprints.length})</span>
           </button>
         </div>
 
@@ -757,58 +827,7 @@ export default function EvaluationRubricsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(blueprints.length > 0 ? blueprints : [
-                {
-                  id: 'fullstack',
-                  title: 'Full-Stack Software Engineer',
-                  department: 'Engineering',
-                  targetLevel: 'Senior',
-                  description: 'Balanced evaluation across front-to-back delivery, API design, data persistence, and interactive user experience.',
-                  weights: { technicalDepth: 35, systemArchitecture: 25, problemSolving: 20, communication: 20 },
-                  skills: ['TypeScript', 'React', 'Node.js', 'PostgreSQL', 'REST/GraphQL', 'Docker'],
-                  recommendedInstructions: 'Evaluate full-stack proficiency: clean component state management, typed backend contracts, database queries, and modular API design.'
-                },
-                {
-                  id: 'backend',
-                  title: 'Backend & Distributed Systems Engineer',
-                  department: 'Infrastructure',
-                  targetLevel: 'Senior',
-                  description: 'Deep focus on distributed concurrency, event streams, microservice fault tolerance, and high-throughput data layers.',
-                  weights: { technicalDepth: 35, systemArchitecture: 35, problemSolving: 20, communication: 10 },
-                  skills: ['Go / Java / Python', 'Distributed Systems', 'Apache Kafka', 'PostgreSQL / Redis', 'gRPC', 'Kubernetes'],
-                  recommendedInstructions: 'Emphasize distributed concurrency, network partition recovery, ACID vs BASE transactions, database indexing, and backpressure management.'
-                },
-                {
-                  id: 'frontend',
-                  title: 'Frontend Platform & UI Architect',
-                  department: 'Engineering',
-                  targetLevel: 'Senior',
-                  description: 'High focus on component hierarchy, client-side caching, rendering performance (Core Web Vitals), and accessibility.',
-                  weights: { technicalDepth: 40, systemArchitecture: 20, problemSolving: 20, communication: 20 },
-                  skills: ['React / Next.js', 'TypeScript', 'Performance Optimization', 'Web Vitals', 'State Machines', 'CSS Architecture'],
-                  recommendedInstructions: 'Probe client-side performance, state management trade-offs, bundle splitting, hydration latency, and modular component reusability.'
-                },
-                {
-                  id: 'devops',
-                  title: 'DevOps & Cloud Reliability Engineer (SRE)',
-                  department: 'Infrastructure',
-                  targetLevel: 'Senior',
-                  description: 'Strong architectural weighting on automated CI/CD pipelines, container orchestration, observability, and incident recovery.',
-                  weights: { technicalDepth: 30, systemArchitecture: 40, problemSolving: 15, communication: 15 },
-                  skills: ['Kubernetes', 'Terraform', 'AWS / GCP', 'CI/CD Pipelines', 'Prometheus / Grafana', 'Linux Systems'],
-                  recommendedInstructions: 'Focus on infrastructure-as-code, zero-downtime rolling deployments, chaos engineering, observability telemetry, and automated self-healing.'
-                },
-                {
-                  id: 'aiml',
-                  title: 'AI & Machine Learning Systems Engineer',
-                  department: 'AI Research',
-                  targetLevel: 'Senior',
-                  description: 'Focused on vector embeddings, LLM inference pipelines, model evaluation metrics, and low-latency feature stores.',
-                  weights: { technicalDepth: 40, systemArchitecture: 25, problemSolving: 25, communication: 10 },
-                  skills: ['Python', 'PyTorch / TensorFlow', 'Vector Databases (Qdrant)', 'LLM Fine-tuning', 'FastAPI', 'Model Serving'],
-                  recommendedInstructions: 'Test understanding of embedding pipelines, retrieval-augmented generation (RAG) latency bottlenecks, model quantization, and evaluation benchmarks.'
-                }
-              ]).map((bp) => (
+              {(blueprints.length > 0 ? blueprints : FALLBACK_BLUEPRINTS).map((bp) => (
                 <div key={bp.id} className="rounded-2xl bg-surface border border-line p-6 space-y-4 shadow-lg flex flex-col justify-between">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -873,11 +892,7 @@ export default function EvaluationRubricsPage() {
               <div className="p-3 rounded-xl bg-inset flex items-center justify-between gap-3 text-xs">
                 <span className="text-ink-muted">Load Blueprint Preset:</span>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {(blueprints.length > 0 ? blueprints : [
-                    { id: 'fullstack', title: 'Full Stack', weights: { technicalDepth: 35, systemArchitecture: 25, problemSolving: 20, communication: 20 }, targetLevel: 'Senior', recommendedInstructions: '' },
-                    { id: 'backend', title: 'Backend', weights: { technicalDepth: 35, systemArchitecture: 35, problemSolving: 20, communication: 10 }, targetLevel: 'Senior', recommendedInstructions: '' },
-                    { id: 'frontend', title: 'Frontend', weights: { technicalDepth: 40, systemArchitecture: 20, problemSolving: 20, communication: 20 }, targetLevel: 'Senior', recommendedInstructions: '' },
-                  ]).slice(0, 3).map((bp: any) => (
+                  {(blueprints.length > 0 ? blueprints : FALLBACK_BLUEPRINTS).slice(0, 3).map((bp) => (
                     <button
                       key={bp.id}
                       type="button"

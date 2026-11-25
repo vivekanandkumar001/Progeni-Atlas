@@ -22,7 +22,7 @@ from core.security import (
     hash_otp, check_otp_hash, generate_otp_code,
     send_otp_email_smtp, _as_aware_utc, link_candidate_records_by_email,
     _decode_access_token, _authenticate_request, resolve_user, require_auth,
-    SWAMI_SECRET_KEY, JWT_ALGORITHM, OTP_LENGTH, OTP_TTL_SEC,
+    SWAMI_SECRET_KEY, JWT_ALGORITHM, OTP_TTL_SEC,
     OTP_RESEND_COOLDOWN_SEC, OTP_MAX_ATTEMPTS, OTP_RE
 )
 

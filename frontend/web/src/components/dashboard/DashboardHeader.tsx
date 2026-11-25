@@ -15,6 +15,7 @@ import {
   Gauge,
 } from 'lucide-react';
 import { AppHeader } from '@/components/dashboard/AppHeader';
+import { formatAbsoluteDateTime } from '@/lib/dateTime';
 import {
   fetchCandidateNotifications,
   markCandidateNotificationsAsRead,
@@ -26,24 +27,6 @@ import {
   type CandidateProfile,
 } from '@/lib/api';
 
-
-function formatRelativeTime(isoString: string): string {
-  try {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (diffSec < 60) return 'Just now';
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}m ago`;
-    const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr}h ago`;
-    const diffDays = Math.floor(diffHr / 24);
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-  } catch {
-    return 'Recently';
-  }
-}
 
 function getCandidateNotificationVisuals(type: string) {
   const t = (type || '').toUpperCase();
@@ -61,7 +44,6 @@ function getCandidateNotificationVisuals(type: string) {
 
 export const DashboardHeader: React.FC = () => {
   const router = useRouter();
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [notifications, setNotifications] = useState<CandidateNotification[] | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
@@ -72,39 +54,20 @@ export const DashboardHeader: React.FC = () => {
         const [record, items, walletRes] = await Promise.all([
           fetchCandidateProfile(),
           fetchCandidateNotifications(),
-          apiJson<{ success?: boolean; wallet?: { availableCredits?: number } }>('/api/billing/wallet').catch(() => null),
+          apiJson<{ success?: boolean; wallet?: { availableCredits?: number; availableCreditsWhole?: number } }>('/api/billing/wallet').catch(() => null),
         ]);
         setProfile(record);
-        if (items) {
-          const seen = new Set<string>();
-          const deduped = items.filter((n) => {
-            const sessId = (n.payload as any)?.session_id || '';
-            const key = `${n.notification_type}-${sessId}-${n.title}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          });
-          setNotifications(deduped);
-        }
+        setNotifications(items ?? []);
         if (walletRes?.success && walletRes.wallet) {
-          setWalletBalance(Math.max(0, Number(walletRes.wallet.availableCredits ?? 0)));
+          // Ledger remnants are not spendable credits. Prefer the API's
+          // billable whole-credit balance, as the wallet page does.
+          const whole = walletRes.wallet.availableCreditsWhole;
+          const raw = Number.isFinite(whole) ? whole : walletRes.wallet.availableCredits;
+          setWalletBalance(Math.max(0, Math.floor(Number(raw ?? 0))));
         }
       } catch { }
     })();
   }, []);
-
-  // Mark notifications as read when dropdown opens and persist to backend
-  useEffect(() => {
-    if (!notificationsOpen) return;
-    setNotifications((prev) => {
-      if (!prev || !prev.some((n) => !n.is_read)) return prev;
-      const unreadIds = prev.filter((n) => !n.is_read).map((n) => String(n.id));
-      if (unreadIds.length > 0) {
-        void markCandidateNotificationsAsRead(unreadIds);
-      }
-      return prev.map((notif) => ({ ...notif, is_read: true }));
-    });
-  }, [notificationsOpen]);
 
   useEffect(() => {
     loadHeaderData();
@@ -124,9 +87,9 @@ export const DashboardHeader: React.FC = () => {
   };
 
   const handleCandidateNotificationClick = (item: CandidateNotification) => {
-    setNotificationsOpen(false);
-    const actionUrl = (item.payload as any)?.action_url;
-    const sessId = (item.payload as any)?.session_id;
+    const payload = item.payload as { action_url?: unknown; session_id?: unknown };
+    const actionUrl = typeof payload.action_url === 'string' ? payload.action_url : undefined;
+    const sessId = typeof payload.session_id === 'string' ? payload.session_id : undefined;
     if (actionUrl) {
       router.push(actionUrl);
     } else if (sessId) {
@@ -167,7 +130,6 @@ export const DashboardHeader: React.FC = () => {
           href: '/candidate/wallet',
         } : undefined
       }
-      onNotificationsOpenChange={setNotificationsOpen}
       notificationIndicator={
         unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold tabular-nums text-white ring-2 ring-surface">
@@ -230,7 +192,7 @@ export const DashboardHeader: React.FC = () => {
                     </div>
                     {item.body && <p className="mt-0.5 text-xs text-ink-muted line-clamp-2">{item.body}</p>}
                     <p className="mt-1 text-[10px] text-ink-faint">
-                      {formatRelativeTime(item.created_at)}
+                      {formatAbsoluteDateTime(item.created_at)}
                     </p>
                   </div>
                 </div>

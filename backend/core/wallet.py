@@ -5,8 +5,125 @@ Authoritative balance resolution and credit sanitation.
 """
 
 from datetime import datetime, timezone
+import math
+
 from core.db import get_mongo_db
 from core import anomaly as _anomaly
+
+
+# Canonical, published pricing contract. Historical ledger rows are immutable;
+# every API response and new charge must derive its copy from this single object.
+CANONICAL_WALLET_RATE = {
+    "currency": "INR",
+    "creditsPerRupee": 1.0,
+    "rupeesPerCredit": 1.0,
+    "rupeesPerMinute": 0.5,
+    "creditsPerMinute": 0.5,
+    "minutesPerCredit": 2.0,
+    "rounding": "floor",
+    "display": "₹1 = 1 Credit · ₹0.50/min = 0.5 cr/min (2 min/cr)",
+}
+
+
+def get_wallet_rate() -> dict:
+    """Return a copy of the single authoritative wallet rate/credit contract."""
+    return dict(CANONICAL_WALLET_RATE)
+
+
+def credits_from_inr(amount_inr: float) -> float:
+    """Convert rupees to exact credits (fractional credits are preserved)."""
+    return round(max(0.0, float(amount_inr or 0.0)) * CANONICAL_WALLET_RATE["creditsPerRupee"], 2)
+
+
+def inr_from_credits(credits: float) -> float:
+    return round(max(0.0, float(credits or 0.0)) * CANONICAL_WALLET_RATE["rupeesPerCredit"], 2)
+
+
+def display_whole_credits(credits: float) -> int:
+    """Floor fractional balances so ₹2.50 is shown as 2 Credits, never 3."""
+    return max(0, int(math.floor(float(credits or 0.0) + 1e-9)))
+
+
+# Canonical, honest labels for ledger presentation. Immutable ledger rows are
+# never rewritten; legacy copy is surfaced only under audit fields.
+_LEDGER_DISPLAY_TITLES = {
+    "money_added": "Money Added",
+    "wallet_topup": "Money Added",
+    "payment": "Money Added",
+    "razorpay": "Money Added",
+    "upi_credit": "Money Added",
+    "credit": "Money Added",
+    "interview_settlement": "Interview Settlement",
+    "interview_debit": "Interview Settlement",
+    "settlement": "Interview Settlement",
+    "free_demo": "Free Demo Interview",
+    "interview_void": "Session Voided",
+    "signup_bonus": "Welcome Credits",
+}
+
+
+def display_ledger_title(transaction: dict) -> str:
+    """Map a legacy ledger row to an honest, rate-free display label."""
+    tx = transaction if isinstance(transaction, dict) else {}
+    entry_type = str(tx.get("entryType") or "").strip().lower()
+    reason = str(tx.get("reason") or "").strip().lower()
+    title = str(tx.get("title") or "").strip()
+    try:
+        amount = float(tx.get("amountCredits") or 0.0)
+    except (TypeError, ValueError):
+        amount = 0.0
+
+    if entry_type in _LEDGER_DISPLAY_TITLES:
+        return _LEDGER_DISPLAY_TITLES[entry_type]
+    if "welcome" in reason or "signup" in reason:
+        return "Welcome Credits"
+    if (
+        "money added" in reason or "recharge" in reason or "top-up" in reason
+        or "credits added" in title.casefold() or "added to wallet" in title.casefold()
+    ):
+        return "Money Added"
+    if "interview settlement" in title.lower() or "settlement" in reason:
+        return "Interview Settlement"
+    if "free demo" in title.lower() or "complimentary" in reason or amount == 0:
+        return "Free Demo Interview"
+    return title or "Wallet Transaction"
+
+
+def normalize_ledger_transaction_for_display(transaction: dict, balance_after: float = 0.0) -> dict:
+    """Presentation copy of one immutable ledger row.
+
+    Whole credits/balances match what the wallet UI floors. Exact stored values
+    remain available only as explicitly named audit fields; no rate or credit
+    amount is invented, and the input row is never modified.
+    """
+    tx = transaction if isinstance(transaction, dict) else {}
+    out = dict(tx)
+    try:
+        raw_amount = float(tx.get("amountCredits") or 0.0)
+    except (TypeError, ValueError):
+        raw_amount = 0.0
+    try:
+        raw_balance = float(balance_after or 0.0)
+    except (TypeError, ValueError):
+        raw_balance = 0.0
+
+    whole = display_whole_credits(abs(raw_amount))
+    displayed_amount = -whole if raw_amount < 0 else whole
+    label = display_ledger_title(tx)
+    out["title"] = label
+    out["reason"] = label
+    out["amountCredits"] = displayed_amount
+    out["amountInr"] = abs(displayed_amount)
+    out["balanceAfter"] = display_whole_credits(raw_balance)
+    out["amountCreditsExact"] = round(raw_amount, 2)
+    out["balanceAfterExact"] = max(0.0, round(raw_balance, 2))
+    legacy_title = str(tx.get("title") or "").strip()
+    legacy_reason = str(tx.get("reason") or "").strip()
+    if legacy_title and legacy_title != label:
+        out["auditTitle"] = legacy_title
+    if legacy_reason and legacy_reason != label:
+        out["auditReason"] = legacy_reason
+    return out
 
 
 _signup_free_config_cache: dict = {"at": 0.0, "cfg": None}
@@ -144,6 +261,111 @@ def get_user_wallet_balance(user_id: str, org_id: str = None) -> float:
     return 0.0
 
 
+def _quota_override_value(doc: dict) -> dict | None:
+    """Normalize the shared super-admin quota override shape."""
+    if not isinstance(doc, dict):
+        return None
+    if not doc.get("is_free_quotas_enabled", True):
+        return {"enabled": False}
+    if "default_free_demo_count" not in doc:
+        return None
+    try:
+        return {"enabled": True, "count": max(0, int(doc.get("default_free_demo_count") or 0))}
+    except Exception:
+        return None
+
+
+def get_demo_quota(user: dict | None, db=None) -> dict:
+    """Single authoritative free-demo quota for dashboard, wallet and lobby copy.
+
+    Total/duration come from the super-admin entitlement policy with the same
+    organization/user override precedence used by the recruiter dashboard.
+    Usage is counted from the user's own demo/practice interview sessions — not
+    from a stale cached wallet or demo_allowances row — so every surface agrees.
+    """
+    user = user or {}
+    db = db if db is not None else get_mongo_db()
+    total = 2
+    duration_seconds = 600
+
+    if db is not None:
+        try:
+            policy = db.platform_settings.find_one({"key": "entitlement_policy"})
+            if policy:
+                if not policy.get("is_free_quotas_enabled", True):
+                    total = 0
+                else:
+                    total = max(0, int(policy.get("default_free_demo_count", 2) or 0))
+                duration_seconds = max(60, int(policy.get("max_demo_duration_seconds", 600) or 600))
+
+            org_id = user.get("org_id") or user.get("orgId")
+            if org_id:
+                org = db.organizations.find_one({"$or": [{"id": org_id}, {"_id": org_id}]})
+                override = _quota_override_value((org or {}).get("free_quota_override"))
+                if override:
+                    total = 0 if not override["enabled"] else override["count"]
+
+            override = _quota_override_value(user.get("free_quota_override"))
+            if override:
+                total = 0 if not override["enabled"] else override["count"]
+        except Exception:
+            pass
+
+    used = 0
+    if db is not None:
+        uid = str(user.get("id") or user.get("_id") or "").strip()
+        email = str(user.get("email") or "").strip().lower()
+        owner_terms: list[dict] = []
+        if uid:
+            owner_terms.extend([
+                {"candidate_id": uid}, {"userId": uid}, {"user_id": uid},
+                {"recruiter_id": uid}, {"candidateId": uid},
+            ])
+        if email:
+            owner_terms.extend([
+                {"candidate_email": email}, {"recruiter_email": email},
+                {"user_email": email}, {"email": email},
+            ])
+        demo_terms = [
+            {"is_practice": True},
+            {"session_type": {"$in": ["demo", "mock", "practice"]}},
+            {"config.is_practice": True},
+            {"mode": "practice"},
+        ]
+        # Voided/expired demos restore quota; they must not keep consuming it.
+        not_consuming = [
+            {"status": {"$in": ["expired", "voided", "cancelled", "canceled", "terminated"]}},
+            {"state": {"$in": ["EXPIRED", "VOIDED", "CANCELLED", "CANCELED", "TERMINATED"]}},
+            {"completed_reason": "finished_with_zero_turns"},
+            {"answered_turns": 0},
+        ]
+        if owner_terms:
+            try:
+                used = int(db.interview_sessions.count_documents({
+                    "$and": [
+                        {"$or": owner_terms},
+                        {"$or": demo_terms},
+                        {"$nor": not_consuming},
+                    ]
+                }))
+            except Exception:
+                used = 0
+
+    used = max(0, min(used, total))
+    remaining = max(0, total - used)
+    return {
+        "totalAllowed": total,
+        "completed": used,
+        "remaining": remaining,
+        "maxDurationSeconds": duration_seconds,
+        # Backwards-compatible dashboard field names.
+        "free_demos_total": total,
+        "free_demos_used": used,
+        "free_demos_remaining": remaining,
+        "demo_duration_limit_minutes": duration_seconds // 60,
+    }
+
+
 def settle_interview_billing_completion(session_id: str, session_doc: dict) -> float:
     """
     Atomically settle interview completion debit:
@@ -181,7 +403,15 @@ def settle_interview_billing_completion(session_id: str, session_doc: dict) -> f
     answered = session_doc.get("answered_turns")
     if answered is None or not isinstance(answered, int):
         try:
-            answered = len(session_doc.get("history") or [])
+            answered = len([
+                turn for turn in (session_doc.get("history") or [])
+                if isinstance(turn, dict)
+                and not turn.get("is_clarification")
+                and not turn.get("unscored")
+                and not turn.get("is_timeout")
+                and "no response" not in str(turn.get("answer") or "").casefold()
+                and "time limit" not in str(turn.get("answer") or "").casefold()
+            ])
         except Exception:
             answered = 0
 
@@ -218,7 +448,8 @@ def settle_interview_billing_completion(session_id: str, session_doc: dict) -> f
                 pass
         return 0.0
 
-    # Authoritative billing rate: 1 Rupee = 2 Minutes (0.5 credits/min)
+    # Authoritative billing rate comes from the shared wallet contract.
+    credits_per_minute = CANONICAL_WALLET_RATE["creditsPerMinute"]
     dur = session_doc.get("duration_minutes") or session_doc.get("durationMinutes") or 30
     try:
         duration_minutes = max(1, int(dur))
@@ -232,7 +463,7 @@ def settle_interview_billing_completion(session_id: str, session_doc: dict) -> f
         try:
             started_dt = datetime.fromisoformat(str(started).replace("Z", "+00:00"))
             if started_dt.tzinfo is None:
-                started_dt = started_dt.replace(tzinfo=_tz.utc)
+                started_dt = started_dt.replace(tzinfo=timezone.utc)
             elapsed_sec = (datetime.now(timezone.utc) - started_dt).total_seconds()
             import math
             actual_minutes = max(2, math.ceil(max(0, elapsed_sec) / 60.0))
@@ -240,7 +471,7 @@ def settle_interview_billing_completion(session_id: str, session_doc: dict) -> f
         except Exception:
             billable_minutes = duration_minutes
 
-    cost = 0.0 if is_demo else round(billable_minutes * 0.5, 2)
+    cost = 0.0 if is_demo else round(billable_minutes * credits_per_minute, 2)
     now_iso = datetime.now(timezone.utc).isoformat()
 
     # Deduct wallet balance if non-demo

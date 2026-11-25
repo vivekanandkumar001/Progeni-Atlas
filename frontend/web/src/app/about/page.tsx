@@ -223,9 +223,9 @@ export default function AboutPage() {
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-600 flex items-center justify-center">
                 <Lock className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-ink">Client-Side Proctoring</h3>
+              <h3 className="text-lg font-bold text-ink">Disclosed, minimal counters</h3>
               <p className="text-sm text-ink-muted leading-relaxed">
-                Client-side MediaPipe vision monitors display focus and face detection locally during the session without storing unnecessary biometric profiles.
+                We record only what we disclose in the lobby — tab switches, paste events, and fullscreen exits, as counts for human review. We never watch your face, measure your attention, or store biometric profiles.
               </p>
             </div>
 

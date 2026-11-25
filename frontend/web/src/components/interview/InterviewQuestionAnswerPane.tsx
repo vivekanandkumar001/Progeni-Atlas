@@ -141,7 +141,7 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
         {sessionLoading || !currentQuestion ? (
           <div className="flex items-center gap-3 text-accent-cyan  py-4 px-3.5 rounded-xl bg-inset border border-line">
             <RefreshCw className="w-4 h-4 animate-spin text-accent-cyan " />
-            <span className="text-xs font-mono font-medium text-accent-cyan ">Sarah is formulating the next question...</span>
+            <span className="text-xs font-mono font-medium text-accent-cyan">Sarah is thinking through your answer — a moment…</span>
           </div>
         ) : (
           <div className="p-3.5 rounded-xl bg-inset text-xs sm:text-sm text-ink leading-relaxed font-sans font-medium">
@@ -218,9 +218,9 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
               : answerFlowState === 'SUBMITTING'
               ? 'Submitting answer...'
               : answerFlowState === 'EVALUATING'
-              ? 'Evaluating your answer...'
+              ? 'Evaluating your answer — Sarah usually takes 5–15s'
               : answerFlowState === 'SILENCE_PENDING'
-              ? `Silence detected — submitting in ${autoSubmitCountdown ?? 5}s`
+              ? `Silence detected — submitting in ${autoSubmitCountdown ?? 6}s`
               : answerFlowState === 'ANSWER_ACTIVE'
               ? 'Recording Answer (Listening)'
               : answerFlowState === 'LISTENING_FOR_ANSWER' && canAnswer
@@ -271,7 +271,7 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
             <div className="flex items-center gap-2 min-w-0">
               <Clock className="w-4 h-4 text-accent-cyan shrink-0 animate-pulse" />
               <span className="truncate">
-                Natural pause detected. Wrapping up in <strong className="text-accent-cyan font-mono font-bold text-sm">{autoSubmitCountdown ?? 18}s</strong>.
+                Natural pause detected. Wrapping up in <strong className="text-accent-cyan font-mono font-bold text-sm">{autoSubmitCountdown ?? 6}s</strong>.
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -280,7 +280,7 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
                   type="button"
                   onClick={onExtendThinkingTime}
                   className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-accent-amber border border-amber-500/40 font-bold transition-all cursor-pointer text-xs flex items-center gap-1.5"
-                  title="Pause auto-submit for 60s while you think"
+                  title="Pause auto-submit for 45s while you think"
                 >
                   <span>✋ I need a moment</span>
                 </button>
@@ -439,7 +439,7 @@ export const InterviewQuestionAnswerPane: React.FC<InterviewQuestionAnswerPanePr
           <p className="text-xs text-accent-cyan font-semibold mt-1 font-mono flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-cyan-600 animate-ping inline-block" />
             <span>
-              Silence detected — submitting in {autoSubmitCountdown ?? 5}s... Speak or type to cancel.
+              Silence detected — submitting in {autoSubmitCountdown ?? 6}s... Speak or type to cancel.
             </span>
           </p>
         )}

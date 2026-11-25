@@ -592,44 +592,47 @@ export const Navbar: React.FC = () => {
             ) : (
               <form onSubmit={handleContactSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-ink-muted  mb-1">
+                  <label htmlFor="nav-contact-name" className="block text-xs font-bold text-ink-muted  mb-1">
                     Your Full Name
                   </label>
                   <input
+                    id="nav-contact-name"
                     type="text"
                     required
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
                     placeholder="Please enter your name"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong bg-inset text-sm text-ink transition-colors hover:border-ink-faint focus:outline-none focus:border-accent-blue focus:bg-surface"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-ink-muted  mb-1">
+                  <label htmlFor="nav-contact-email" className="block text-xs font-bold text-ink-muted  mb-1">
                     Email Address
                   </label>
                   <input
+                    id="nav-contact-email"
                     type="email"
                     required
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     placeholder="Please enter your email address"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong bg-inset text-sm text-ink transition-colors hover:border-ink-faint focus:outline-none focus:border-accent-blue focus:bg-surface"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-ink-muted  mb-1">
+                  <label htmlFor="nav-contact-message" className="block text-xs font-bold text-ink-muted  mb-1">
                     Message / Requirement
                   </label>
                   <textarea
+                    id="nav-contact-message"
                     rows={3}
                     required
                     value={contactMsg}
                     onChange={(e) => setContactMsg(e.target.value)}
                     placeholder="Please describe how we can help you..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong  bg-inset  text-sm text-ink  focus:outline-none focus:ring-2 focus:ring-accent-blue"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-line-strong bg-inset text-sm text-ink transition-colors hover:border-ink-faint focus:outline-none focus:border-accent-blue focus:bg-surface"
                   />
                 </div>
 

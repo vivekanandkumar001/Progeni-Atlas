@@ -23,6 +23,7 @@ import {
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { FaqSection } from '@/components/FaqSection';
+import { formatTimer } from '@/lib/formatters';
 import { apiJson } from '@/lib/api';
 
 const featureCards = [
@@ -242,12 +243,6 @@ export default function Home() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
-
-  const formatTimer = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-    const secs = (totalSeconds % 60).toString().padStart(2, '0');
-    return `${mins}:${secs}`;
-  };
 
   // NOTE: Never gate the public marketing page on an async auth check.
   // Returning a spinner here during SSR/prerender serves an empty page to

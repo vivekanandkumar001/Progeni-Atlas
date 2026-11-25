@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-  title: 'Create account — Progeni Atlas',
+  title: 'Create account',
   description: 'Create a Progeni Atlas account as a candidate or recruiter.',
   robots: { index: false, follow: false },
 };

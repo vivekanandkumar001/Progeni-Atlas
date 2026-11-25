@@ -265,11 +265,17 @@ function VerifyOtpContent() {
     return (
       <div className="min-h-screen bg-canvas text-ink flex flex-col justify-center items-center p-4">
         <AuthCard className="max-w-md" innerClassName="text-center space-y-4">
-          <AlertCircle className="w-10 h-10 text-accent-amber mx-auto" />
-          <h2 className="text-xl font-bold text-ink">Verification Email Required</h2>
-          <p className="text-sm text-ink-muted">
-            No email address was provided for verification. Redirecting to registration...
+          <RefreshCw className="w-10 h-10 text-accent-cyan mx-auto animate-spin" aria-hidden="true" />
+          <h1 className="text-xl font-bold text-ink">Verification Email Required</h1>
+          <p className="text-sm text-ink-muted" role="status" aria-live="polite">
+            A verification email is required to continue. Taking you to registration now…
           </p>
+          <Link
+            href="/register"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-accent-cyan hover:text-ink transition-colors"
+          >
+            Go to registration
+          </Link>
         </AuthCard>
       </div>
     );
@@ -329,6 +335,7 @@ function VerifyOtpContent() {
                   inputRefs.current[idx] = el;
                 }}
                 type="text"
+                aria-label={`Verification code digit ${idx + 1} of 6`}
                 inputMode="numeric"
                 autoComplete={idx === 0 ? 'one-time-code' : 'off'}
                 maxLength={1}
@@ -407,7 +414,7 @@ export default function VerifyOtpPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-canvas flex items-center justify-center text-ink-muted text-sm">
-          LOADING_VERIFICATION
+          <span role="status" aria-live="polite">Loading verification…</span>
         </div>
       }
     >

@@ -66,14 +66,14 @@ export const InterviewStatusBanner: React.FC<InterviewStatusBannerProps> = ({
           {remainingSeconds !== null && remainingSeconds >= 0 && (
             <span className="text-accent-cyan flex items-center gap-1.5 font-medium">
               <Clock className="w-3.5 h-3.5 text-accent-cyan" aria-hidden="true" />
-              {remainingSeconds > 60 ? `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}` : remainingSeconds} min interview remaining
+              {`${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`} interview remaining
             </span>
           )}
 
           {questionRemainingSeconds !== null && questionRemainingSeconds >= 0 && (
             <span className="text-accent-rose flex items-center gap-1.5 font-medium">
               <AlertTriangle className="w-3.5 h-3.5 text-accent-rose shrink-0" aria-hidden="true" />
-              {questionRemainingSeconds > 60 ? `${String(Math.floor(questionRemainingSeconds / 60)).padStart(2, '0')}:${String(questionRemainingSeconds % 60).padStart(2, '0')}` : questionRemainingSeconds} min question remaining
+              {`${String(Math.floor(questionRemainingSeconds / 60)).padStart(2, '0')}:${String(questionRemainingSeconds % 60).padStart(2, '0')}`} question remaining
             </span>
           )}
         </div>

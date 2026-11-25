@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     canonical: 'https://atlas.progeni.live/contact',
   },
   openGraph: {
-    title: 'Contact Us — Progeni Atlas',
+    title: 'Contact Us',
     description:
       'Get in touch with the Progeni Atlas engineering & sales team for enterprise pilots, custom ATS integrations, or platform support.',
     url: 'https://atlas.progeni.live/contact',

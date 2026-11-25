@@ -8,7 +8,9 @@ import type { AIState } from '@/components/interview/AIAvatarViewport';
 import type { CaptionEntry } from '@/components/interview/LiveClosedCaptions';
 import type { AnswerFlowState } from '@/app/candidate/interview/[id]/room/page';
 
-const AUTO_SUBMIT_DELAY_SECONDS = 3;
+// Silence is thinking, not failure. Eight seconds of quiet arms the auto-submit
+// (never below it), and the candidate can always take longer with one click.
+const AUTO_SUBMIT_DELAY_SECONDS = 8;
 
 export interface UseInterviewAudioRecorderOptions {
   sessionId: string;
@@ -156,10 +158,10 @@ export function useInterviewAudioRecorder({
     setAutoSubmitPending(false);
     setAutoSubmitCountdown(null);
     setIsThinkingPaused(true);
-    // Give 45 seconds of peaceful thinking time without auto-cutoff
+    // Give 60 seconds of peaceful thinking time without auto-cutoff
     setTimeout(() => {
       setIsThinkingPaused(false);
-    }, 45000);
+    }, 60000);
   }, []);
 
   const liveTranscriptRef = useRef(liveTranscript);
@@ -567,7 +569,17 @@ export function useInterviewAudioRecorder({
         setIsTranscribing(true);
         setAiState('transcribing');
         try {
-          const transcript = await transcribeInterviewAudio(sessionId, blob);
+          // One automatic retry with backoff covers flaky mobile networks
+          // (iOS cellular, hotel Wi-Fi) — the single biggest cause of dropped
+          // answers in the field.
+          let transcript = '';
+          try {
+            transcript = await transcribeInterviewAudio(sessionId, blob);
+          } catch (firstErr) {
+            console.warn('[startRecording] transcription attempt 1 failed; retrying once', firstErr);
+            await new Promise((r) => setTimeout(r, 900));
+            transcript = await transcribeInterviewAudio(sessionId, blob);
+          }
           const text = transcript.trim();
           setIsTranscribing(false);
           const answerText = text || liveTranscriptRef.current.trim();

@@ -152,7 +152,7 @@ export default function NaturalLanguageSearchPage() {
       <LegalSection id="how" title="3. How natural language search works, step by step">
         <ol className="list-decimal pl-5 space-y-2">
           <li><strong>Capture &amp; normalise</strong> — speech is transcribed (ASR/STT) or text is cleaned, lower-cased, punctuation-normalised.</li>
-          <li><strong>Tokenise &amp; parse</strong> — the sentence becomes tokens; a parser builds its grammatical structure (NPS parsing).</li>
+          <li><strong>Tokenise &amp; parse</strong> — the sentence becomes tokens; a parser builds its grammatical structure (NLP parsing).</li>
           <li><strong>Understand (NLU)</strong> — an intent classifier labels the goal (“find candidates”, “interview me”); entity extractors pull skills, roles, years, companies, locations.</li>
           <li><strong>Retrieve</strong> — the query is embedded into a vector and compared against an index (semantic/vector search) or matched against a knowledge graph, often combined with exact filters.</li>
           <li><strong>Rank &amp; answer</strong> — results are scored for relevance; NLG composes a natural-language answer or a structured list.</li>

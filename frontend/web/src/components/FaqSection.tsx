@@ -110,8 +110,8 @@ export const FaqSection: React.FC = () => {
           {/* ─── Right rail — search + categorized accordion ─── */}
           <div className="lg:col-span-8 space-y-4">
             {/* Search */}
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+            <div className="group relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint transition-colors group-focus-within:text-accent-blue" aria-hidden />
               <input
                 type="text"
                 role="searchbox"
@@ -119,7 +119,7 @@ export const FaqSection: React.FC = () => {
                 placeholder="Search answers — e.g. pricing, ATS, proctoring, GDPR…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="h-12 w-full rounded-xl border border-line bg-surface pl-11 pr-12 text-sm text-ink placeholder:text-ink-faint/80 outline-none transition-all focus:border-accent-blue focus:ring-2 focus:ring-accent-blue/20"
+                className="h-12 w-full rounded-xl border border-line bg-surface pl-11 pr-12 text-sm text-ink placeholder:text-ink-faint/80 outline-none transition-colors hover:border-line-strong focus:border-accent-blue"
               />
               {query && (
                 <button

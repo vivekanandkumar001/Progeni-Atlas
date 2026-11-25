@@ -26,7 +26,7 @@ export function JsonLd() {
       height: '630',
     },
     description:
-      'Enterprise-grade autonomous AI technical interview and skills assessment platform conducting real-time two-way voice interviews, live coding assessments, and anti-cheat proctoring.',
+      'Enterprise-grade autonomous AI technical interview and skills assessment platform conducting real-time two-way voice interviews, live coding assessments, and disclosed interaction counters.',
     sameAs: [
       'https://github.com/vivekanandkumar001/Progeni-Atlas',
       'https://in.linkedin.com/in/vivekanand2003',
@@ -63,17 +63,17 @@ export function JsonLd() {
       price: '0',
       priceCurrency: 'INR',
       description:
-        'Free tier with 10 signup credits (one full AI mock interview). Paid usage: ₹1 = 1 credit, billed at 1 credit per 3 minutes of interview time.',
+        'Free tier with 10 signup credits (20 minutes of AI interview time). Paid usage: ₹1 = 1 credit, billed at 0.5 credits per minute (2 minutes per credit).',
       url: 'https://atlas.progeni.live/pricing',
       availability: 'https://schema.org/InStock',
     },
     featureList: [
       'Autonomous two-way real-time voice & video AI interviewer',
       'Multi-language coding sandbox with terminal execution (Python, TypeScript, C++, Java, Go)',
-      'Multi-modal proctoring with companion phone camera sync and gaze tracking',
+      'Practice-grade interview simulation with disclosed interaction counters — no gaze or facial analysis',
       'Instant calibrated scoring dossiers with role-specific competency rubrics',
       'Enterprise ATS integrations with Greenhouse, Workday, Lever, and webhooks',
-      'Transparent duration-based billing (₹1 per 3 minutes, 2 free trial demo screenings)',
+      'Transparent duration-based billing (₹1 per 2 minutes, 2 free trial demo screenings)',
     ],
     // NOTE: no aggregateRating here. A self-declared 4.9/128 rating without real,
     // verifiable on-page reviews violates Google's structured-data guidelines and
@@ -100,7 +100,7 @@ export function JsonLd() {
   const faqSchema = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    '@id': 'https://atlas.progeni.live/#faq',
+    '@id': 'https://atlas.progeni.live/services#faq',
     mainEntity: FAQ_DATA.map((item) => ({
       '@type': 'Question',
       name: item.question,

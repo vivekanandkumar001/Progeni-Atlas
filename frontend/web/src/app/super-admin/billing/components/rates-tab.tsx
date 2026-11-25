@@ -79,7 +79,7 @@ export function RatesTab({
 
         {/* Rate Selection Cards */}
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          {/* Option A: ₹1 per 3 minutes */}
+          {/* Option A: ₹1 per 2 minutes (0.5 Credits/min) */}
           <div
             onClick={() => void handleUpdatePolicy({ rate_per_minute_credits: LAUNCH_RATE_PER_MINUTE, base_fee_credits: 0.0 })}
             className={`cursor-pointer rounded-2xl p-4 transition-all ${

@@ -15,14 +15,10 @@ interface ProfileHeroBannerProps {
   onSave: (e: React.FormEvent) => void;
 }
 
-export function ProfileHeroBanner({
-  profile,
-  loading,
-  emailVerified,
-  loadError,
-  saving,
-  onSave,
-}: ProfileHeroBannerProps) {
+export function ProfileHeroBanner({ profile, loading, emailVerified, loadError, saving, onSave }: ProfileHeroBannerProps) {
+  // Determine if all required profile fields are filled for "Verified" status
+  const hasCompleteProfile = !!(profile.fullName && profile.phone && profile.course && profile.branch && profile.academicYear && profile.collegeName);
+
   return (
     <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-accent-cyan/5 via-surface to-accent-indigo/5 border border-line p-6 sm:p-8">
       <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
@@ -51,9 +47,11 @@ export function ProfileHeroBanner({
                 {loading && !profile.email
                   ? LOADING_PROFILE
                   : profile.email
-                    ? emailVerified
+                    ? hasCompleteProfile && emailVerified
                       ? 'Verified Candidate'
-                      : 'Unverified Candidate'
+                      : hasCompleteProfile
+                        ? 'Email Not Verified'
+                        : 'Profile Incomplete — Add Phone & College'
                     : loadError
                       ? 'Profile unavailable'
                       : 'Not signed in'}

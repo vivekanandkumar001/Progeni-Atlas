@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Circle, Upload, Brain, Play, Video, Loader2 } from 'lucide-react';
 import {
+  candidateDemoQuota,
   fetchCandidateDashboard,
   fetchCandidateAptitudeHistory,
   fetchCandidateInterviews,
@@ -39,13 +40,13 @@ export const PrepChecklist: React.FC = () => {
     };
   }, []);
 
-  const hasResume = Boolean(dashboard?.has_resume || dashboard?.resume_status);
+  const isLoading = dashboard === null || apt === null || interviews === null;
+  const hasResume = Boolean(dashboard?.has_resume || dashboard?.resume_status === 'PARSED');
   const skillCount = dashboard?.skill_count ?? 0;
   const aptCompleted = (apt ?? []).filter((x) => x.status === 'completed').length;
   const scoredInterviews = (interviews ?? []).filter((x) => String(x.status || '').toLowerCase() === 'completed').length;
-  const demosUsed = dashboard?.demo_allowance?.freeDemosTotal && dashboard.demo_allowance.freeDemosRemaining != null
-    ? (dashboard.demo_allowance.freeDemosTotal ?? 0) - (dashboard.demo_allowance.freeDemosRemaining ?? 0)
-    : 0;
+  const demoQuota = candidateDemoQuota(dashboard);
+  const demosUsed = demoQuota?.used ?? 0;
 
   const steps = useMemo(
     () => [
@@ -53,7 +54,7 @@ export const PrepChecklist: React.FC = () => {
       { icon: Brain, label: 'Build 3+ tagged skills', hint: 'Recruiters search by these', done: skillCount >= 3, href: '/candidate/skills' },
       { icon: Brain, label: 'Complete aptitude baseline', hint: '15–30 min AMCAT-style assessment', done: aptCompleted >= 1, href: '/candidate/aptitude' },
       { icon: Play, label: 'Complete 1 practice interview', hint: '10 min, scored live', done: demosUsed >= 1, href: '/candidate/practice' },
-      { icon: Video, label: 'Finish 1 scored interview', hint: 'Your readiness score unlocks here', done: scoredInterviews >= 1, href: '/candidate/practice' },
+      { icon: Video, label: 'Finish 1 scored interview', hint: 'Review your score and readiness in Reports', done: scoredInterviews >= 1, href: '/candidate/reports?tab=interviews' },
     ],
     [hasResume, skillCount, aptCompleted, demosUsed, scoredInterviews],
   );
@@ -65,14 +66,42 @@ export const PrepChecklist: React.FC = () => {
     <div>
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <h3 className="kicker">Your checklist</h3>
-        <span className="text-[11px] text-ink-muted font-mono">{doneCount}/{steps.length} · {pct}%</span>
+        <span className="text-[11px] text-ink-muted font-mono" aria-live="polite">
+          {isLoading ? 'Loading…' : `${doneCount}/${steps.length} · ${pct}%`}
+        </span>
       </div>
 
-      {/* Progress hairline */}
-      <div className="h-[2px] w-full rounded-full bg-inset overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-cyan-400 to-indigo-500 transition-all duration-700" style={{ width: `${pct}%` }} />
+      {/* Progress hairline — neutral while the underlying APIs are loading */}
+      <div
+        className="h-[2px] w-full rounded-full bg-inset overflow-hidden"
+        role="progressbar"
+        aria-label="Checklist progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={isLoading ? undefined : pct}
+      >
+        <div
+          className="h-full bg-gradient-to-r from-cyan-400 to-indigo-500 transition-all duration-700"
+          style={{ width: `${isLoading ? 0 : pct}%` }}
+        />
       </div>
 
+      {isLoading ? (
+        <div className="mt-4 space-y-3" aria-busy="true" aria-label="Loading checklist">
+          {steps.map((step) => (
+            <div key={step.label} className="flex items-center gap-3 py-2 animate-pulse">
+              <div className="h-4 w-4 rounded-full bg-surface-3 shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 w-2/5 rounded bg-surface-3" />
+                <div className="h-2.5 w-3/5 rounded bg-surface-3/70" />
+              </div>
+            </div>
+          ))}
+          <span className="sr-only flex items-center gap-1.5 text-[11px] text-ink-muted">
+            <Loader2 className="h-3 w-3 animate-spin" /> Loading checklist…
+          </span>
+        </div>
+      ) : (
       <ul className="mt-4 divide-y divide-line/70">
         {steps.map((step) => {
           const Icon = step.icon;
@@ -95,6 +124,7 @@ export const PrepChecklist: React.FC = () => {
           );
         })}
       </ul>
+      )}
     </div>
   );
 };

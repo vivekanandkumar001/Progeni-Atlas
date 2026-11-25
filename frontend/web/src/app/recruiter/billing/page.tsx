@@ -20,43 +20,7 @@ import {
 } from 'lucide-react';
 import { createMayankUpiOrder, MayankUpiOrderResponse } from '@/lib/mayank_upi';
 import { MayankUpiModal } from '@/components/billing/MayankUpiModal';
-
-interface WalletData {
- accountId: string;
- accountName: string;
- accountType: string;
- orgId: string | null;
- userId: string | null;
- currency: string;
- ratePerMinuteCredits: number;
- baseFeeCredits: number;
- availableCredits: number;
- paidCredits: number;
- promotionalCredits: number;
- consumedCredits: number;
- reservedCredits: number;
- lowBalanceThresholdCredits: number;
- isLowBalance: boolean;
- chargingEnabled: boolean;
- demoQuota: {
- totalAllowed: number;
- completed: number;
- remaining: number;
- maxDurationSeconds: number;
- };
-}
-
-interface WalletTransaction {
- id: string;
- txRef: string;
- entryType: string;
- amountCredits: number;
- amountNanoUsd: number;
- reason: string;
- serviceType: string | null;
- status: string;
- createdAt: string;
-}
+import type { WalletData, WalletTransaction } from '@/types/wallet';
 
 interface RecruiterPack {
   credits: number;
@@ -565,7 +529,7 @@ export default function RecruiterBillingPage() {
                     placeholder="Enter any amount (even ₹1)"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
-                    className="w-full pl-8 pr-3.5 py-2 rounded-lg border border-line bg-inset/50 text-sm font-semibold text-ink focus:outline-none focus:border-blue-600 focus:bg-surface focus:ring-2 focus:ring-blue-600/15 transition"
+                    className="w-full pl-8 pr-3.5 py-2 rounded-lg border border-line bg-inset/50 text-sm font-semibold text-ink transition-colors hover:border-line-strong focus:outline-none focus:border-blue-600 focus:bg-surface"
                   />
                 </div>
                 {/* Quick select chips */}

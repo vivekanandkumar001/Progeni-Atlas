@@ -108,7 +108,7 @@ export function exportCandidateDossierPdf(candidate: CandidateDossierExportData)
   doc.setTextColor(71, 85, 105);
   doc.text(`${candidate.email || 'N/A'} • Target Role: ${candidate.targetPosition || 'Software Engineer'}`, margin + 6, y + 17);
   doc.text(`Department: ${candidate.department || 'Engineering'} • Status: ${candidate.status || 'Completed'}`, margin + 6, y + 23);
-  doc.text(`Assessment Duration: ${candidate.interviewDuration || '45 min'} • Stage: ${candidate.stage || 'Technical Round'}`, margin + 6, y + 29);
+  doc.text(`Assessment Duration: ${candidate.interviewDuration || 'Not recorded'} • Stage: ${candidate.stage || 'Technical Round'}`, margin + 6, y + 29);
 
   // Score badge box (Right side)
   const scoreBoxX = pageWidth - margin - 46;

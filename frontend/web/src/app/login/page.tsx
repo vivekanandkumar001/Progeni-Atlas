@@ -21,29 +21,7 @@ import {
   UserPlus } from 'lucide-react';
 import { LoginValidationSchema, LoginFormData } from '@/lib/validations/login';
 import { Navbar } from '@/components/Navbar';
-import { AuthCard, buttonClass, inputClass } from '@/components/ui';
-
-interface FormLabelProps {
-  label: string;
-  required?: boolean;
-  icon?: React.ReactNode;
-  htmlFor?: string;
-}
-
-export const FormLabel = ({ label, required = true, icon, htmlFor }: FormLabelProps) => (
-  <label
-    htmlFor={htmlFor}
-    className="inline-flex items-center gap-1.5 text-sm font-medium text-ink mb-1.5"
-  >
-    {icon && <span className="text-accent-cyan shrink-0">{icon}</span>}
-    <span>{label}</span>
-    {required && (
-      <span className="text-accent-rose font-bold" aria-hidden="true">
-        *
-      </span>
-    )}
-  </label>
-);
+import { AuthCard, FormLabel, buttonClass, inputClass } from '@/components/ui';
 
 const TRUST_BADGES = [
   {
@@ -334,9 +312,9 @@ export default function LoginPage() {
                 >
                   <div>
                     <FormLabel htmlFor="login-email" label="Email address" required />
-                    <div className="relative">
+                    <div className="group relative">
                       <Mail
-                        className="pointer-events-none absolute left-3.5 top-1/2 w-4 h-4 -translate-y-1/2 text-ink-faint"
+                        className="pointer-events-none absolute left-3.5 top-1/2 w-4 h-4 -translate-y-1/2 text-ink-faint transition-colors group-focus-within:text-accent-cyan"
                         aria-hidden="true"
                       />
                       <input
@@ -360,9 +338,9 @@ export default function LoginPage() {
 
                   <div>
                     <FormLabel htmlFor="login-password" label="Password" required />
-                    <div className="relative">
+                    <div className="group relative">
                       <Lock
-                        className="pointer-events-none absolute left-3.5 top-1/2 z-10 w-4 h-4 -translate-y-1/2 text-ink-faint"
+                        className="pointer-events-none absolute left-3.5 top-1/2 z-10 w-4 h-4 -translate-y-1/2 text-ink-faint transition-colors group-focus-within:text-accent-cyan"
                         aria-hidden="true"
                       />
                       <input

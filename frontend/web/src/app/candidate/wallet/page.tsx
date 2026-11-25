@@ -1,5 +1,6 @@
 'use client';
 
+import { useSearchParams, usePathname, useRouter } from 'next/navigation';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
@@ -30,52 +31,20 @@ import {
 } from 'lucide-react';
 import { createMayankUpiOrder, MayankUpiOrderResponse } from '@/lib/mayank_upi';
 import { MayankUpiModal } from '@/components/billing/MayankUpiModal';
-
-interface WalletData {
-  accountId: string;
-  accountName: string;
-  accountType: string;
-  orgId: string | null;
-  userId: string | null;
-  currency: string;
-  ratePerMinuteCredits: number;
-  baseFeeCredits: number;
-  availableCredits: number;
-  paidCredits: number;
-  promotionalCredits: number;
-  consumedCredits: number;
-  reservedCredits: number;
-  lowBalanceThresholdCredits: number;
-  isLowBalance: boolean;
-  chargingEnabled: boolean;
-  demoQuota: {
-    totalAllowed: number;
-    completed: number;
-    remaining: number;
-    maxDurationSeconds: number;
-  };
-}
-
-interface WalletTransaction {
-  id: string;
-  txRef: string;
-  entryType: string;
-  category?: 'IN' | 'OUT' | 'DEMO';
-  title?: string;
-  reason?: string;
-  amountCredits: number;
-  amountInr?: number;
-  balanceAfter?: number;
-  status: string;
-  createdAt: string;
-  sessionId?: string;
-  roleTitle?: string;
-  interviewType?: string;
-  durationMinutes?: number;
-  ratePerMinute?: number;
-  paymentId?: string;
-  orderId?: string;
-}
+import type { WalletData, WalletTransaction } from '@/types/wallet';
+import {
+  bonusCreditsForPack,
+  checkoutProviderFor,
+  formatCredits,
+  formatInrFromCredits,
+  formatRatePerMinute,
+  minutesForCredits,
+} from '@/lib/billing';
+import {
+  createRazorpayWalletOrder,
+  loadRazorpayScript,
+  verifyRazorpayPayment,
+} from '@/lib/razorpay';
 
 interface TransactionSummary {
   availableCredits: number;
@@ -88,16 +57,15 @@ interface CandidatePack {
   packName: string;
   credits: number;
   inr: number;
-  minutes: number;
   badge: string;
   popular?: boolean;
 }
 
 const DEFAULT_CANDIDATE_PACKS: CandidatePack[] = [
-  { packName: 'pack_1', credits: 1, inr: 1, minutes: 2, badge: 'Trial Pack' },
-  { packName: 'pack_49', credits: 50, inr: 49, minutes: 100, badge: 'Warm-up Pack' },
-  { packName: 'pack_99', credits: 100, inr: 99, minutes: 200, badge: 'Placement Ready', popular: true },
-  { packName: 'pack_199', credits: 200, inr: 199, minutes: 400, badge: 'Pro Mastery' },
+  { packName: 'pack_1', credits: 1, inr: 1, badge: 'Trial Pack' },
+  { packName: 'pack_49', credits: 50, inr: 49, badge: 'Warm-up Pack' },
+  { packName: 'pack_99', credits: 100, inr: 99, badge: 'Placement Ready', popular: true },
+  { packName: 'pack_199', credits: 200, inr: 199, badge: 'Pro Mastery' },
 ];
 
 export default function CandidateWalletPage() {
@@ -142,7 +110,6 @@ export default function CandidateWalletPage() {
                 packName: pkg.id || pkg.package_id || `pack_${price}`,
                 credits: cr,
                 inr: price,
-                minutes: Number(pkg.interview_duration_limit_minutes || Math.round(cr * 2)),
                 badge: pkg.name || 'Practice Pack',
                 popular: Boolean(pkg.popular || pkg.tier === 'pro'),
               };
@@ -201,13 +168,8 @@ export default function CandidateWalletPage() {
           paidCredits: num(rawWallet.paidCredits),
           promotionalCredits: num(rawWallet.promotionalCredits),
           consumedCredits: Math.max(0, num(rawWallet.consumedCredits ?? serverSummary?.totalDebited)),
-          ratePerMinuteCredits: rawWallet.ratePerMinuteCredits || 0.5,
-          demoQuota: rawWallet.demoQuota || {
-            remaining: 0,
-            totalAllowed: 0,
-            completed: 0,
-            maxDurationSeconds: 600,
-          },
+          ratePerMinuteCredits: rawWallet.ratePerMinuteCredits,
+          demoQuota: rawWallet.demoQuota,
         });
       }
 
@@ -247,6 +209,15 @@ export default function CandidateWalletPage() {
     void loadWallet();
   }, [loadWallet]);
 
+  // Preselect pack from pricing page query parameter
+  useEffect(() => {
+    const params = new URL(window.location.href).searchParams;
+    const packFromQuery = params.get('pack');
+    if (packFromQuery) {
+      setSelectedPack(Number(packFromQuery.replace('pack_', '')) || 100);
+    }
+  }, [selectedPack]);
+
   const selectedObj = useMemo(() => {
     return candidatePacks.find((p) => p.credits === selectedPack) || candidatePacks[0];
   }, [candidatePacks, selectedPack]);
@@ -267,9 +238,96 @@ export default function CandidateWalletPage() {
     return selectedObj?.credits ?? 100;
   }, [customAmount, selectedObj]);
 
+  const startRazorpayCheckout = async () => {
+    setRecharging(true);
+    setMessage(null);
+
+    try {
+      const order = await createRazorpayWalletOrder(payableInr);
+      if (!order.success || !order.razorpay_order_id || !order.key_id) {
+        throw new Error(order.error || 'Razorpay checkout is not available yet.');
+      }
+
+      const ready = await loadRazorpayScript();
+      if (!ready) {
+        throw new Error('Failed to load Razorpay checkout. Check your connection and retry.');
+      }
+
+      const handleRazorpaySuccess = async (response: {
+        razorpay_order_id: string;
+        razorpay_payment_id: string;
+        razorpay_signature: string;
+      }) => {
+        try {
+          const verified = await verifyRazorpayPayment({
+            orderId: order.order_id || order.razorpay_order_id,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+          });
+          if (!verified.success) {
+            throw new Error(verified.error || 'Payment verification failed. Contact support.');
+          }
+          setMessage({
+            text: verified.message || `Payment confirmed! ${formatCredits(verified.credits_added ?? payableCredits)} added.`,
+            type: 'success',
+          });
+          setCustomAmount('');
+          await loadWallet();
+        } catch (err) {
+          setMessage({
+            text: err instanceof Error ? err.message : 'Payment verification failed.',
+            type: 'error',
+          });
+        }
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Razorpay = (window as any).Razorpay;
+      const checkout = new Razorpay({
+        key: order.key_id,
+        amount: order.amount_paise || Math.round(payableInr * 100),
+        currency: order.currency || 'INR',
+        name: order.name || 'Progeni Atlas',
+        description: order.description || `${formatCredits(payableCredits)} Atlas credits`,
+        order_id: order.razorpay_order_id,
+        theme: { color: '#2563eb' },
+        handler: handleRazorpaySuccess,
+      });
+
+      checkout.on(
+        'payment.failed',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (response: any) => {
+          const detail = response?.error?.description ? `: ${response.error.description}` : '';
+          setMessage({
+            text: `Payment failed${detail}. No money was deducted.`,
+            type: 'error',
+          });
+        }
+      );
+
+      setRechargeModalOpen(false);
+      checkout.open();
+    } catch (err) {
+      setMessage({
+        text: err instanceof Error ? err.message : 'Failed to start Razorpay checkout.',
+        type: 'error',
+      });
+    } finally {
+      setRecharging(false);
+    }
+  };
+
   const handleRecharge = async () => {
     if (!payableCredits || payableCredits < 1 || !payableInr || payableInr < 1) {
       setMessage({ text: 'Please enter a valid amount (minimum ₹1).', type: 'error' });
+      return;
+    }
+
+    const provider = checkoutProviderFor(paymentMethod);
+    if (provider === 'razorpay') {
+      await startRazorpayCheckout();
       return;
     }
 
@@ -328,9 +386,24 @@ export default function CandidateWalletPage() {
   }, [transactions]);
 
   // Overall sums
-  const availableBal = Math.max(0, wallet?.availableCredits ?? summary?.availableCredits ?? 0);
-  const totalCredited = Math.max(0, summary?.totalCredited ?? 0);
-  const totalDebited = Math.max(0, wallet?.consumedCredits ?? summary?.totalDebited ?? 0);
+  const exactBalance = Math.max(0, wallet?.availableCredits ?? summary?.availableCredits ?? 0);
+  const apiWholeBalance = wallet?.availableCreditsWhole;
+  const availableBal = typeof apiWholeBalance === 'number' && Number.isFinite(apiWholeBalance)
+    ? Math.max(0, Math.floor(apiWholeBalance))
+    : Math.floor(exactBalance);
+  const totalCredited = Math.max(0, Math.floor(summary?.totalCredited ?? 0));
+  const totalDebited = Math.max(0, Math.floor(wallet?.consumedCredits ?? summary?.totalDebited ?? 0));
+
+  const walletRate = wallet?.ratePerMinuteCredits ?? null;
+  const rateLabel = formatRatePerMinute(walletRate);
+  const demoQuota = wallet?.demoQuota;
+  const paymentMethodLabel =
+    paymentMethod === 'card' ? 'Card' : paymentMethod === 'netbanking' ? 'Net Banking' : 'UPI';
+  const selectedBonus = selectedObj
+    ? bonusCreditsForPack(selectedObj.credits, selectedObj.inr)
+    : 0;
+  const customBonus = customAmount.trim() ? 0 : selectedBonus;
+  const estimatedMinutes = minutesForCredits(payableCredits, walletRate);
 
   return (
     <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans">
@@ -348,7 +421,7 @@ export default function CandidateWalletPage() {
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-black tracking-tight">Interview Credits & Passbook</h1>
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-accent-emerald border border-emerald-500/20">
-                    Live Balance
+                    {loading ? 'Updating…' : 'Live Balance'}
                   </span>
                 </div>
                 <p className="text-sm text-ink-muted">
@@ -412,14 +485,14 @@ export default function CandidateWalletPage() {
             </div>
             <div className="mt-3 flex items-baseline gap-1.5">
               <span className="text-3xl font-black text-ink">
-                ₹{availableBal.toFixed(2)}
+                {loading ? '—' : formatInrFromCredits(availableBal)}
               </span>
               <span className="text-sm font-bold text-accent-cyan">
-                ({availableBal.toFixed(0)} Credits)
+                ({loading ? '—' : formatCredits(availableBal)})
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between text-xs">
-              <span className="text-ink-muted">₹1.00 = 1 Credit</span>
+              <span className="text-ink-muted">₹1.00 = 1 credit · bonus packs may add extra credits</span>
               <button
                 onClick={() => setRechargeModalOpen(true)}
                 className="text-accent-cyan hover:underline font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer"
@@ -439,12 +512,12 @@ export default function CandidateWalletPage() {
             </div>
             <div className="mt-3 flex items-baseline gap-1.5">
               <span className="text-3xl font-black text-accent-emerald">
-                +₹{totalCredited.toFixed(2)}
+                {loading ? '—' : `+${formatInrFromCredits(totalCredited)}`}
               </span>
               <span className="text-xs font-semibold text-ink-muted">credited</span>
             </div>
             <p className="mt-3 text-xs text-ink-muted">
-              Total credited via verified online UPI recharges.
+              Total credits added to your wallet from all recorded sources.
             </p>
           </div>
 
@@ -458,16 +531,18 @@ export default function CandidateWalletPage() {
             </div>
             <div className="mt-3 flex items-baseline gap-1.5">
               <span className="text-3xl font-black text-accent-rose">
-                -₹{totalDebited.toFixed(2)}
+                {loading ? '—' : `-${formatInrFromCredits(totalDebited)}`}
               </span>
-              <span className="text-xs font-semibold text-ink-muted">({totalDebited.toFixed(0)} Credits)</span>
+              <span className="text-xs font-semibold text-ink-muted">
+                ({loading ? '—' : formatCredits(totalDebited)})
+              </span>
             </div>
             <p className="mt-3 text-xs text-ink-muted">
               Deducted across completed practice & technical screenings.
             </p>
           </div>
 
-          {/* Card 4: Free Demo Quota */}
+          {/* Card 4: Free Demo Quota - showing remaining demos, matching lobby display */}
           <div className="p-6 rounded-xl border border-line bg-surface shadow-sm relative overflow-hidden group">
             <div className="flex items-center justify-between text-xs text-ink-muted">
               <span className="font-semibold uppercase tracking-wider">Free Demo Quota</span>
@@ -477,14 +552,14 @@ export default function CandidateWalletPage() {
             </div>
             <div className="mt-3 flex items-baseline gap-1.5">
               <span className="text-3xl font-black text-ink">
-                {wallet?.demoQuota?.remaining ?? 2}
+                {demoQuota?.remaining ?? '—'}
               </span>
               <span className="text-sm font-semibold text-ink-muted">
-                of {wallet?.demoQuota?.totalAllowed ?? 2} Free Demos Left
+                of {demoQuota?.totalAllowed ?? '—'} Free Demos
               </span>
             </div>
             <p className="mt-3 text-xs text-ink-muted">
-              Rate: ₹0.50 / min (0.5 cr/min) applied after free demo rounds. Zero-turn sessions are free.
+              {loading ? 'Loading rate…' : `Rate: ${rateLabel}. Zero-turn sessions are not charged.`}
             </p>
           </div>
         </div>
@@ -511,7 +586,7 @@ export default function CandidateWalletPage() {
                 placeholder="Search by role, session ID, or Ref..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-canvas border border-line text-ink placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-canvas border border-line text-ink placeholder:text-ink-muted transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
               />
               {searchQuery && (
                 <button
@@ -709,16 +784,16 @@ export default function CandidateWalletPage() {
                           }`}
                         >
                           {isCredit
-                            ? `+ ₹${Math.abs(tx.amountCredits).toFixed(2)}`
+                            ? `+ ${formatInrFromCredits(Math.abs(tx.amountCredits))}`
                             : isDebit
-                            ? `- ₹${Math.abs(tx.amountCredits).toFixed(2)}`
-                            : `₹0.00`}
+                            ? `- ${formatInrFromCredits(Math.abs(tx.amountCredits))}`
+                            : '₹0'}
                         </span>
                         <span className="text-[11px] font-semibold text-ink-muted">
                           {isCredit
-                            ? `(+${Math.abs(tx.amountCredits).toFixed(0)} cr)`
+                            ? `(+${formatCredits(Math.abs(tx.amountCredits))})`
                             : isDebit
-                            ? `(-${Math.abs(tx.amountCredits).toFixed(0)} cr)`
+                            ? `(-${formatCredits(Math.abs(tx.amountCredits))})`
                             : '(Free Demo)'}
                         </span>
                       </div>
@@ -728,9 +803,9 @@ export default function CandidateWalletPage() {
                         <div className="mt-1 text-[11px] font-medium text-ink-muted">
                           Closing Balance:{' '}
                           <strong className="text-ink font-mono font-bold">
-                            ₹{tx.balanceAfter.toFixed(2)}
+                            {formatInrFromCredits(tx.balanceAfter)}
                           </strong>{' '}
-                          <span className="text-[10px]">({tx.balanceAfter.toFixed(0)} cr)</span>
+                          <span className="text-[10px]">({formatCredits(tx.balanceAfter)})</span>
                         </div>
                       )}
 
@@ -770,12 +845,12 @@ export default function CandidateWalletPage() {
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <div className="text-xs font-bold text-accent-emerald tracking-wide uppercase">
-                Payment Settled & Verified
+                Ledger Entry Recorded
               </div>
               <div className="text-2xl font-black font-mono text-ink">
                 {selectedTx.amountCredits >= 0
-                  ? `+ ₹${selectedTx.amountCredits.toFixed(2)}`
-                  : `- ₹${Math.abs(selectedTx.amountCredits).toFixed(2)}`}
+                  ? `+ ${formatInrFromCredits(selectedTx.amountCredits)}`
+                  : `- ${formatInrFromCredits(Math.abs(selectedTx.amountCredits))}`}
               </div>
               <div className="text-xs text-ink-muted">
                 {selectedTx.amountCredits >= 0
@@ -813,8 +888,8 @@ export default function CandidateWalletPage() {
                   <span className="text-ink-muted">Billing Rate</span>
                   <span className="font-mono text-ink">
                     {selectedTx.ratePerMinute > 0
-                      ? `₹${selectedTx.ratePerMinute.toFixed(2)} / min (${selectedTx.ratePerMinute} cr/min)`
-                      : 'Free Demo (₹0.00)'}
+                      ? formatRatePerMinute(selectedTx.ratePerMinute)
+                      : 'No charge (₹0)'}
                   </span>
                 </div>
               )}
@@ -830,7 +905,7 @@ export default function CandidateWalletPage() {
                 <div className="flex justify-between py-1.5 border-b border-line/60">
                   <span className="text-ink-muted">Closing Wallet Balance</span>
                   <span className="font-mono font-black text-ink">
-                    ₹{selectedTx.balanceAfter.toFixed(2)} ({selectedTx.balanceAfter.toFixed(0)} Credits)
+                    {formatInrFromCredits(selectedTx.balanceAfter)} ({formatCredits(selectedTx.balanceAfter)})
                   </span>
                 </div>
               )}
@@ -924,10 +999,17 @@ export default function CandidateWalletPage() {
                     </span>
                     <span className="text-lg sm:text-xl font-black block mt-1 text-ink">₹{pack.inr}</span>
                     <span className="text-xs text-ink-muted block mt-0.5">
-                      {pack.credits} Credits
+                      {formatCredits(pack.credits)}
                     </span>
                     <span className="text-[10px] text-ink-faint block mt-1.5">
-                      ~{pack.minutes} mins practice
+                      {minutesForCredits(pack.credits, walletRate) !== null
+                        ? `~${minutesForCredits(pack.credits, walletRate)} mins practice`
+                        : 'Practice time calculated at checkout'}
+                      {bonusCreditsForPack(pack.credits, pack.inr) > 0 && (
+                        <span className="block text-accent-emerald mt-0.5">
+                          Includes {formatCredits(bonusCreditsForPack(pack.credits, pack.inr))} bonus
+                        </span>
+                      )}
                     </span>
                   </div>
                 ))}
@@ -949,7 +1031,7 @@ export default function CandidateWalletPage() {
                     placeholder="Enter any amount (even ₹1)"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
-                    className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-line bg-inset text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-line bg-inset text-sm font-semibold text-ink transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
                   />
                 </div>
                 {/* Quick select chips */}
@@ -1010,8 +1092,18 @@ export default function CandidateWalletPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-ink-muted">
-                  You will receive <strong>{payableCredits} Credits</strong> (~{customAmount ? Math.round(payableCredits * 2) : (selectedObj?.minutes ?? Math.round(payableCredits * 2))} mins practice). Secured by <strong>Progeni Atlas UPI</strong> (Google Pay, PhonePe, Paytm, BHIM, QR). Instant credit addition.
+                  You will receive <strong>{formatCredits(payableCredits)}</strong>
+                  {estimatedMinutes !== null && <> (~{estimatedMinutes} mins practice)</>}.{' '}
+                  {customBonus > 0 && (
+                    <>This pack includes <strong>{formatCredits(customBonus)} bonus credits</strong> at the advertised price. </>
+                  )}
+                  {paymentMethod === 'upi' ? (
+                    <>UPI payments are secured by <strong>Progeni Atlas UPI</strong> (Google Pay, PhonePe, Paytm, BHIM, QR).</>
+                  ) : (
+                    <>{paymentMethodLabel} payments are completed securely through <strong>Razorpay checkout</strong>.</>
+                  )}
                 </p>
+                <p className="mt-1 text-[11px] text-ink-muted">Current rate: {rateLabel}.</p>
               </div>
             </div>
 
@@ -1024,14 +1116,20 @@ export default function CandidateWalletPage() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                disabled={recharging || payableInr <= 0}
-                onClick={() => void handleRecharge()}
-                className="px-5 py-2 rounded-xl text-xs font-bold text-on-brand bg-accent-blue hover:bg-accent-blue-hover shadow-md transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
-              >
-                {recharging ? 'Creating UPI Order...' : `Pay ₹${payableInr.toFixed(0)} via UPI Gateway`}
-              </button>
+              {payableInr > 0 ? (
+                <button
+                  type="button"
+                  disabled={recharging}
+                  onClick={() => void handleRecharge()}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-on-brand bg-accent-blue hover:bg-accent-blue-hover shadow-md transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                >
+                  {recharging
+                    ? 'Preparing checkout…'
+                    : `Pay ₹${payableInr.toFixed(2)} via ${paymentMethodLabel}${paymentMethod === 'upi' ? ' / QR' : ' (Razorpay)'}`}
+                </button>
+              ) : (
+                <span className="text-xs text-ink-muted">Enter an amount of at least ₹1 to continue.</span>
+              )}
             </div>
           </div>
         </div>

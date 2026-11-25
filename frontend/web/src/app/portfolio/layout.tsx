@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-  title: 'Portfolio — Progeni Atlas',
+  title: 'Portfolio',
   description: 'Showcase of assessment templates, interview blueprints and success stories from Progeni Atlas.',
 };
 

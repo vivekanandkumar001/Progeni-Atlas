@@ -43,3 +43,5 @@ email-validator>=2.2.0
 
 # Utilities
 PyYAML>=6.0.0
+
+pytest>=8.0.0

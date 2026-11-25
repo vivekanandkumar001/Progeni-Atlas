@@ -14,7 +14,7 @@ export const FAQ_DATA: FaqItem[] = [
     category: 'Platform',
     question: 'What is Progeni Atlas?',
     answer:
-      'Progeni Atlas is an enterprise-grade autonomous AI technical interview and skills assessment platform. It conducts live two-way voice interviews, multi-language coding assessments in a secure browser sandbox, enforces anti-cheat proctoring, and automatically generates calibrated recruiter scoring dossiers.',
+      'Progeni Atlas is an enterprise-grade autonomous AI technical interview and skills assessment platform. It conducts live two-way voice interviews, multi-language coding assessments in a secure browser sandbox, records disclosed interaction counters for human review — no gaze or facial analysis — and automatically generates calibrated recruiter scoring dossiers.',
   },
   {
     category: 'Platform',
@@ -52,7 +52,7 @@ export const FAQ_DATA: FaqItem[] = [
     category: 'Pricing',
     question: 'How does billing work — is it per-interview or subscription?',
     answer:
-      'Progeni Atlas uses transparent duration-based billing: ₹1.00 = 1 Credit, billed strictly at 1 Credit per 3 minutes of interview time (₹0.33 per minute). No seats, no subscriptions, no minimum commit — you only pay for assessed minutes.',
+      'Progeni Atlas uses transparent duration-based billing: ₹1.00 = 1 Credit, billed strictly at 0.5 Credits per minute (2 minutes per ₹1). No seats, no subscriptions, no minimum commit — you only pay for assessed minutes.',
   },
   {
     category: 'Pricing',
@@ -72,7 +72,7 @@ export const FAQ_DATA: FaqItem[] = [
     category: 'Proctoring',
     question: 'How does Progeni Atlas prevent AI cheating and unauthorized assistance?',
     answer:
-      'A multi-layered anti-cheat framework: companion smartphone camera pairing for 360° room proctoring, gaze-alignment verification, single-voice biometric tracking, and copy-paste telemetry — without intrusive surveillance software or kernel-level installs.',
+      'A disclosed counter model: tab-focus and paste counts are recorded for human review — no gaze tracking, no facial analysis, no biometrics, and no kernel-level software.',
   },
   {
     category: 'Proctoring',

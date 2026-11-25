@@ -91,6 +91,18 @@ export default function CandidateProfilePage() {
           </div>
         )}
 
+        {!loading && profile.isDemoProfile && (
+          <div className="rounded-2xl bg-surface border border-accent-amber/35 p-4 text-sm text-ink flex items-start gap-3">
+            <AlertCircle className="w-4 h-4 shrink-0 text-accent-amber mt-0.5" />
+            <div>
+              <p className="font-bold text-accent-amber">Demo profile</p>
+              <p className="text-xs text-ink-muted mt-0.5">
+                Seeded biography and social links are hidden because they are not your details. Replace them with your own information before using this profile in an assessment.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Hero Branding & Profile Banner */}
         <ProfileHeroBanner
           profile={profile}

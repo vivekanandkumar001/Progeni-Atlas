@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Any, Callable, Dict, List
+from typing import Any, Dict, List
 
 
 # ---------------------------------------------------------------------------
@@ -32,16 +32,25 @@ def _int_param(rng: random.Random, lo: int, hi: int, step: int = 1) -> int:
 
 
 def _shuffle_options(rng: random.Random, correct: str, distractors: List[str]) -> List[str]:
-    """Return 4 unique options with exactly one correct answer; raise if impossible."""
-    opts = [correct] + distractors[:3]
-    # guarantee uniqueness of strings
-    seen = set()
-    uniq = []
-    for o in opts:
-        while o in seen:
-            o = o + " "
-        seen.add(o)
-        uniq.append(o)
+    """Return 4 genuinely distinct options; never fake uniqueness with spaces."""
+    from core.aptitude_generator import _ratio_key, normalize_option_text
+
+    def _key(text: str):
+        return _ratio_key(text) or normalize_option_text(text)
+
+    seen = {_key(correct)}
+    uniq = [str(correct).strip()]
+    for option in distractors:
+        candidate = str(option).strip()
+        key = _key(candidate)
+        if not candidate or not key or key in seen:
+            continue
+        seen.add(key)
+        uniq.append(candidate)
+        if len(uniq) == 4:
+            break
+    if len(uniq) != 4:
+        raise ValueError(f"family cannot produce 4 distinct options for: {correct!r}")
     rng.shuffle(uniq)
     return uniq
 
@@ -51,21 +60,26 @@ def _shuffle_options(rng: random.Random, correct: str, distractors: List[str]) -
 # ---------------------------------------------------------------------------
 
 def _fam_time_work(rng: random.Random) -> Dict[str, Any]:
-    x, y = rng.choice([(10, 15), (12, 18), (8, 24), (14, 21), (9, 18), (16, 24), (20, 30), (10, 20)])
-    t = _int_param(rng, 2, 6)
+    # Only use parameter sets whose answer is an exact integer number of days —
+    # otherwise a key such as "8 days" contradicts a derivation of "8.50 days".
+    pairs = [(10, 15), (12, 18), (8, 24), (14, 21), (9, 18), (16, 24), (20, 30), (10, 20)]
+    viable = []
+    for x, y in pairs:
+        for t in range(2, 7):
+            remaining = 1 - t * (1 / x + 1 / y)
+            days = remaining * y
+            if days >= 1 and abs(days - round(days)) < 1e-9:
+                viable.append((x, y, t, days))
+    x, y, t, ans_days = rng.choice(viable)
     combined = 1 / x + 1 / y
     remaining = 1 - t * combined
-    if remaining <= 0:
-        # degenerate parameterization — fall back to a safe fixed instance
-        x, y, t = 12, 18, 4
-        combined = 1 / x + 1 / y
-        remaining = 1 - t * combined
-    ans_days = remaining * y
-    correct = f"{int(round(ans_days))} days"
+    whole_days = int(round(ans_days))
+    correct = f"{whole_days} days"
     distractors = [
-        f"{int(round(ans_days)) + 2} days",
-        f"{int(round(ans_days + 1))} days",
-        f"{max(1, int(round(ans_days)) - 2)} days",
+        f"{whole_days + 2} days",
+        f"{whole_days + 1} days",
+        f"{max(1, whole_days - 2)} days",
+        f"{whole_days + 4} days",
     ]
     options = _shuffle_options(rng, correct, distractors)
     return {
@@ -75,7 +89,7 @@ def _fam_time_work(rng: random.Random) -> Dict[str, Any]:
         "explanation": (
             f"A in 1 day = 1/{x}; B in 1 day = 1/{y}. Together/day = (1/{x}+1/{y}) = {combined:.4f}. "
             f"Work in {t} days = {t*combined:.3f} ({1 - t*combined:.3f} remaining). "
-            f"B alone: ({remaining:.4f}) × {y} = {ans_days:.2f} days."
+            f"B alone: ({remaining:.4f}) × {y} = {whole_days} days."
         ),
         "formula": f"Remaining = 1 - {t}*(1/{x} + 1/{y}); Days = Remaining * {y}",
         "timeRecommendedSeconds": 75,
@@ -112,7 +126,12 @@ def _fam_si_vs_ci_2yr(rng: random.Random) -> Dict[str, Any]:
     r = rng.choice([5, 8, 10, 12, 15, 20])
     diff = p * (r / 100) ** 2
     correct = f"₹{int(diff):,}"
-    distractors = [f"₹{int(p * r / 100):,}", f"₹{int(p * r / 50):,}", f"₹{int(p * (1 + r / 100) ** 2 - p - p * r / 50):,}"]
+    distractors = [
+        f"₹{int(p * r / 100):,}",                       # simple interest only
+        f"₹{int(p * r / 50):,}",                        # twice the simple interest
+        f"₹{int(p * r / 100 + diff):,}",                # SI + difference
+        f"₹{int(p * ((1 + r / 100) ** 2 - 1)):,}",      # total compound interest
+    ]
     options = _shuffle_options(rng, correct, distractors)
     return {
         "prompt": f"The difference between compound interest and simple interest on a sum of ₹{p:,} for 2 years at {r}% per annum (compounded annually) is:",
@@ -141,12 +160,20 @@ def _fam_average_speed(rng: random.Random) -> Dict[str, Any]:
 
 
 def _fam_alligation(rng: random.Random) -> Dict[str, Any]:
-    x, z, y = rng.choice([(10, 24, 60), (20, 40, 80), (30, 50, 70), (10, 25, 55), (40, 55, 70), (15, 35, 75)])
+    # (x, mean, y) parameter sets with unequal parts, so the reversed ratio is
+    # never a duplicate of the key (the legacy 30/50/70 case produced 1:1 twice).
+    combos = [(10, 24, 60), (10, 25, 55), (20, 35, 70), (15, 35, 75)]
+    x, z, y = rng.choice(combos)
     # solution A x%, solution B y% -> mixture z%  =>  A:B = (y-z) : (z-x)
     a_part, b_part = y - z, z - x
     g = math.gcd(a_part, b_part)
     correct = f"{a_part // g} : {b_part // g}"
-    distractors = [f"{b_part // g} : {a_part // g}", f"{z - x} : {y - z}", f"{y - x} : {y - z}"]
+    distractors = [
+        f"{b_part // g} : {a_part // g}",
+        f"{z - x} : {y - z}",
+        f"{y - x} : {y - z}",
+        f"{a_part // g + 1} : {b_part // g}",
+    ]
     options = _shuffle_options(rng, correct, distractors)
     return {
         "prompt": f"In what ratio must a merchant mix a {x}% solution with a {y}% solution to obtain a {z}% solution?",
@@ -187,6 +214,11 @@ def _fam_sequential_percentage(rng: random.Random) -> Dict[str, Any]:
         f"{abs(x - y)}% {'decrease' if x < y else 'increase'}",
         f"{abs(change) + x / 10:.1f}% {direction}",
         f"{(x + y) / 2:.1f}% increase",
+        f"{abs(change) + y / 10:.1f}% {direction}",
+        f"{abs(x - y) + x / 10:.1f}% {direction}",
+        f"{x + y:.1f}% increase",
+        f"{abs(change) / 2:.1f}% {direction}",
+        f"{abs(x - y) + 5:.1f}% {direction}",
     ]
     options = _shuffle_options(rng, correct, distractors)
     return {
@@ -229,7 +261,15 @@ def _fam_number_series(rng: random.Random) -> Dict[str, Any]:
     n = 8
     term = a + (n - 1) * d
     correct = str(term)
-    distractors = [str(term + d), str(term - d), str(a + (n - 1) * (d + 1))]
+    distractors = [
+        str(term + d),
+        str(term - d),
+        str(a + (n - 1) * (d + 1)),
+        str(term + 2 * d),
+        str(term + d + 1),
+        str(term - d - 1),
+        str(a + (n - 1) * (d - 1)),
+    ]
     options = _shuffle_options(rng, correct, distractors)
     return {
         "prompt": f"Find the {n}th term of the arithmetic progression: {a}, {a + d}, {a + 2 * d}, {a + 3 * d}, …",
@@ -251,7 +291,15 @@ def _fam_ages_ratio(rng: random.Random) -> Dict[str, Any]:
     if x * son + y != z * (son + y):
         son = (y * (z - 1)) // (x - z)
     correct = f"{son} years"
-    distractors = [f"{son + 2} years", f"{son * 2} years", f"{son + y} years"]
+    distractors = [
+        f"{son + 2} years",
+        f"{son * 2} years",
+        f"{son + y} years",
+        f"{son + 1} years",
+        f"{max(1, son - 1)} years",
+        f"{son * 2 + 2} years",
+        f"{son + y + 1} years",
+    ]
     options = _shuffle_options(rng, correct, distractors)
     return {
         "prompt": f"The present age of a father is {x} times the age of his son. {y} years from now, the father will be {z} times the age of his son. What is the present age of the son?",
@@ -267,7 +315,15 @@ def _fam_two_dice(rng: random.Random) -> Dict[str, Any]:
     k = rng.choice([5, 6, 7, 8, 9, 10])
     ways = sum(1 for i in range(1, 7) for j in range(1, 7) if i + j == k)
     correct = f"{ways}/36"
-    distractors = [f"{ways + 1}/36", f"{max(1, ways - 2)}/36", f"{k - 1}/36"]
+    distractors = [
+        f"{ways + 1}/36",
+        f"{max(1, ways - 1)}/36",
+        f"{max(1, ways - 2)}/36",
+        f"{k - 1}/36",
+        f"{ways + 2}/36",
+        f"{k + 1}/36",
+        f"{max(1, k - 2)}/36",
+    ]
     options = _shuffle_options(rng, correct, distractors)
     return {
         "prompt": f"Two fair dice are thrown together. What is the probability that the sum of the numbers shown is exactly {k}?",
@@ -317,27 +373,38 @@ def _fam_di_table_percentage(rng: random.Random) -> Dict[str, Any]:
 
 
 def _fam_syllogism(rng: random.Random) -> Dict[str, Any]:
+    # Correct conclusions directly contradict an explicit premise, and every
+    # distractor uses only terms that appear in that item's premises.
     sets = [
         ("All programmers are engineers.", "Some engineers are researchers.", "No researcher is a manager.",
-         "Some programmers may not be managers."),
+         "Some researchers are managers.", [
+             "Some programmers are researchers.",
+             "All engineers are programmers.",
+             "Some engineers are managers.",
+             "Some researchers are programmers.",
+         ]),
         ("All mammals are animals.", "Some animals are aquatic.", "No aquatic is a desert dweller.",
-         "All mammals may be non-desert dwellers."),
+         "Some aquatic animals are desert dwellers.", [
+             "All mammals are aquatic.",
+             "Some mammals are desert dwellers.",
+             "Some animals are neither aquatic nor desert dwellers.",
+             "Some aquatic animals are mammals.",
+         ]),
         ("All teslas are EVs.", "Some EVs are sedans.", "No sedan is a truck.",
-         "Some teslas may be trucks."),
+         "Some sedans are trucks.", [
+             "All EVs are teslas.",
+             "Some teslas are sedans.",
+             "Some EVs are trucks.",
+             "All sedans are EVs.",
+         ]),
     ]
-    a, b, c, d = rng.choice(sets)
-    correct = d
-    distractors = [
-        "All programmers are trucks." if "programmer" in a else "All mammals are desert dwellers.",
-        "No engineer is an artist matches." if "programmer" in a else "All animals are aquatic.",
-        "Some engineers are teslas." if "programmer" in a else "All teslas are trucks.",
-    ]
+    a, b, c, correct, distractors = rng.choice(sets)
     options = _shuffle_options(rng, correct, distractors)
     return {
         "prompt": f"Consider the statements:\nI. {a}\nII. {b}\nIII. {c}\nWhich of the following conclusions is DEFINITELY FALSE given the statements?",
         "options": options,
         "correctIndex": options.index(correct),
-        "explanation": f"Statement I is universal (all), II and III are particular/negative restrictions — the only statement guaranteed false is '{correct}'.",
+        "explanation": f"Statement III explicitly rules out the overlap claimed in '{correct}', so it is definitely false; the other conclusions are merely possible but not guaranteed.",
         "formula": "Syllogism: universal affirmative + particular + negative universal",
         "timeRecommendedSeconds": 75,
     }
@@ -441,7 +508,7 @@ def _fam_di_ratio(rng: random.Random) -> Dict[str, Any]:
     from math import gcd
     g = gcd(x, y)
     correct = f"{x // g} : {y // g}"
-    distractors = [f"{y // g} : {x // g}", f"{x + y} : {x + y + 50 if False else y}", f"{x // g + 1} : {y // g + 1}"]
+    distractors = [f"{y // g} : {x // g}", f"{x + y} : {y}", f"{x // g + 1} : {y // g + 1}"]
     options = _shuffle_options(rng, correct, distractors)
     return {
         "prompt": f"From the telemetry table:\n  Service {names[0]}: {x}k req/min\n  Service {names[1]}: {y}k req/min\nWhat is the ratio of Service {names[0]} to Service {names[1]} traffic (in lowest terms)?",
@@ -481,20 +548,28 @@ def get_families_by_section(section: str) -> List[Dict[str, Any]]:
 
 
 def render_family_item(family: Dict[str, Any], seed: str) -> Dict[str, Any]:
-    """Render one item from a family, deterministically from a seed string."""
-    rng = random.Random(seed)
-    item = family["gen"](rng)
-    return {
-        "id": f"{family['id']}#{seed[:10]}",
-        "familyId": family["id"],
-        "section": family["section"],
-        "topic": family["topic"],
-        "difficulty": family["difficulty"],
-        "tags": family.get("tags", []),
-        "prompt": item["prompt"],
-        "options": item["options"],
-        "correctIndex": item["correctIndex"],
-        "explanation": item["explanation"],
-        "formula": item["formula"],
-        "timeRecommendedSeconds": item["timeRecommendedSeconds"],
-    }
+    """Render one *validated* item from a family, deterministically from a seed."""
+    from core.aptitude_generator import validate_question_item
+
+    last_errors: list[str] = []
+    for attempt in range(12):
+        rng = random.Random(f"{seed}#{attempt}")
+        item = family["gen"](rng)
+        rendered = {
+            "id": f"{family['id']}#{seed[:10]}",
+            "familyId": family["id"],
+            "section": family["section"],
+            "topic": family["topic"],
+            "difficulty": family["difficulty"],
+            "tags": family.get("tags", []),
+            "prompt": item["prompt"],
+            "options": item["options"],
+            "correctIndex": item["correctIndex"],
+            "explanation": item["explanation"],
+            "formula": item["formula"],
+            "timeRecommendedSeconds": item["timeRecommendedSeconds"],
+        }
+        ok, last_errors = validate_question_item(rendered)
+        if ok:
+            return rendered
+    raise ValueError(f"family {family.get('id')} failed item validation: {last_errors}")

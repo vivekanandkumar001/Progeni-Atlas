@@ -51,7 +51,7 @@ if _APP_ENV == "production" and not (os.environ.get("MONGO_URI") or os.environ.g
 
 from core.context import get_current_candidate, get_current_recruiter
 from core.wallet import get_user_wallet_balance
-from core.constants import UPLOAD_DIR, RECORDING_DIR
+from core.constants import UPLOAD_DIR
 
 # 1. Initialize Flask Application
 app = Flask(__name__)

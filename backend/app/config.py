@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from dotenv import load_dotenv
-from pydantic import Field, field_validator, model_validator
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,9 +31,6 @@ class Settings(BaseSettings):
     # --- server ---
     APP_ENV: str = "development"
     PORT: int = 5000
-
-    # --- database ---
-    DATABASE_URL: str | None = None
 
     # --- auth ---
     JWT_SECRET: str | None = None
@@ -187,14 +184,6 @@ def missing_required_secrets() -> list[str]:
     if settings.LLM_PROVIDER.lower() == "openai" and (not settings.LLM_FALLBACK_PROVIDER or settings.LLM_FALLBACK_PROVIDER.lower() == "none"):
         required["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
     return [name for name, value in required.items() if not value]
-
-
-def assert_configured() -> None:
-    missing = missing_required_secrets()
-    if missing:
-        raise ConfigurationError(
-            "Missing required environment variables: " + ", ".join(missing)
-        )
 
 
 def is_production() -> bool:

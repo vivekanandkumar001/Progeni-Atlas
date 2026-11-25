@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMediaSource } from '@/lib/media/MediaSourceProvider';
-import { apiFetch, isValidSessionId } from '@/lib/api';
+import { apiFetch, fetchCandidateProfile, isValidSessionId } from '@/lib/api';
+import { formatCredits, formatRatePerMinute } from '@/lib/billing';
 import {
   FileText,
   ShieldCheck,
@@ -65,6 +66,8 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
     ratePerMinuteCredits?: number;
     chargingEnabled?: boolean;
     isDemoEligible?: boolean;
+    freeDemosTotal?: number;
+    freeDemosUsed?: number;
     freeDemosRemaining?: number;
     candidateWalletBalance?: number;
     billingNotice?: string;
@@ -79,9 +82,11 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
     resumeFileName?: string | null;
     resumeStatus?: string | null;
     resumeKeyHighlights?: string[];
+    resumeHighlightsSource?: 'resume' | 'profile-skills' | 'unavailable' | string;
     billing?: LobbyBilling;
   }
   const [lobbyInfo, setLobbyInfo] = useState<LobbyInfo | null>(null);
+  const [isDemoProfile, setIsDemoProfile] = useState(false);
 
   useEffect(() => {
     if (!isValidSessionId(sessionId)) return;
@@ -92,13 +97,8 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
         if (!res.ok) return;
         const data = (await res.json()) as LobbyInfo;
         if (active) setLobbyInfo(data);
-        // Ensure billing defaults so UI is never confused by missing data
-        if (data?.billing) {
-          data.billing.ratePerMinuteCredits ??= 0.5;
-          data.billing.chargingEnabled ??= true;
-          data.billing.isDemoEligible ??= false;
-          data.billing.candidateWalletBalance ??= 40;
-        }
+        // Never invent billing values. Missing fields stay missing so the UI
+        // renders an explicit "unavailable" state instead of false credits.
       } catch (err) {
         console.error('[InterviewBriefingCard] Lobby info API error:', err);
         // Leave lobbyInfo null — UI falls back to honest copy below
@@ -110,6 +110,21 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
       active = false;
     };
   }, [sessionId]);
+
+  // Demo profiles are labelled read-only; seeded values are blanked upstream.
+  useEffect(() => {
+    let active = true;
+    void fetchCandidateProfile()
+      .then((profile) => {
+        if (active) setIsDemoProfile(Boolean(profile?.isDemoProfile));
+      })
+      .catch(() => {
+        if (active) setIsDemoProfile(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const scheduleLabel = React.useMemo(() => {
     const scheduled = lobbyInfo?.scheduledAt;
@@ -125,8 +140,18 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
     return null;
   }, [lobbyInfo?.scheduledAt, lobbyInfo?.durationMinutes]);
 
-  const resumeHighlights = (lobbyInfo?.resumeKeyHighlights || []).filter(Boolean);
+  // Parsed resume lines can contain control characters from PDF text layers.
+  // Strip them before rendering; never show raw DEL/ESC glyphs to a candidate.
+  const resumeHighlights = (lobbyInfo?.resumeKeyHighlights || [])
+    .map((anchor) => String(anchor).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
   const hasResume = lobbyInfo?.hasResume === true;
+  const highlightsLabel =
+    lobbyInfo?.resumeHighlightsSource === 'resume'
+      ? 'Extracted from your resume:'
+      : lobbyInfo?.resumeHighlightsSource === 'profile-skills'
+        ? 'From your listed profile skills:'
+        : 'Discussion context:';
 
   // Derive camera & mic gates strictly from active live tracks on the stream
   const hasLiveVideo = !!stream?.getVideoTracks().some((t) => t.readyState === 'live');
@@ -148,19 +173,29 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
   const speakerOk = effectiveSpeakerPassed; // advisory only
   const networkOk = effectiveNetworkPassed; // advisory only
   const isAllHardwareReady = hasCoreHardware; // core: video + audio + unlocked
-  // Real interview billing: candidate must have credits to launch (non-demo,
-  // charging-enabled sessions). Default wallet balance to 40 credits if the
-  // server response is missing the field.
+  // Real interview billing: only authoritative values can block launch.
+  // A missing wallet balance is "unknown", never "40 credits" and never "0".
   const billing = lobbyInfo?.billing;
-  const candidateWalletBalance = billing?.candidateWalletBalance ?? 40;
+  const candidateWalletBalance =
+    typeof billing?.candidateWalletBalance === 'number' && Number.isFinite(billing.candidateWalletBalance)
+      ? billing.candidateWalletBalance
+      : null;
+  const billingUnavailable =
+    !billing ||
+    candidateWalletBalance === null ||
+    typeof billing.chargingEnabled !== 'boolean' ||
+    (billing.isDemoEligible === false && typeof billing.ratePerMinuteCredits !== 'number');
   const isZeroBalance = !billing?.isDemoEligible
-    && Boolean(billing?.chargingEnabled)
+    && billing?.chargingEnabled === true
+    && candidateWalletBalance !== null
     && candidateWalletBalance <= 0;
   const isLowBalance =
     !billing?.isDemoEligible &&
-    Boolean(billing?.chargingEnabled) &&
+    billing?.chargingEnabled === true &&
+    candidateWalletBalance !== null &&
     candidateWalletBalance > 0 &&
     candidateWalletBalance <= 10;
+  const lowBalanceValue = candidateWalletBalance ?? 0;
   const isLaunchEnabled = isAllHardwareReady && agreed && !isZeroBalance;
 
   const handleLaunchInterview = async () => {
@@ -214,6 +249,8 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          consentGiven: true,
+          consentVersion: '1.0-lobby-checklist',
           hardwareDiagnostic: {
             cameraPassed: hasLiveVideo,
             microphonePassed: hasLiveAudio,
@@ -299,6 +336,15 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
         </p>
       </div>
 
+      {isDemoProfile && (
+        <div className="p-3 rounded-xl border border-accent-amber/35 bg-accent-amber/10 text-[11px] text-ink flex items-start gap-2">
+          <Info className="w-3.5 h-3.5 shrink-0 text-accent-amber mt-0.5" />
+          <span>
+            Demo profile: seeded biography and links are hidden. Discussion context comes only from your own resume or listed skills.
+          </span>
+        </div>
+      )}
+
       {/* ACTIVE MEDIA SOURCE BADGE */}
       {source === 'phone' && (
         <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-ink flex items-center gap-2 shadow-sm">
@@ -310,72 +356,105 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
       )}
 
       {/* SESSION BILLING & CREDIT QUOTA BADGE */}
-      {billing && (
-        <div className={`p-4 rounded-2xl border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm transition-all ${
-          billing.isDemoEligible
-            ? 'bg-emerald-500/10 border-emerald-500/30 text-ink'
-            : !billing.chargingEnabled
-            ? 'bg-violet-500/10 border-violet-500/30 text-ink'
-            : 'bg-cyan-500/10 border-cyan-500/30 text-ink'
-        }`}>
+      {billingUnavailable ? (
+        <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              billing.isDemoEligible
-                ? 'bg-emerald-500/10 text-accent-emerald border border-emerald-500/20'
-                : !billing.chargingEnabled
-                ? 'bg-violet-500/10 text-accent-violet border border-violet-500/20'
-                : 'bg-cyan-500/10 text-accent-cyan border border-cyan-500/20'
-            }`}>
-              {billing.isDemoEligible ? (
-                <Sparkles className="w-4 h-4" />
-              ) : (
-                <Coins className="w-4 h-4" />
-              )}
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/10 text-accent-amber border border-amber-500/20">
+              <Coins className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-ink text-sm">
-                  {billing.isDemoEligible
-                    ? `Free Demo Interview (${billing.freeDemosRemaining ?? 1} Available)`
-                    : !billing.chargingEnabled
-                    ? 'Evaluation Tier (Zero Customer Charge)'
-                    : Math.abs((billing.ratePerMinuteCredits ?? 0.5) - 0.5) < 0.000001
-                    ? 'Pay-as-you-go: ₹1 for 2 mins (₹0.50/min)'
-                    : `Pay-as-you-go: ₹${billing.ratePerMinuteCredits}/min`}
-                </span>
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                  billing.isDemoEligible
-                    ? 'bg-emerald-500/20 text-accent-emerald border border-emerald-500/40'
-                    : !billing.chargingEnabled
-                    ? 'bg-violet-500/20 text-accent-violet border border-violet-500/40'
-                    : 'bg-cyan-500/20 text-accent-cyan border border-cyan-500/40'
-                }`}>
-                  {billing.isDemoEligible ? 'Free Demo' : '₹1 = 1 Credit'}
-                </span>
-              </div>
+              <p className="font-semibold text-ink text-sm">Billing details unavailable</p>
               <p className="text-[11px] text-ink-muted mt-0.5">
-                {billing.billingNotice || 'Server-authoritative per-minute billing'}
+                Credits and demo eligibility could not be confirmed. No count is shown here; the interview service will verify eligibility before launch.
               </p>
             </div>
           </div>
-          <div className="sm:text-right shrink-0 flex items-center sm:flex-col justify-between w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-line">
-            <span className="font-mono font-bold text-xs text-ink">
-              {billing.isDemoEligible
-                ? '10 MIN CAP'
-                : `₹${(billing.candidateWalletBalance ?? 0).toFixed(2)} Balance`}
-            </span>
-            <a
-              href="/candidate/wallet"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] text-accent-cyan hover:underline flex items-center gap-1"
-            >
-              <span>Manage Wallet</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
+          <a
+            href="/candidate/wallet"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] text-accent-cyan hover:underline flex items-center gap-1 shrink-0"
+          >
+            <span>Manage Wallet</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
-      )}
+      ) : billing ? (
+        (() => {
+          const isDemo = billing.isDemoEligible === true;
+          const isFreeTier = !isDemo && billing.chargingEnabled === false;
+          const quotaLabel = typeof billing.freeDemosRemaining === 'number' && Number.isFinite(billing.freeDemosRemaining)
+            ? `Free Demo Interview (${Math.max(0, billing.freeDemosRemaining)} Available)`
+            : 'Free Demo Interview (quota unavailable)';
+          const rateLabel = formatRatePerMinute(billing.ratePerMinuteCredits);
+          const sessionLabel = typeof lobbyInfo?.durationMinutes === 'number' && lobbyInfo.durationMinutes > 0
+            ? `${lobbyInfo.durationMinutes} MIN SESSION`
+            : 'Duration unavailable';
+
+          return (
+            <div className={`p-4 rounded-2xl border text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm transition-all ${
+              isDemo
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-ink'
+                : isFreeTier
+                ? 'bg-violet-500/10 border-violet-500/30 text-ink'
+                : 'bg-cyan-500/10 border-cyan-500/30 text-ink'
+            }`}>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                  isDemo
+                    ? 'bg-emerald-500/10 text-accent-emerald border border-emerald-500/20'
+                    : isFreeTier
+                    ? 'bg-violet-500/10 text-accent-violet border border-violet-500/20'
+                    : 'bg-cyan-500/10 text-accent-cyan border border-cyan-500/20'
+                }`}>
+                  {isDemo ? <Sparkles className="w-4 h-4" /> : <Coins className="w-4 h-4" />}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-ink text-sm">
+                      {isDemo
+                        ? quotaLabel
+                        : isFreeTier
+                        ? 'Evaluation Tier (no customer charge)'
+                        : `Pay-as-you-go: ${rateLabel}`}
+                    </span>
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      isDemo
+                        ? 'bg-emerald-500/20 text-accent-emerald border border-emerald-500/40'
+                        : isFreeTier
+                        ? 'bg-violet-500/20 text-accent-violet border border-violet-500/40'
+                        : 'bg-cyan-500/20 text-accent-cyan border border-cyan-500/40'
+                    }`}>
+                      {isDemo ? 'Free demo' : isFreeTier ? 'No charge' : '₹1 = 1 credit'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-ink-muted mt-0.5">
+                    {billing.billingNotice || (isDemo
+                      ? 'Free demo quota applies to this session.'
+                      : isFreeTier
+                        ? 'This evaluation tier does not charge your wallet.'
+                        : 'Charged from your wallet at the server-provided rate.')}
+                  </p>
+                </div>
+              </div>
+              <div className="sm:text-right shrink-0 flex items-center sm:flex-col justify-between w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-line">
+                <span className="font-mono font-bold text-xs text-ink">
+                  {isDemo ? sessionLabel : isFreeTier ? 'No charge' : `${formatCredits(candidateWalletBalance ?? 0)} Balance`}
+                </span>
+                <a
+                  href="/candidate/wallet"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-accent-cyan hover:underline flex items-center gap-1"
+                >
+                  <span>Manage Wallet</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          );
+        })()
+      ) : null}
 
       {/* RESUME SNAPSHOT CARD – renders only real, server-provided resume data. */}
       <div className="rounded-2xl bg-surface border border-line p-5 space-y-4 backdrop-blur-md">
@@ -396,16 +475,16 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
         {hasResume ? (
           <div className="space-y-2">
             <p className="text-caption text-ink-muted text-xs font-mono">
-              Extracted Discussion Anchors:
+              {highlightsLabel}
             </p>
             {resumeHighlights.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {resumeHighlights.map((anchor) => (
+                {resumeHighlights.map((anchor, index) => (
                   <span
-                    key={anchor}
+                    key={`${index}-${anchor.slice(0, 32)}`}
                     className="px-2.5 py-1 rounded-lg bg-inset border border-line text-xs text-ink font-medium"
                   >
-                    &bull; {anchor}
+                    {anchor}
                   </span>
                 ))}
               </div>
@@ -423,29 +502,41 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
         )}
 
         <p className="text-caption text-ink-muted text-[11px] leading-tight">
-          The AI interviewer adapts technical questions to your verified profile and resume topics.
+          The AI interviewer adapts technical questions to the role requirements and the profile context shown above.
         </p>
       </div>
 
-      {/* EVALUATION PROTOCOL & ANTI-CHEAT GROUND RULES */}
+      {/* AI TRANSPARENCY — READ THIS BEFORE YOU BEGIN */}
       <div className="rounded-2xl bg-surface border border-line p-5 space-y-4 backdrop-blur-md">
         <div className="flex items-center gap-2 border-b border-line pb-3">
           <ShieldCheck className="w-5 h-5 text-accent-cyan" />
-          <h3 className="text-sm font-bold text-ink">Evaluation Protocol &amp; Anti-Cheat Rules</h3>
+          <h3 className="text-sm font-bold text-ink">Before you begin — what this is</h3>
         </div>
 
         <ul className="space-y-2.5 text-xs text-ink">
           <li className="flex items-start gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-accent-emerald shrink-0 mt-0.5" />
-            <span>Ensure you are in a quiet, well-lit private space.</span>
+            <CheckCircle2 className="w-4 h-4 text-accent-cyan shrink-0 mt-0.5" />
+            <span><strong>You&apos;ll be interviewed by Sarah — an AI</strong>, not a secret human. She is disclosed on purpose; you deserve to know.</span>
           </li>
           <li className="flex items-start gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-accent-emerald shrink-0 mt-0.5" />
-            <span>Keep your gaze centered on the screen; excessive switching will be flagged.</span>
+            <CheckCircle2 className="w-4 h-4 text-accent-cyan shrink-0 mt-0.5" />
+            <span><strong>What she listens for:</strong> how you think, how you build, how you work with people — scored against the role rubric, with exact quotes kept as evidence.</span>
           </li>
           <li className="flex items-start gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-accent-emerald shrink-0 mt-0.5" />
-            <span>Live closed captions and scratchpad tools will be accessible inside the room.</span>
+            <CheckCircle2 className="w-4 h-4 text-accent-cyan shrink-0 mt-0.5" />
+            <span><strong>What she never judges:</strong> your face, your eyes, your emotion, your accent, or how confident you sound. There is no camera analysis.</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-accent-cyan shrink-0 mt-0.5" />
+            <span><strong>What the team sees:</strong> your answers, your code, and simple counts of tab switches / pastes — facts, not verdicts. A human reviews everything before any decision.</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-accent-cyan shrink-0 mt-0.5" />
+            <span><strong>Your rights:</strong> you can ask for a human review or an alternative assessment at any time, and you can reschedule — just tell us. Details in the <a href="/ai-transparency" target="_blank" className="text-accent-cyan hover:underline">AI Transparency &amp; AEDT Notice</a>.</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-accent-cyan shrink-0 mt-0.5" />
+            <span>Speak naturally — pauses are thinking, not failure. If you need a moment or a rephrase, just say so.</span>
           </li>
         </ul>
 
@@ -458,8 +549,8 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
             className="w-4 h-4 mt-0.5 rounded bg-inset border-line-strong text-cyan-500 focus:ring-cyan-500 cursor-pointer"
           />
           <span className="text-xs text-ink leading-tight">
-            I confirm that my camera and audio are functional (including phone camera/mic if paired),
-            and I agree to be recorded for evaluation purposes per the{' '}
+            I understand Sarah is an AI interviewer, my answers are recorded and reviewed by a human, and I agree
+            to take the interview on camera per the{' '}
             <a href="/ai-transparency" target="_blank" className="text-accent-cyan hover:underline">AI Transparency &amp; AEDT Notice</a>.
             <span className="text-accent-rose font-bold ml-1">*</span>
           </span>
@@ -496,7 +587,7 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
             <div>
               <p className="font-semibold text-accent-amber">Low Wallet Balance</p>
               <p className="text-ink-muted mt-0.5">
-                Your wallet balance is low ({candidateWalletBalance} Credits). You have enough for {Math.max(1, Math.floor(candidateWalletBalance / 2))} more practice interview(s). Please recharge your wallet to continue.
+                Your wallet balance is low ({formatCredits(lowBalanceValue)}). You have enough for {Math.max(1, Math.floor(lowBalanceValue / 2))} more practice interview(s). Please recharge your wallet to continue.
               </p>
               <a
                 href="/candidate/wallet"
@@ -537,7 +628,7 @@ export const InterviewBriefingCard: React.FC<InterviewBriefingCardProps> = ({
           ) : isLowBalance ? (
             <>
               <AlertTriangle className="w-4 h-4" />
-              <span>Low Balance ({candidateWalletBalance} Credits)</span>
+              <span>Low Balance ({formatCredits(lowBalanceValue)})</span>
             </>
           ) : (
             <>

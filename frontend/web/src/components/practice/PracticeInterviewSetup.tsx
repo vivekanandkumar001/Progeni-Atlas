@@ -22,7 +22,6 @@ import {
   ShieldCheck,
   Cpu,
   Clock,
-  Layers,
   ChevronDown } from 'lucide-react';
 import {
   apiFetch,
@@ -34,6 +33,7 @@ import {
   formatBytes,
   type CandidateResume,
 } from '@/lib/api';
+import { formatCredits } from '@/lib/billing';
 
 type JdMode = 'paste' | 'upload';
 
@@ -84,16 +84,15 @@ export function PracticeInterviewSetup() {
   // Candidate Resume State
   const [resumes, setResumes] = useState<CandidateResume[] | null>(null);
   const [loadingResume, setLoadingResume] = useState(true);
-  const [resumeError, setResumeError] = useState<string | null>(null);
 
-  // Wallet / Balance State
+  // Wallet / Balance State — nothing is assumed when the API has not answered.
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [ratePerMinCredits, setRatePerMinCredits] = useState(0.5);
+  const [ratePerMinCredits, setRatePerMinCredits] = useState<number | null>(null);
   const [loadingWallet, setLoadingWallet] = useState(true);
-  const [isLowBalance, setIsLowBalance] = useState(false);
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attemptedStart, setAttemptedStart] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,12 +110,13 @@ export function PracticeInterviewSetup() {
           if (isMounted && data.success && data.wallet) {
             // Rate is read from the live wallet payload — never hardcode what we charge.
             const rate = Number(
-              data.wallet.ratePerMinuteCredits ?? data.wallet.rate_per_minute_credits ?? 0.5
+              data.wallet.ratePerMinuteCredits ?? data.wallet.rate_per_minute_credits
             );
-            if (Number.isFinite(rate) && rate > 0) setRatePerMinCredits(rate);
-            const storedBalance = Number(data.wallet.availableCredits ?? 0);
-            setWalletBalance(storedBalance <= 0 ? 0 : storedBalance);
-            setIsLowBalance(storedBalance > 0 && storedBalance < rate * PRACTICE_MINUTES);
+            setRatePerMinCredits(Number.isFinite(rate) && rate > 0 ? rate : null);
+
+            const rawBalance = data.wallet.availableCredits;
+            const balance = rawBalance == null ? Number.NaN : Number(rawBalance);
+            setWalletBalance(Number.isFinite(balance) ? Math.max(0, balance) : null);
           }
         }
       } catch (err) {
@@ -139,12 +139,10 @@ export function PracticeInterviewSetup() {
     let isMounted = true;
     async function loadResume() {
       setLoadingResume(true);
-      setResumeError(null);
       const data = await fetchCandidateResumes();
       if (!isMounted) return;
       if (data === null) {
         setResumes(null);
-        setResumeError('Could not load saved resume context.');
       } else {
         setResumes(data);
       }
@@ -196,9 +194,10 @@ export function PracticeInterviewSetup() {
     roleHighlight >= 0 && roleHighlight < filteredRoles.length ? roleHighlight : -1;
 
   // Derived billing figures — driven by the live wallet rate, never hardcoded.
-  const costPerInterview = Math.max(0, ratePerMinCredits * PRACTICE_MINUTES);
-  const affordableCount =
-    walletBalance === null ? null : Math.floor(walletBalance / (costPerInterview || 1));
+  const costPerInterview =
+    ratePerMinCredits !== null ? Math.max(0, ratePerMinCredits * PRACTICE_MINUTES) : null;
+  const rateLabel =
+    ratePerMinCredits !== null ? Number(ratePerMinCredits.toFixed(2)).toString() : null;
 
   // Determine active parsed resume
   const activeResume = resumes?.find(
@@ -207,11 +206,25 @@ export function PracticeInterviewSetup() {
 
   const hasUsableResume = Boolean(activeResume);
 
-  // Validate inputs
+  // Validate inputs without inventing a balance or charging rate.
   const isZeroBalance = walletBalance !== null && walletBalance <= 0;
+  const isLowBalance =
+    walletBalance !== null &&
+    costPerInterview !== null &&
+    walletBalance > 0 &&
+    walletBalance < costPerInterview;
   const isJdValid = jdMode === 'paste' ? pastedJd.trim().length >= 20 : Boolean(jdFile);
   const isRoleValid = jobRole.trim().length >= 2;
-  const canStart = isJdValid && isRoleValid && !isSubmitting && !isZeroBalance;
+  const canStart =
+    isJdValid &&
+    isRoleValid &&
+    !isSubmitting &&
+    !loadingWallet &&
+    !isZeroBalance &&
+    !isLowBalance;
+  const showRoleError = attemptedStart && !isRoleValid;
+  const showJdError = attemptedStart && !isJdValid;
+  const showBalanceError = attemptedStart && (isZeroBalance || isLowBalance);
 
   // Role combobox handlers (free typing + anchored suggestion list).
   const selectRole = (role: string) => {
@@ -328,11 +341,11 @@ export function PracticeInterviewSetup() {
   // Start interview submission
   const handleStartInterview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isZeroBalance) {
-      setSubmitError('Your wallet balance is 0 credits. You cannot start a practice interview with zero balance. Please recharge your wallet.');
+    setAttemptedStart(true);
+    if (!canStart) {
+      setSubmitError(null);
       return;
     }
-    if (!canStart) return;
 
     try {
       setIsSubmitting(true);
@@ -477,8 +490,10 @@ export function PracticeInterviewSetup() {
                   aria-controls="job-role-listbox"
                   aria-owns="job-role-listbox"
                   aria-autocomplete="list"
+                  aria-invalid={showRoleError}
+                  aria-describedby={showRoleError ? 'job-role-error' : undefined}
                   aria-activedescendant={activeRoleIndex >= 0 ? `job-role-option-${activeRoleIndex}` : undefined}
-                  className="w-full rounded-2xl bg-canvas border border-line pl-4 pr-12 py-3.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent-cyan/50 focus:border-accent-cyan transition-all font-medium shadow-inner"
+                  className="w-full rounded-2xl bg-canvas border border-line pl-4 pr-12 py-3.5 text-sm text-ink placeholder:text-ink-faint transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface font-medium"
                 />
                 <button
                   type="button"
@@ -538,6 +553,12 @@ export function PracticeInterviewSetup() {
                   </div>
                 )}
               </div>
+              {showRoleError && (
+                <p id="job-role-error" role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-accent-amber">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  Enter or select a target job role to continue.
+                </p>
+              )}
             </div>
 
           </div>
@@ -622,7 +643,9 @@ export function PracticeInterviewSetup() {
                   onChange={(e) => setPastedJd(e.target.value)}
                   placeholder="Please paste the full job description here (e.g. required technical skills, stack, responsibilities, years of experience)..."
                   rows={8}
-                  className="w-full rounded-2xl bg-canvas border border-line px-4 py-3.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent-indigo/50 focus:border-accent-indigo transition-all resize-y font-mono leading-relaxed shadow-inner"
+                  aria-invalid={showJdError}
+                  aria-describedby={showJdError ? 'job-description-error' : undefined}
+                  className="w-full rounded-2xl bg-canvas border border-line px-4 py-3.5 text-sm text-ink placeholder:text-ink-faint transition-colors hover:border-line-strong focus:outline-none focus:border-accent-indigo focus:bg-surface resize-y font-mono leading-relaxed"
                 />
 
                 <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 text-xs text-ink-muted pt-1">
@@ -639,6 +662,13 @@ export function PracticeInterviewSetup() {
                   </span>
                   <span className="font-mono text-[11px] whitespace-nowrap">{pastedJd.trim().length} characters</span>
                 </div>
+
+                {showJdError && (
+                  <p id="job-description-error" role="alert" className="flex items-center gap-1.5 text-xs text-accent-amber">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    Provide at least 20 characters of job description, or upload a file.
+                  </p>
+                )}
 
                 {jdSuggestion && (
                   <div className="flex items-start gap-2 rounded-xl bg-accent-cyan/5 border border-accent-cyan/20 px-3 py-2 text-[11px] text-ink-muted">
@@ -710,6 +740,13 @@ export function PracticeInterviewSetup() {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
+                )}
+
+                {showJdError && (
+                  <p id="job-description-error" role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-accent-amber">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    Upload a job description file to continue.
+                  </p>
                 )}
               </div>
             )}
@@ -790,12 +827,12 @@ export function PracticeInterviewSetup() {
                   <h4 className="text-sm font-bold text-ink flex items-center gap-2">
                     <span>Zero Wallet Balance</span>
                     <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-amber-500/20 text-accent-amber border border-amber-500/30">
-                      0 Credits
+                      {formatCredits(0)}
                     </span>
                   </h4>
                 </div>
                 <p className="text-xs text-ink-muted leading-relaxed">
-                  Your wallet balance is 0 credits. Candidates cannot start an AI practice interview without available credits. Please recharge your wallet to launch practice interviews.
+                  Add credits to your wallet before starting a practice interview. The balance is checked again when the session is created.
                 </p>
                 <div className="pt-1">
                   <Link
@@ -816,12 +853,12 @@ export function PracticeInterviewSetup() {
                   <h4 className="text-sm font-bold text-ink flex items-center gap-2">
                     <span>Low Wallet Balance</span>
                     <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-amber-500/20 text-accent-amber border border-amber-500/30">
-                      {walletBalance} Credits
+                      {formatCredits(walletBalance ?? 0)}
                     </span>
                   </h4>
                 </div>
                 <p className="text-xs text-ink-muted leading-relaxed">
-                  Your wallet balance is low. One 10-minute session costs {costPerInterview} credits, so you have enough for {affordableCount ?? 0} more practice interview(s). Please recharge your wallet to continue.
+                  A 10-minute session is estimated to cost {formatCredits(costPerInterview ?? 0)} at the current wallet rate. Your available balance is {formatCredits(walletBalance ?? 0)}. Add credits to cover the difference.
                 </p>
                 <div className="pt-1">
                   <Link
@@ -850,33 +887,26 @@ export function PracticeInterviewSetup() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Synthesizing Interview Room & Questions...</span>
-                </>
-              ) : isZeroBalance ? (
-                <>
-                  <AlertCircle className="w-5 h-5 text-accent-amber" />
-                  <span>Recharge Required (Balance: 0 Credits)</span>
-                </>
-              ) : isLowBalance ? (
-                <>
-                  <AlertCircle className="w-5 h-5 text-accent-amber" />
-                  <span>Low Balance ({walletBalance} Credits)</span>
+                  <span>Preparing your practice interview…</span>
                 </>
               ) : (
-                <>
-                  <span>Start Practice Interview</span>
-                  </>
+                <span>Start Practice Interview</span>
               )}
             </button>
 
-            {!canStart && !isSubmitting && !isLowBalance && !isZeroBalance && (
-              <p className="text-xs text-accent-amber font-medium text-center">
-                {!isRoleValid
-                  ? '⚠️ Enter or select a Target Job Role above to unlock interview setup.'
-                  : !isJdValid
-                  ? '⚠️ Provide at least 20 characters of Job Description (or upload a file) to unlock.'
-                  : ''}
-              </p>
+            {attemptedStart && !canStart && !isSubmitting && (
+              <div className="w-full rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-accent-amber space-y-1" role="status">
+                {showRoleError && <p>Enter or select a target job role.</p>}
+                {showJdError && <p>Add a job description of at least 20 characters or upload a file.</p>}
+                {loadingWallet && <p>Wallet details are still loading. Try again in a moment.</p>}
+                {showBalanceError && (
+                  <p>
+                    {isZeroBalance
+                      ? 'Add credits to your wallet before starting.'
+                      : 'Add credits to cover the estimated session cost.'}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -914,7 +944,12 @@ export function PracticeInterviewSetup() {
                   <Zap className="w-3.5 h-3.5 text-accent-amber" /> Cost
                 </span>
                 <span className="font-semibold text-ink text-right">
-                  {costPerInterview} credits <span className="text-ink-muted font-normal">({PRACTICE_MINUTES} min @ {ratePerMinCredits} cr/min)</span>
+                  {costPerInterview !== null ? formatCredits(costPerInterview) : 'Cost unavailable'}
+                  {rateLabel !== null && (
+                    <span className="text-ink-muted font-normal">
+                      {' '}({PRACTICE_MINUTES} min @ {rateLabel} credits/min)
+                    </span>
+                  )}
                 </span>
               </div>
             </div>

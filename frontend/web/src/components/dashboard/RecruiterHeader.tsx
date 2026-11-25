@@ -14,30 +14,13 @@ import {
   Workflow,
 } from 'lucide-react';
 import { AppHeader } from '@/components/dashboard/AppHeader';
+import { formatRelativeTime } from '@/lib/formatters';
 import {
   fetchRecruiterNotifications,
   logout,
   markRecruiterNotificationsAsRead,
   type RecruiterNotification,
 } from '@/lib/api';
-
-function formatRelativeTime(isoString: string): string {
-  try {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (diffSec < 60) return 'Just now';
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}m ago`;
-    const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr}h ago`;
-    const diffDays = Math.floor(diffHr / 24);
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-  } catch {
-    return 'Recently';
-  }
-}
 
 function getNotificationVisuals(type: string) {
   const t = (type || '').toUpperCase();

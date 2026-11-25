@@ -19,6 +19,7 @@ from core.security import (
     _authenticate_request, resolve_user, require_auth
 )
 from core.context import get_current_candidate
+from core.aptitude_generator import validate_question_batch
 from core.aptitude_bank import (
     APTITUDE_QUESTIONS_CATALOG,
     STANDARD_TEST_TEMPLATES,
@@ -53,6 +54,140 @@ def _get_owned_aptitude_session(session_id: str):
     if cand_id and cand_id == uid:
         return doc, user, None
     return None, user, (jsonify({"error": "You do not have access to this test session"}), 403)
+
+
+def _template_question_count(template: dict) -> int:
+    try:
+        return sum(int(s.get("questionCount", 0) or 0) for s in template.get("sections", []))
+    except Exception:
+        return 0
+
+
+def _assemble_validated_paper(template_id: str, candidate_id: str, db, session_seed: str, expected: int) -> list[dict]:
+    """Assemble a paper and drop any item that fails the shared quality gate.
+
+    Validation happens before hashing, persistence or delivery so an invalid
+    question can never reach a candidate, even if a stale generated-bank row
+    or a regression in a family slips past the generator-level checks.
+    """
+    raw: list[dict] = []
+    for attempt in range(3):
+        seed = session_seed if attempt == 0 else f"{session_seed}:validate-retry-{attempt}"
+        assembled = assemble_session_questions(
+            template_id, candidate_id=candidate_id, db=db, session_seed=seed
+        )
+        valid, invalid = validate_question_batch(assembled)
+        if invalid:
+            print(f"[Aptitude] dropped {len(invalid)} invalid assembled question(s): "
+                  f"{[row.get('errors') for row in invalid[:3]]}")
+        if len(valid) > len(raw):
+            raw = valid
+        if len(raw) >= expected or attempt == 2:
+            break
+    return raw
+
+
+def _servable_public_questions(doc: dict) -> list[dict]:
+    """Filter legacy stored papers through the same validator before delivery."""
+    public_questions = list(doc.get("questions") or [])
+    if not public_questions:
+        return []
+    secrets = doc.get("serverSecretAnswers") or {}
+    candidates = []
+    for question in public_questions:
+        question_id = str(question.get("id") or question.get("index") or "")
+        secret = secrets.get(question_id) or secrets.get(str(question.get("id"))) or {}
+        candidates.append({**question, **secret})
+    valid, _invalid = validate_question_batch(candidates)
+    valid_ids = {str(item.get("id") or item.get("index")) for item in valid}
+    return [
+        q for q in public_questions
+        if str(q.get("id") or q.get("index")) in valid_ids
+    ]
+
+
+def _validated_paper_doc(doc: dict) -> tuple[dict, list[list[str]]]:
+    """Return a copy of the stored session with only validator-approved items.
+
+    Legacy sessions can contain duplicate/equivalent options or secret keys
+    that disagree with the public question ids. Re-running the *same* gate used
+    at assembly time is the only safe way to publish their review payload: an
+    unvalidated item must never contribute a correctIndex/options/explanation.
+    Returns (sanitized_doc, error_code_lists_for_excluded_items).
+    """
+    session = doc if isinstance(doc, dict) else {}
+    public_questions = list(session.get("questions") or [])
+    secrets = session.get("serverSecretAnswers") or {}
+
+    candidates = []
+    for question in public_questions:
+        question_id = str(question.get("id") or question.get("index") or "")
+        secret = secrets.get(question_id) or secrets.get(str(question.get("id"))) or {}
+        candidates.append({**question, **secret})
+
+    valid, invalid = validate_question_batch(candidates)
+    valid_ids = {
+        str(item.get("id") or item.get("index"))
+        for item in valid
+    }
+    sanitized = dict(session)
+    sanitized["questions"] = [
+        q for q in public_questions
+        if str(q.get("id") or q.get("index")) in valid_ids
+    ]
+    # Only approved secrets survive; candidate answers are never copied here.
+    sanitized["serverSecretAnswers"] = {
+        str(key): value for key, value in secrets.items()
+        if str(key) in valid_ids
+    }
+    return sanitized, [list(row.get("errors") or []) for row in invalid]
+
+
+def _published_scorecard(doc: dict, db, *, persist: bool = False) -> dict | None:
+    """Shared read-time scorecard publisher for report, PDF and history.
+
+    Stored scorecards are re-derived against the validated paper. If legacy
+    items fail validation they are excluded, a sanitized scorecard is rebuilt
+    from the remaining evidence, and an explicit data-quality notice is added.
+    Returns None when the stored report cannot be published at all (no valid
+    questions left), so callers can fail closed with 409.
+    """
+    session = doc if isinstance(doc, dict) else {}
+    stored = session.get("scorecard")
+    stored = stored if isinstance(stored, dict) else None
+    sanitized_doc, invalid_issues = _validated_paper_doc(session)
+
+    if not sanitized_doc.get("questions"):
+        return None
+    if not invalid_issues and stored:
+        return stored
+
+    # Preserve the original scoring denominator when a legacy scorecard exists:
+    # dropping broken items must not inflate the published score.
+    denominator = None
+    if stored:
+        try:
+            denominator = int(stored.get("totalQuestions") or 0) or None
+        except (TypeError, ValueError):
+            denominator = None
+
+    scorecard = _finalize_aptitude_scoring(
+        sanitized_doc, db, persist=persist, score_denominator=denominator
+    )
+    if invalid_issues:
+        codes = sorted({code for issue in invalid_issues for code in issue})
+        scorecard["dataQuality"] = {
+            "status": "partial",
+            "notice": (
+                "Some stored questions failed validation and were excluded from "
+                "this report. The score covers only validated questions and the "
+                "original paper length; do not rely on this report without review."
+            ),
+            "excludedQuestions": len(invalid_issues),
+            "validatedQuestions": len(sanitized_doc["questions"]),
+            "issues": codes,
+        }
+    return scorecard
 
 
 # ------------------------------------------------------------------------------
@@ -102,14 +237,15 @@ def start_aptitude_session():
         template = get_template_by_id(template_id)
         duration_minutes = int(template.get("durationMinutes", 30))
         duration_seconds = duration_minutes * 60
+        expected_question_count = _template_question_count(template)
 
         session_seed = f"{candidate_id}:{uuid.uuid4().hex}"
         session_id = f"apt-{uuid.uuid4().hex[:12]}"
 
         _db = get_mongo_db()
         # Assemble randomized, exposure-controlled question paper for this candidate.
-        raw_questions = assemble_session_questions(
-            template_id, candidate_id=candidate_id, db=_db, session_seed=session_seed
+        raw_questions = _assemble_validated_paper(
+            template_id, candidate_id, _db, session_seed, expected_question_count
         )
         paper = paper_hash(raw_questions)
         try:
@@ -122,12 +258,20 @@ def start_aptitude_session():
             ):
                 # astronomically rare with parameterized items — reseed and try again
                 session_seed = session_seed + ":retry"
-                raw_questions = assemble_session_questions(
-                    template_id, candidate_id=candidate_id, db=_db, session_seed=session_seed
+                raw_questions = _assemble_validated_paper(
+                    template_id, candidate_id, _db, session_seed, expected_question_count
                 )
                 paper = paper_hash(raw_questions)
         except Exception:
             pass
+
+        # Never start a test with a short or invalid paper. A shorter paper
+        # would produce scores that are not comparable with the template.
+        if expected_question_count > 0 and len(raw_questions) < expected_question_count:
+            return jsonify({
+                "success": False,
+                "error": "A validated question paper is not available right now. Please try again later."
+            }), 503
 
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(seconds=duration_seconds + 15)  # 15s grace buffer for latency
@@ -248,7 +392,7 @@ def get_aptitude_session_state(session_id):
             "templateTitle": doc.get("templateTitle"),
             "status": doc.get("status"),
             "remainingSeconds": remaining_seconds,
-            "questions": doc.get("questions", []),
+            "questions": _servable_public_questions(doc),
             "answers": doc.get("answers", {}),
             "telemetry": doc.get("telemetry", {}),
             "scorecard": doc.get("scorecard")
@@ -394,14 +538,22 @@ def log_aptitude_violation(session_id):
 # 4. SUBMISSION, SCORING & COGNITIVE RADAR EVALUATION
 # ------------------------------------------------------------------------------
 
-def _finalize_aptitude_scoring(doc: dict, db) -> dict:
-    """Internal server-side grading engine executing 5-pillar cognitive analytics."""
+def _finalize_aptitude_scoring(
+    doc: dict, db, *, persist: bool = True, score_denominator: int | None = None
+) -> dict:
+    """Internal server-side grading engine executing 5-pillar cognitive analytics.
+
+    ``persist=False`` is used by read-time normalization: no immutable stored
+    scorecard or session state is rewritten. ``score_denominator`` keeps a
+    legacy paper's original scoring basis when broken items are excluded.
+    """
     secret_answers = doc.get("serverSecretAnswers", {})
     candidate_answers = doc.get("answers", {})
     telemetry = doc.get("telemetry", {})
-    public_questions = {q.get("id"): q for q in doc.get("questions", [])}
+    public_questions = {str(q.get("id")): q for q in doc.get("questions", [])}
 
     total_questions = len(secret_answers)
+    scoring_total = int(score_denominator or total_questions)
     attempted_count = 0
     correct_count = 0
     incorrect_count = 0
@@ -419,8 +571,8 @@ def _finalize_aptitude_scoring(doc: dict, db) -> dict:
     negative_marking = bool((template or {}).get("negativeMarking", False))
 
     for q_id, secret in secret_answers.items():
-        sec = secret.get("section", "General")
-        pub_q = public_questions.get(q_id, {})
+        pub_q = public_questions.get(str(q_id), {})
+        sec = secret.get("section") or pub_q.get("section") or "General"
         if sec not in section_stats:
             section_stats[sec] = {"total": 0, "attempted": 0, "correct": 0, "timeSpent": 0.0}
 
@@ -463,7 +615,7 @@ def _finalize_aptitude_scoring(doc: dict, db) -> dict:
     # Accuracy and Scored Percentage (with negative marking when the template demands it)
     accuracy_pct = round((correct_count / max(1, attempted_count)) * 100, 1) if attempted_count > 0 else 0.0
     effective_raw = correct_count - (0.25 * incorrect_count if negative_marking else 0.0)
-    overall_score_pct = round(max(0.0, (effective_raw / max(1, total_questions)) * 100), 1)
+    overall_score_pct = round(max(0.0, (effective_raw / max(1, scoring_total)) * 100), 1)
 
     # Trust Score (starts at 100%, drops by 5% per tab switch, 15% per DevTools)
     trust_score = max(0, 100 - (
@@ -602,16 +754,17 @@ def _finalize_aptitude_scoring(doc: dict, db) -> dict:
         "generatedAt": datetime.now(timezone.utc).isoformat()
     }
 
-    db.aptitude_sessions.update_one(
-        {"sessionId": doc["sessionId"]},
-        {
-            "$set": {
-                "status": "completed",
-                "completedAt": datetime.now(timezone.utc).isoformat(),
-                "scorecard": scorecard
+    if persist:
+        db.aptitude_sessions.update_one(
+            {"sessionId": doc["sessionId"]},
+            {
+                "$set": {
+                    "status": "completed",
+                    "completedAt": datetime.now(timezone.utc).isoformat(),
+                    "scorecard": scorecard
+                }
             }
-        }
-    )
+        )
 
     return scorecard
 
@@ -651,9 +804,12 @@ def get_aptitude_session_report(session_id):
         if err:
             return err
 
-        scorecard = doc.get("scorecard")
-        if not scorecard and doc.get("status") == "completed":
-            scorecard = _finalize_aptitude_scoring(doc, db)
+        scorecard = _published_scorecard(doc, db)
+        if scorecard is None and doc.get("scorecard"):
+            return jsonify({
+                "error": "The stored aptitude report contains no validator-approved questions. "
+                         "It cannot be published until the session data is repaired."
+            }), 409
 
         return jsonify({
             "sessionId": session_id,
@@ -680,10 +836,13 @@ def get_aptitude_report_pdf(session_id):
         if err:
             return err
 
-        scorecard = doc.get("scorecard")
-        if not scorecard and doc.get("status") == "completed":
-            scorecard = _finalize_aptitude_scoring(doc, db)
-        if not scorecard:
+        scorecard = _published_scorecard(doc, db)
+        if scorecard is None:
+            if doc.get("scorecard"):
+                return jsonify({
+                    "error": "The stored aptitude report contains no validator-approved questions. "
+                             "It cannot be published until the session data is repaired."
+                }), 409
             return jsonify({"error": "This session is not completed yet. Complete the assessment to unlock the scorecard."}), 409
 
         import html as html_lib
@@ -698,6 +857,12 @@ def get_aptitude_report_pdf(session_id):
         trust = sc.get("trustScore", 100)
         verdict = sc.get("integrityVerdict", "clean").upper()
         now_str = datetime.now(timezone.utc).strftime("%b %d, %Y")
+        quality = sc.get("dataQuality") or {}
+        quality_notice = (
+            f'<div class="card" style="border-color:#f59e0b;background:#fffbeb">'
+            f'<strong>Data quality notice</strong><div style="font-size:11px;margin-top:4px">'
+            f'{html_lib.escape(str(quality.get("notice") or ""))}</div></div>'
+        ) if quality else ""
 
         radar_rows = "".join(
             f"<tr><td>{html_lib.escape(str(r.get('pillar')))}</td>"
@@ -757,6 +922,8 @@ def get_aptitude_report_pdf(session_id):
     <div><div class="big" style="font-size:24px; padding-top:10px">{trust}%</div><div class="sub">Integrity ({verdict})</div></div>
   </div>
 </div>
+
+{quality_notice}
 
 <h3 style="font-size:12px; text-transform:uppercase; color:#64748b; margin:18px 0 6px">Section Breakdown</h3>
 <table><thead><tr><th>Section</th><th>Attempted</th><th>Correct</th><th>Accuracy</th><th>Time</th></tr></thead><tbody>{section_rows or '<tr><td colspan="5">—</td></tr>'}</tbody></table>
@@ -836,13 +1003,26 @@ def get_candidate_aptitude_history():
         cursor = db.aptitude_sessions.find(query).sort("startedAt", -1).limit(20)
         attempts = []
         for doc in cursor:
-            sc = doc.get("scorecard") or {}
+            # Same read-time validation as report/PDF so history never shows
+            # a stale score derived from an invalid legacy paper.
+            published = _published_scorecard(doc, db)
+            sc = published or {}
+            quality = sc.get("dataQuality") or {}
+            unpublished_stored = published is None and bool(doc.get("scorecard"))
+            if unpublished_stored:
+                quality = {
+                    "status": "unavailable",
+                    "notice": "Stored report contains no validator-approved questions.",
+                }
             attempts.append({
                 "sessionId": doc.get("sessionId"),
                 "templateTitle": doc.get("templateTitle"),
                 "startedAt": doc.get("startedAt"),
                 "status": doc.get("status"),
-                "score": sc.get("overallScore", 0),
+                "dataQuality": quality or None,
+                # Incomplete attempts historically reported 0; keep that shape
+                # unless a stored (but unpublished) scorecard is being hidden.
+                "score": None if unpublished_stored else sc.get("overallScore", 0),
                 "accuracy": sc.get("accuracyPercent", 0),
                 "percentile": sc.get("percentile"),
                 "percentileBasis": sc.get("percentileBasis", "insufficient_pool"),

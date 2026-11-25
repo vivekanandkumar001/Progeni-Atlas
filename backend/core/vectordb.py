@@ -1,9 +1,8 @@
 import os
 import logging
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
-from qdrant_client.http.exceptions import UnexpectedResponse
 
 logger = logging.getLogger("progeni_atlas.vectordb")
 logging.basicConfig(level=logging.INFO)

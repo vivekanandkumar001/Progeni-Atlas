@@ -22,7 +22,11 @@ from core.security import (
     _authenticate_request, resolve_user, require_auth, require_super_admin
 )
 from core.context import get_current_candidate, get_current_recruiter
-from core.wallet import get_user_wallet_balance
+from core.wallet import (
+    display_whole_credits, get_demo_quota, get_wallet_rate,
+    inr_from_credits, get_user_wallet_balance,
+    normalize_ledger_transaction_for_display,
+)
 
 billing_bp = Blueprint("billing_bp", __name__)
 
@@ -43,28 +47,12 @@ def get_billing_wallet():
         
         db = get_mongo_db()
         wallet_doc = None
-        demo_quota = {
-            "totalAllowed": 0,
-            "completed": 0,
-            "remaining": 0,
-            "maxDurationSeconds": 600
-        }
+        # Same authoritative source as the dashboard — never read stale
+        # demo_allowances rows or cache a remaining count in the wallet doc.
+        demo_quota = get_demo_quota(user, db)
+        rate = get_wallet_rate()
+        rate_per_minute = rate["creditsPerMinute"]
         if db is not None:
-            da_query = [{"user_id": user_id}]
-            if org_id:
-                da_query.append({"org_id": org_id})
-            da = db.demo_allowances.find_one({"$or": da_query})
-            if da:
-                total_a = int(da.get("free_demos_total") or 2)
-                used_a = int(da.get("free_demos_used") or 0)
-                rem_a = int(da.get("free_demos_remaining") if da.get("free_demos_remaining") is not None else max(0, total_a - used_a))
-                demo_quota = {
-                    "totalAllowed": total_a,
-                    "completed": used_a,
-                    "remaining": rem_a,
-                    "maxDurationSeconds": int(da.get("demo_duration_limit_seconds") or 600)
-                }
-
             wallet_doc = db.wallets.find_one({"$or": [{"userId": user_id}, {"userId": str(user_id)}]})
             if not wallet_doc and org_id:
                 wallet_doc = db.wallets.find_one({"$or": [{"orgId": str(org_id)}, {"orgId": org_id}]})
@@ -88,7 +76,7 @@ def get_billing_wallet():
                     "orgId": org_id,
                     "userId": user_id,
                     "currency": "INR",
-                    "ratePerMinuteCredits": 0.5,
+                    "ratePerMinuteCredits": rate_per_minute,
                     "baseFeeCredits": 0.0,
                     "availableCredits": init_credits,
                     "paidCredits": init_credits if org_id else 0.0,
@@ -115,16 +103,18 @@ def get_billing_wallet():
                         wallet_doc["isLowBalance"] = False
             else:
                 wallet_doc["demoQuota"] = demo_quota
-                # Ensure authoritative rate: 1 Rupee = 2 Minutes (0.5 credits/min)
-                if wallet_doc.get("ratePerMinuteCredits") != 0.5:
-                    wallet_doc["ratePerMinuteCredits"] = 0.5
-                    db.wallets.update_one({"_id": wallet_doc["_id"]}, {"$set": {"ratePerMinuteCredits": 0.5}})
 
         if wallet_doc:
-            wallet_doc["ratePerMinuteCredits"] = 0.5
+            # Copy is canonical on every response; never trust a stale wallet row.
+            wallet_doc["ratePerMinuteCredits"] = rate_per_minute
+            wallet_doc["rate"] = rate
+            wallet_doc["demoQuota"] = demo_quota
             # GUARANTEE: Balance is NEVER negative (min 0.0)
             curr_bal = max(0.0, float(wallet_doc.get("availableCredits", 0.0)))
             wallet_doc["availableCredits"] = curr_bal
+            wallet_doc["availableCreditsExact"] = curr_bal
+            wallet_doc["availableCreditsWhole"] = display_whole_credits(curr_bal)
+            wallet_doc["availableInr"] = inr_from_credits(curr_bal)
             wallet_doc["isLowBalance"] = curr_bal <= float(wallet_doc.get("lowBalanceThresholdCredits", 5.0))
             wallet_doc.pop("_id", None)
             return jsonify({"success": True, "wallet": wallet_doc}), 200
@@ -138,9 +128,13 @@ def get_billing_wallet():
                 "orgId": None,
                 "userId": user_id,
                 "currency": "INR",
-                "ratePerMinuteCredits": 0.5,
+                "ratePerMinuteCredits": rate_per_minute,
+                "rate": rate,
                 "baseFeeCredits": 0.0,
                 "availableCredits": 0.0,
+                "availableCreditsExact": 0.0,
+                "availableCreditsWhole": 0,
+                "availableInr": 0.0,
                 "paidCredits": 0.0,
                 "promotionalCredits": 0.0,
                 "consumedCredits": 0.0,
@@ -194,28 +188,21 @@ def get_billing_wallet_transactions():
             for d in raw_docs:
                 d.pop("_id", None)
                 amt = float(d.get("amountCredits") or 0.0)
-                # GUARANTEE: Balance can NEVER be negative!
+                # Running balance and totals stay anchored to the immutable
+                # ledger; only presentation is floored to whole credits.
                 running_balance = max(0.0, running_balance + amt)
-                d["balanceAfter"] = max(0.0, round(running_balance, 2))
-                d["amountCredits"] = round(amt, 2)
-                d["amountInr"] = round(amt, 2)
+                normalized = normalize_ledger_transaction_for_display(d, running_balance)
 
                 if amt > 0:
-                    total_credited += amt
-                    d["category"] = "IN"
-                    if not d.get("title"):
-                        d["title"] = d.get("reason") or "Credits Added"
+                    total_credited += abs(normalized["amountCredits"])
+                    normalized["category"] = "IN"
                 elif amt < 0:
-                    total_debited += abs(amt)
-                    d["category"] = "OUT"
-                    if not d.get("title"):
-                        d["title"] = "Interview Settlement"
+                    total_debited += abs(normalized["amountCredits"])
+                    normalized["category"] = "OUT"
                 else:
-                    d["category"] = "DEMO"
-                    if not d.get("title"):
-                        d["title"] = "Free Demo Interview"
+                    normalized["category"] = "DEMO"
 
-                enriched_txs.append(d)
+                enriched_txs.append(normalized)
 
             # Update wallet document with consistent balances (guaranteed >= 0.0).
             # Compare-then-write: a steady-state GET costs one cheap find_one
@@ -259,13 +246,17 @@ def get_billing_wallet_transactions():
             # Sort descending for display (newest transaction first)
             enriched_txs.sort(key=lambda x: str(x.get("createdAt", "")), reverse=True)
 
+            # Summary mirrors the displayed ledger (whole credits), while the
+            # authoritative exact balance stays available for audit/debug.
+            displayed_available = display_whole_credits(running_balance)
             return jsonify({
                 "success": True,
                 "transactions": enriched_txs,
                 "summary": {
-                    "availableCredits": final_available,
-                    "totalCredited": round(total_credited, 2),
-                    "totalDebited": round(total_debited, 2),
+                    "availableCredits": displayed_available,
+                    "availableCreditsExact": final_available,
+                    "totalCredited": display_whole_credits(total_credited),
+                    "totalDebited": display_whole_credits(total_debited),
                     "count": len(enriched_txs)
                 }
             }), 200

@@ -73,6 +73,245 @@ def bank_totals(db) -> dict[str, int]:
     return {"staticSeed": static_seed, "generated": generated, "total": static_seed + generated, "target": BANK_TARGET}
 
 
+# ---------------------------------------------------------------------------
+# Shared question-quality validation (generation + migration + serving)
+# ---------------------------------------------------------------------------
+
+# Verified QA regression: these were served as "plausible" distractors in a
+# syllogism item whose prompt never mentioned trucks/teslas/artists.
+NONSENSE_OPTION_TEXTS = frozenset({
+    "all programmers are trucks",
+    "some engineers are teslas",
+    "no engineer is an artist matches",
+})
+
+_OPTION_STOPWORDS = frozenset({
+    "all", "some", "no", "not", "may", "might", "can", "is", "are", "was", "were",
+    "be", "been", "the", "a", "an", "of", "to", "in", "on", "and", "or", "only",
+    "neither", "nor", "either", "both", "follow", "follows",
+    "which", "that", "conclusion", "follows", "answer", "option", "must", "will",
+})
+
+_FAMILY_OPTION_PATTERNS: dict[str, str] = {
+    "fam-time-work": r"^\d+\s+days$",
+    "fam-faulty-balance": r"^-?\d+(?:\.\d+)?%$",
+    "fam-si-vs-ci-2yr": r"^rs\s?[\d,]+$",
+    "fam-average-speed": r"^\d+(?:\.\d+)?\s+km/h$",
+    "fam-alligation": r"^\d+\s*:\s*\d+$",
+    "fam-boats-streams": r"^\d+(?:\.\d+)?\s+hours$",
+    "fam-sequential-percentage": r"^\d+(?:\.\d+)?%\s+(increase|decrease)$",
+    "fam-committee-probability": r"^\d+/\d+$",
+    "fam-number-series": r"^\d+$",
+    "fam-ages-ratio": r"^\d+\s+years$",
+    "fam-two-dice": r"^\d+/36$",
+    "fam-wages-ratio": r"^rs\s?\d+$",
+    "fam-di-table-percentage": r"^\d+(?:\.\d+)?%$",
+    "fam-direction-sense": r"^\d+\s+km$",
+    "fam-coding-decoding": r"^[a-z]+$",
+    "fam-di-max-min": r"^service\s+\w+$",
+    "fam-syllogism": r"^(all|some|no|only|both|neither|either)\b.*[.]$",
+}
+
+
+def normalize_option_text(value: Any) -> str:
+    """Canonical form used to detect duplicate options with different formatting."""
+    text = str(value or "").strip().casefold()
+    text = text.replace("₹", " rs ").replace(",", "")
+    # Collapse formatting around ratios and the rupee sign, but keep the space
+    # after a percent sign so "30% increase" retains its option grammar.
+    text = re.sub(r"\s*([:/])\s*", r"\1", text)
+    text = re.sub(r"\s*%", "%", text)
+    # 8.00 days and 8 days are the same option for scoring purposes.
+    text = re.sub(r"(?<![\w.])(\d+)\.0+(?!\d)", r"\1", text)
+    text = re.sub(r"[^\w\s:/.%\-]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _numbers_in(text: Any) -> list[float]:
+    out: list[float] = []
+    for raw in re.findall(r"\d+(?:[.,]\d+)?", str(text or "")):
+        try:
+            out.append(float(raw.replace(",", "")))
+        except ValueError:
+            continue
+    return out
+
+
+def _same_number(a: float, b: float) -> bool:
+    return abs(a - b) <= 0.005
+
+
+def _final_answer_line(explanation: Any) -> str:
+    """Last non-empty line/sentence — where derivations state their result."""
+    lines = [ln.strip() for ln in str(explanation or "").splitlines() if ln.strip()]
+    if not lines:
+        return ""
+    last = lines[-1]
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", last) if s.strip()]
+    return sentences[-1] if sentences else last
+
+
+def _ratio_key(option: str) -> tuple[int, int] | None:
+    match = re.fullmatch(r"(\d+)\s*:\s*(\d+)", str(option).strip())
+    if not match:
+        return None
+    left, right = int(match.group(1)), int(match.group(2))
+    if right == 0:
+        return None
+    try:
+        from math import gcd
+        g = gcd(left, right) or 1
+    except Exception:
+        g = 1
+    return left // g, right // g
+
+
+def _stem(word: str) -> str:
+    w = re.sub(r"[^a-z]", "", word.casefold())
+    if len(w) > 4 and w.endswith("ies"):
+        return w[:-3] + "y"
+    if len(w) > 3 and w.endswith("s") and not w.endswith("ss"):
+        return w[:-1]
+    return w
+
+
+def _is_syllogism_item(item: dict[str, Any]) -> bool:
+    haystack = " ".join(str(item.get(k) or "") for k in ("topic", "familyId", "prompt", "id")).casefold()
+    return "syllog" in haystack or "statements:" in haystack or "conclusions:" in haystack
+
+
+def validate_question_item(item: Any) -> tuple[bool, list[str]]:
+    """Validate one question before generation/persistence/serving.
+
+    Guarantees checked:
+      * exactly 4 non-empty, *distinct* options and one in-range correctIndex;
+      * key/explanation agreement (numeric derivations must resolve to the key);
+      * family-appropriate option shapes;
+      * no known nonsense distractors (the QA-reported syllogism items).
+    Returns (is_valid, errors) so migration tooling can quarantine with reasons.
+    """
+    errors: list[str] = []
+    if not isinstance(item, dict):
+        return False, ["not_an_object"]
+
+    prompt = str(item.get("prompt") or "").strip()
+    if len(prompt) < 20:
+        errors.append("prompt_too_short")
+
+    explanation = str(item.get("explanation") or "").strip()
+    if len(explanation) < 15:
+        errors.append("explanation_missing")
+
+    raw_options = item.get("options")
+    if not isinstance(raw_options, list) or len(raw_options) != 4:
+        return False, errors + ["options_must_be_four"]
+
+    options = [str(o).strip() for o in raw_options]
+    if any(not o for o in options):
+        errors.append("empty_option")
+
+    normalized = [normalize_option_text(o) for o in options]
+    if len(set(normalized)) != len(normalized):
+        errors.append("duplicate_options")
+
+    # Ratios such as 1 : 1 and 200 : 200 are also duplicates semantically.
+    if _ratio_key(options[0]) is not None or any(_ratio_key(o) for o in options):
+        ratios = [_ratio_key(o) for o in options]
+        keys = [r for r in ratios if r is not None]
+        if len(set(keys)) != len(keys):
+            errors.append("duplicate_options")
+
+    ci = item.get("correctIndex")
+    if not isinstance(ci, int) or isinstance(ci, bool) or ci < 0 or ci >= len(options):
+        return False, errors + ["invalid_correct_index"]
+    correct = options[ci]
+
+    # A separate answer field must agree with correctIndex when supplied.
+    for field in ("correctAnswer", "correct_answer", "answer"):
+        if item.get(field) not in (None, ""):
+            declared = normalize_option_text(item.get(field))
+            declared_letter = declared[:1].upper()
+            matches = declared == normalized[ci] or (
+                len(declared) == 1 and declared_letter in "ABCD" and "ABCD".index(declared_letter) == ci
+            )
+            if not matches:
+                errors.append(f"{field}_mismatch")
+
+    if any(normalize_option_text(o).rstrip(".") in NONSENSE_OPTION_TEXTS for o in options):
+        errors.append("implausible_nonsense_option")
+
+    shape = str(item.get("section") or "").casefold()
+    if shape and shape not in (
+        "quantitative", "logical", "verbal", "data interpretation", "abstract",
+        "general",
+    ):
+        errors.append("unknown_section")
+    # Option grammar must fit the parameterized family when a familyId is known.
+    family_id = str(item.get("familyId") or "").strip()
+    # Verbal items are semantic, not arithmetic: incidental digits such as
+    # "3 PM" must not be treated as a derivation that has to resolve to the key.
+    numeric_derivation_expected = shape in ("quantitative", "data interpretation", "abstract") or bool(family_id)
+
+    pattern = _FAMILY_OPTION_PATTERNS.get(family_id)
+    if pattern:
+        try:
+            if not all(re.match(pattern, o) for o in normalized):
+                errors.append("option_shape_mismatch_for_family")
+        except re.error:
+            pass
+
+    if _is_syllogism_item(item):
+        prompt_tokens = {_stem(w) for w in re.findall(r"[a-z]+", prompt.casefold())}
+        for option in options:
+            if not re.match(r"^(all|some|no|only|both|either|neither|therefore)\b", option, re.IGNORECASE):
+                errors.append("implausible_conclusion_option")
+                continue
+            significant = {
+                _stem(w) for w in re.findall(r"[a-z]+", option.casefold())
+                if w not in _OPTION_STOPWORDS and len(w) > 2
+            }
+            # Every content term in a conclusion must come from the premises.
+            if significant and not significant.issubset(prompt_tokens):
+                errors.append("option_term_not_in_prompt")
+                break
+
+    # Derivation → key agreement. Numeric answers: the final derivation line
+    # must resolve to the keyed number, not merely mention it earlier.
+    key_numbers = _numbers_in(correct)
+    if key_numbers and numeric_derivation_expected:
+        all_numbers = _numbers_in(explanation)
+        if not any(_same_number(k, n) for k in key_numbers for n in all_numbers):
+            errors.append("derivation_missing_key_value")
+        final_line = _final_answer_line(explanation)
+        final_numbers = _numbers_in(final_line)
+        if final_numbers and not any(_same_number(k, n) for k in key_numbers for n in final_numbers):
+            errors.append("derivation_final_answer_mismatch")
+        # Numeric options for the same item should share a unit/shape.
+        has_digits = [bool(_numbers_in(o)) for o in options]
+        if sum(has_digits) < 3:
+            errors.append("implausible_mixed_option_shapes")
+    elif not key_numbers and shape != "verbal":
+        key_words = {
+            w for w in re.findall(r"[a-z]{3,}", correct.casefold())
+            if w not in _OPTION_STOPWORDS
+        }
+        explanation_words = set(re.findall(r"[a-z]{3,}", explanation.casefold()))
+        if key_words and not (key_words & explanation_words) and normalized[ci] not in normalize_option_text(explanation):
+            errors.append("key_not_supported_by_explanation")
+
+    return not errors, errors
+
+
+def validate_question_batch(items: Any) -> tuple[list[Any], list[dict[str, Any]]]:
+    """Split a collection into (valid_items, [{item, errors}, ...])."""
+    valid: list[Any] = []
+    invalid: list[dict[str, Any]] = []
+    for item in items or []:
+        ok, errors = validate_question_item(item)
+        (valid if ok else invalid).append(item if ok else {"item": item, "errors": errors})
+    return valid, invalid
+
+
 def _gen_prompt(section: str, topic: str, difficulty: str) -> str:
     return f"""Write ONE original, AMCAT/CoCubes-grade {difficulty} multiple-choice question for the {section} section on the topic "{topic}".
 
@@ -205,6 +444,13 @@ def generate_items(db, count: int = DAILY_BATCH, dry_run: bool = False) -> dict[
             stats["invalid"] += 1
             continue
 
+        # Full item-quality gate: unique options, one key, derivation resolves
+        # to that key, plausible option shapes. Invalid drafts are NEVER banked.
+        ok, _errors = validate_question_item(draft)
+        if not ok:
+            stats["invalid"] += 1
+            continue
+
         # near-duplicate rejection (Jaccard on token sets)
         is_dup = any(jaccard(draft["prompt"], p) >= 0.55 for p in existing_prompts + [g["prompt"] for g in generated])
         if is_dup:
@@ -226,9 +472,9 @@ def generate_items(db, count: int = DAILY_BATCH, dry_run: bool = False) -> dict[
             stats["rejected"] += 1
             continue
 
-        generated.append({
+        item = {
             "id": f"gen-{abs(hash(draft['prompt'])) % 10**10}",
-            "section": str(draft["section"]).strip().title().replace("Di", "Data Interpretation") if False else str(draft["section"]).strip(),
+            "section": str(draft["section"]).strip(),
             "topic": str(draft["topic"]).strip(),
             "difficulty": str(draft["difficulty"]).strip().lower(),
             "prompt": str(draft["prompt"]).strip(),
@@ -240,7 +486,12 @@ def generate_items(db, count: int = DAILY_BATCH, dry_run: bool = False) -> dict[
             "verifiedBy": "solver_agreement",
             "tags": [],
             "createdAt": datetime.now(timezone.utc),
-        })
+        }
+        ok, _errors = validate_question_item(item)
+        if not ok:
+            stats["invalid"] += 1
+            continue
+        generated.append(item)
         existing_prompts.append(draft["prompt"])
 
     if not dry_run and generated and db is not None:

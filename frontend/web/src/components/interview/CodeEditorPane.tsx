@@ -57,12 +57,15 @@ interface CodeEditorPaneProps {
   sessionId: string;
   onCodeChange?: (language: string, code: string) => void;
   onAttachCodeToAnswer?: (codeMarkdown: string) => void;
+  /** Called on large pastes so the room can log a disclosed counter event. */
+  onPasteDetected?: () => void;
 }
 
 export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
   sessionId,
   onCodeChange,
   onAttachCodeToAnswer,
+  onPasteDetected,
 }) => {
   const [language, setLanguage] = useState<string>('python');
   const [code, setCode] = useState<string>('');
@@ -184,11 +187,13 @@ export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
     });
     monaco.editor.setTheme('progeni-atlas-cyber');
 
-    // Anti-cheat paste audit listener
+    // Paste notice — disclosed in the lobby: large pastes are counted for the
+    // human reviewer. The candidate is told the same thing, honestly.
     editor.onDidPaste((e: any) => {
       const pasteSize = (e.range?.endColumn || 0) - (e.range?.startColumn || 0);
       if (pasteSize > 60 || (e.range?.endLineNumber || 0) > (e.range?.startLineNumber || 0)) {
         setPasteWarning(true);
+        onPasteDetected?.();
         setTimeout(() => setPasteWarning(false), 5000);
       }
     });
@@ -243,9 +248,9 @@ export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
       setTerminalOutput(output);
       setExecutionStats({
         success: data.success ?? true,
-        status: data.status || 'Accepted',
-        time: data.time || '0.01',
-        memory: data.memory || 1024,
+        status: data.status || 'Ran',
+        time: data.time,
+        memory: data.memory,
       });
     } catch (e: any) {
       setTerminalOutput(`Execution Error: ${e?.message || 'Could not execute code in sandbox'}`);
@@ -257,12 +262,12 @@ export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col rounded-2xl border border-slate-700/80 bg-[#070b14] overflow-hidden shadow-2xl relative">
-      {/* ANTI-CHEAT PASTE WARNING BANNER */}
+      {/* PASTE NOTICE BANNER */}
       {pasteWarning && (
         <div className="px-3.5 py-2 bg-amber-500/20 border-b border-amber-500/40 text-amber-200 text-xs flex items-center justify-between font-mono animate-fadeIn z-20">
           <span className="flex items-center gap-2 font-semibold">
             <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>Anti-Cheat Audit: Code paste event logged for recruiter evaluation.</span>
+            <span>Paste noted — as disclosed in the lobby, the team sees paste counts (not your screen).</span>
           </span>
           <button
             type="button"

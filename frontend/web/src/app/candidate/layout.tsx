@@ -5,7 +5,7 @@ import RoleGate from '@/components/auth/RoleGate';
 export const metadata: Metadata = {
   title: {
     default: 'Candidate Portal',
-    template: '%s — Progeni Atlas',
+    template: '%s | Progeni Atlas',
   },
   description:
     'Take AI-led technical interviews, run practice drills and review your skill reports on Progeni Atlas.',

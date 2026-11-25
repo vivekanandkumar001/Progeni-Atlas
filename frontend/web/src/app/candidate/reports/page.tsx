@@ -23,6 +23,7 @@ import {
   Layers
 } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { DemoBadge } from '@/components/common/DemoBadge';
 import {
   fetchCandidateInterviews,
   fetchCandidatePracticeHistory,
@@ -34,6 +35,7 @@ import {
   type PracticeHistoryData,
   type AptitudeAttemptHistory
 } from '@/lib/api';
+import { uniqueBy } from '@/lib/collections';
 
 type ReportTab = 'interviews' | 'practice' | 'aptitude';
 
@@ -102,26 +104,41 @@ function CandidateReportsContent() {
     void loadAllReports();
   }, []);
 
-  // Filter completed interviews
+  // Filter completed interviews, de-duplicating repeated API rows before they
+  // reach totals and tabs.
   const completedInterviews = useMemo(() => {
     if (!interviews) return [];
-    return interviews.filter((i) => {
-      const st = (i.status || '').toLowerCase();
-      return st === 'completed' || st === 'evaluated' || i.reportUrl || i.total_score !== null;
-    });
+    return uniqueBy(
+      interviews.filter((i) => {
+        const st = (i.status || '').toLowerCase();
+        return st === 'completed' || st === 'evaluated' || i.reportUrl || i.total_score !== null;
+      }),
+      (i) => i.id
+    );
   }, [interviews]);
 
   // Unified practice items
-  const drillAttempts = practiceData?.attempts || [];
-  const practiceInterviews = practiceData?.practice_interviews || [];
+  const drillAttempts = useMemo(
+    () => uniqueBy(practiceData?.attempts, (item) => item.id),
+    [practiceData?.attempts]
+  );
+  const practiceInterviews = useMemo(
+    () => uniqueBy(practiceData?.practice_interviews, (item) => item.sessionId),
+    [practiceData?.practice_interviews]
+  );
+  const uniqueAptitudeAttempts = useMemo(
+    () => uniqueBy(aptitudeAttempts, (item) => item.sessionId),
+    [aptitudeAttempts]
+  );
   const practiceStats = practiceData?.stats || {
-    totalDrillsCompleted: 0,
+    totalDrillsCompleted: drillAttempts.length,
     totalPracticeMinutes: 0,
     averageScore: 0,
     readinessPercentage: 0,
   };
 
-  const totalReportsCount = completedInterviews.length + drillAttempts.length + (aptitudeAttempts?.length || 0);
+  const totalReportsCount =
+    completedInterviews.length + drillAttempts.length + practiceInterviews.length + uniqueAptitudeAttempts.length;
 
   const avgInterviewScore = useMemo(() => {
     const scores = completedInterviews.map((i) => i.total_score).filter((s): s is number => typeof s === 'number');
@@ -167,7 +184,7 @@ function CandidateReportsContent() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-ink-muted uppercase">Total Reports</p>
-                <p className="text-lg font-bold text-ink">{totalReportsCount}</p>
+                <p className="text-lg font-bold text-ink">{loading ? '—' : totalReportsCount}</p>
               </div>
             </div>
 
@@ -178,7 +195,7 @@ function CandidateReportsContent() {
               <div>
                 <p className="text-[11px] font-semibold text-ink-muted uppercase">Avg Evaluation</p>
                 <p className="text-lg font-bold text-ink">
-                  {avgInterviewScore !== null ? `${avgInterviewScore}%` : 'N/A'}
+                  {loading ? '—' : avgInterviewScore !== null ? `${avgInterviewScore}%` : 'N/A'}
                 </p>
               </div>
             </div>
@@ -198,7 +215,7 @@ function CandidateReportsContent() {
               }`}
             >
               <Video className="w-4 h-4" />
-              <span>Interview Reports ({completedInterviews.length})</span>
+              <span>Interview Reports ({loading ? '—' : completedInterviews.length})</span>
             </button>
 
             <button
@@ -211,7 +228,7 @@ function CandidateReportsContent() {
               }`}
             >
               <Sparkles className="w-4 h-4" />
-              <span>Practice Reports ({drillAttempts.length + practiceInterviews.length})</span>
+              <span>Practice Reports ({loading ? '—' : drillAttempts.length + practiceInterviews.length})</span>
             </button>
 
             <button
@@ -224,7 +241,7 @@ function CandidateReportsContent() {
               }`}
             >
               <Award className="w-4 h-4" />
-              <span>Aptitude Reports ({aptitudeAttempts?.length || 0})</span>
+              <span>Aptitude Reports ({loading ? '—' : uniqueAptitudeAttempts.length})</span>
             </button>
           </div>
 
@@ -233,7 +250,7 @@ function CandidateReportsContent() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Launch New Practice Drill</span>
+            <span>Start Practice Interview</span>
           </Link>
         </div>
 
@@ -251,7 +268,7 @@ function CandidateReportsContent() {
                   <Video className="w-7 h-7" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-ink">No Completed Interview Reports Yet</h3>
+                  <h2 className="text-base font-bold text-ink">No Completed Interview Reports Yet</h2>
                   <p className="text-xs text-ink-muted max-w-md mx-auto mt-1">
                     When you complete an official technical screening or mock interview, your full
                     dossier with turn-by-turn evaluation, competencies, and PDF download will appear here.
@@ -298,10 +315,11 @@ function CandidateReportsContent() {
 
                         <div className="space-y-1">
                           <div className="flex items-center gap-3 flex-wrap">
-                            <h3 className="text-base font-bold text-ink">
+                            <h2 className="text-base font-bold text-ink">
                               {session.roleTitle || session.job_title || 'Technical Systems Engineer'}
-                            </h3>
+                            </h2>
                             <RecommendationBadge recommendation={session.final_recommendation} />
+                            {session.isDemo && <DemoBadge demoNumber={session.demoNumber} />}
                             {session.isPractice && (
                               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-accent-violet/10 text-accent-violet border border-accent-violet/30">
                                 AI PRACTICE MOCK
@@ -315,7 +333,7 @@ function CandidateReportsContent() {
                             <span>•</span>
                             <Clock className="w-3.5 h-3.5" />
                             <span>{new Date(session.ended_at || session.scheduled_at).toLocaleDateString()}</span>
-                            <span>({session.duration_minutes || 45} mins)</span>
+                            {session.duration_minutes ? <span>({session.duration_minutes} mins)</span> : null}
                           </p>
                         </div>
                       </div>
@@ -344,18 +362,22 @@ function CandidateReportsContent() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl bg-surface border border-line shadow-xs">
                 <p className="text-xs text-ink-muted font-medium">Completed Technical Drills</p>
-                <p className="text-xl font-bold text-ink mt-1">{practiceStats.totalDrillsCompleted}</p>
+                <p className="text-xl font-bold text-ink mt-1">{loading ? '—' : practiceStats.totalDrillsCompleted}</p>
               </div>
               <div className="p-4 rounded-2xl bg-surface border border-line shadow-xs">
                 <p className="text-xs text-ink-muted font-medium">Average Drill Accuracy</p>
                 <p className="text-xl font-bold text-accent-emerald mt-1">
-                  {practiceStats.averageScore ? `${Math.round(practiceStats.averageScore)}%` : '0%'}
+                  {loading
+                    ? '—'
+                    : practiceStats.averageScore
+                      ? `${Math.round(practiceStats.averageScore)}%`
+                      : '0%'}
                 </p>
               </div>
               <div className="p-4 rounded-2xl bg-surface border border-line shadow-xs">
                 <p className="text-xs text-ink-muted font-medium">Practice Time Invested</p>
                 <p className="text-xl font-bold text-accent-cyan mt-1">
-                  {practiceStats.totalPracticeMinutes} minutes
+                  {loading ? '—' : `${practiceStats.totalPracticeMinutes} minutes`}
                 </p>
               </div>
             </div>
@@ -371,7 +393,7 @@ function CandidateReportsContent() {
                   <Sparkles className="w-7 h-7" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-ink">No Practice Drills Completed Yet</h3>
+                  <h2 className="text-base font-bold text-ink">No Practice Drills Completed Yet</h2>
                   <p className="text-xs text-ink-muted max-w-md mx-auto mt-1">
                     Sharpen your technical articulation with 2-turn interactive AI drills or full mock interviews.
                     Every answer is critiqued for technical depth, correctness, and architecture.
@@ -383,7 +405,7 @@ function CandidateReportsContent() {
                     className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition"
                   >
                     <Sparkles className="w-4 h-4" />
-                    <span>Launch Practice Lab</span>
+                    <span>Start Practice Interview</span>
                   </Link>
                 </div>
               </div>
@@ -392,9 +414,9 @@ function CandidateReportsContent() {
                 {/* Practice Mock Interviews */}
                 {practiceInterviews.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-ink-muted">
                       Full AI Mock Interviews
-                    </h3>
+                    </h2>
                     <div className="grid grid-cols-1 gap-3">
                       {practiceInterviews.map((m) => (
                         <div
@@ -406,7 +428,7 @@ function CandidateReportsContent() {
                               {m.score !== null && m.score !== undefined ? `${m.score}%` : 'MOCK'}
                             </div>
                             <div>
-                              <h4 className="font-bold text-ink text-sm">{m.roleTitle}</h4>
+                              <h3 className="font-bold text-ink text-sm">{m.roleTitle}</h3>
                               <p className="text-xs text-ink-muted flex items-center gap-2 mt-0.5">
                                 <span>{m.companyName}</span>
                                 <span>•</span>
@@ -430,9 +452,9 @@ function CandidateReportsContent() {
                 {/* Interactive Practice Drills */}
                 {drillAttempts.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-ink-muted">
                       Technical Practice Drills
-                    </h3>
+                    </h2>
                     <div className="grid grid-cols-1 gap-3">
                       {drillAttempts.map((drill) => (
                         <div
@@ -445,7 +467,7 @@ function CandidateReportsContent() {
                             </div>
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="font-bold text-ink text-sm">{drill.drillTitle}</h4>
+                                <h3 className="font-bold text-ink text-sm">{drill.drillTitle}</h3>
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-surface-2 text-ink-muted">
                                   {drill.category}
                                 </span>
@@ -490,13 +512,13 @@ function CandidateReportsContent() {
                 <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
                 <p className="text-sm text-ink-muted">Loading cognitive aptitude reports...</p>
               </div>
-            ) : !aptitudeAttempts || aptitudeAttempts.length === 0 ? (
+            ) : uniqueAptitudeAttempts.length === 0 ? (
               <div className="rounded-2xl border border-line bg-surface p-12 text-center space-y-4">
                 <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-accent-amber flex items-center justify-center mx-auto">
                   <Award className="w-7 h-7" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-ink">No Aptitude Tests Completed Yet</h3>
+                  <h2 className="text-base font-bold text-ink">No Aptitude Tests Completed Yet</h2>
                   <p className="text-xs text-ink-muted max-w-md mx-auto mt-1">
                     Complete standardized problem-solving, cognitive reasoning, and quantitative aptitude assessments.
                   </p>
@@ -512,7 +534,7 @@ function CandidateReportsContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
-                {aptitudeAttempts.map((attempt) => (
+                {uniqueAptitudeAttempts.map((attempt) => (
                   <div
                     key={attempt.sessionId}
                     className="rounded-2xl bg-surface border border-line p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-amber-500/40 transition shadow-xs"
@@ -522,7 +544,7 @@ function CandidateReportsContent() {
                         {attempt.score}%
                       </div>
                       <div>
-                        <h4 className="font-bold text-ink text-sm">{attempt.templateTitle}</h4>
+                        <h3 className="font-bold text-ink text-sm">{attempt.templateTitle}</h3>
                         <p className="text-xs text-ink-muted flex items-center gap-3 mt-1 font-mono">
                           <span>Accuracy: {attempt.accuracy}%</span>
                           <span>•</span>
@@ -557,7 +579,7 @@ function CandidateReportsContent() {
                 <span className="text-[10px] font-mono font-bold text-accent-cyan uppercase">
                   {selectedDrill.category} Drill Evaluation
                 </span>
-                <h3 className="text-base font-bold text-ink">{selectedDrill.drillTitle}</h3>
+                <h2 className="text-base font-bold text-ink">{selectedDrill.drillTitle}</h2>
               </div>
               <button
                 type="button"
@@ -585,9 +607,9 @@ function CandidateReportsContent() {
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-ink-muted">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">
                   Turn-by-Turn AI Probe &amp; Critique
-                </h4>
+                </h3>
 
                 {(!selectedDrill.turns || selectedDrill.turns.length === 0) ? (
                   <p className="text-xs text-ink-muted italic">No individual turn records logged for this session.</p>

@@ -29,6 +29,7 @@ export interface UseInterviewerSpeechReturn {
   playbackState: PlaybackState;
   speakQuestion: (text: string, dialogueKey?: string, voice?: 'en' | 'hinglish' | 'default' | string) => Promise<void>;
   playInstantBackchannel: (customPhrase?: string) => void;
+  playThinkingBridge: () => void;
   stopCurrentPlayback: (reason?: string) => void;
   handleReplayAudio: (textToReplay: string) => void;
   restoreMicrophoneTrack: () => void;
@@ -66,6 +67,16 @@ export const STUDIO_VOICE_ASSETS: Record<string, string> = {
 const globalAudioBufferCache = new Map<string, AudioBuffer>();
 let globalAudioContext: AudioContext | null = null;
 let globalAnalyserNode: AnalyserNode | null = null;
+
+/** True when this browser can play streamed MP3 via Media Source Extensions. */
+function canStreamTtsAudio(): boolean {
+  if (typeof window === 'undefined' || typeof MediaSource === 'undefined') return false;
+  try {
+    return MediaSource.isTypeSupported('audio/mpeg');
+  } catch {
+    return false;
+  }
+}
 
 function getSharedAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -336,6 +347,13 @@ export function useInterviewerSpeech({
     [voice, sessionId, playInMemoryBuffer, getOrCreateAudio, onSpeechStart, onSpeechEnd, restoreMicrophoneTrack]
   );
 
+  // Plays the "let me think…" bridge while the LLM evaluates/generates —
+  // masks dead air on the exact path where latency lives.
+  const playThinkingBridge = useCallback(() => {
+    const dialogueId = `${sessionId}:instant:thinking_bridge:${Date.now()}`;
+    playInMemoryBuffer('thinking_bridge', dialogueId);
+  }, [sessionId, playInMemoryBuffer]);
+
   const speakQuestion = useCallback(
     async (text: string, dialogueKey?: string, voiceOverride?: string) => {
       const cleanText = text.trim();
@@ -375,6 +393,107 @@ export function useInterviewerSpeech({
       try {
         const controller = new AbortController();
         ttsAbortRef.current = controller;
+
+        // ---- Streaming TTS path (MediaSource + chunked MP3) -------------
+        // First audio byte reaches the candidate in ~150-400ms instead of
+        // after the provider synthesizes the whole sentence. Any failure
+        // falls back to the buffered path below.
+        if (canStreamTtsAudio()) {
+          try {
+            const streamRes = await fetch(`/api/interview/${sessionId}/speak/stream`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: cleanText,
+                ...(effectiveVoice && effectiveVoice !== 'default' ? { voice: effectiveVoice } : {}),
+              }),
+              signal: controller.signal,
+            });
+            if (streamRes.ok && streamRes.body) {
+              const streamAudio = getOrCreateAudio();
+              if (!streamAudio) throw new Error('Audio element unavailable');
+
+              const markStreamCompleted = () => {
+                ttsEndTimeRef.current = Date.now();
+                playedDialogueKeysRef.current.add(dialogueId);
+                activeDialogueIdRef.current = null;
+                setPlaybackState('COMPLETED');
+                restoreMicrophoneTrack();
+                onSpeechEnd?.(dialogueId);
+              };
+              streamAudio.onended = () => {
+                if (currentObjectUrlRef.current) {
+                  URL.revokeObjectURL(currentObjectUrlRef.current);
+                  currentObjectUrlRef.current = null;
+                }
+                markStreamCompleted();
+              };
+              streamAudio.onerror = () => {
+                if (currentObjectUrlRef.current) {
+                  URL.revokeObjectURL(currentObjectUrlRef.current);
+                  currentObjectUrlRef.current = null;
+                }
+                restoreMicrophoneTrack();
+                failedDialogueKeysRef.current.add(dialogueId);
+                activeDialogueIdRef.current = null;
+                setPlaybackState('FAILED');
+                onSpeechError?.(dialogueId, new Error('Streaming audio element error'));
+              };
+              streamAudio.defaultPlaybackRate = clampRate;
+              streamAudio.playbackRate = clampRate;
+
+              const ms = new MediaSource();
+              const objectUrl = URL.createObjectURL(ms);
+              if (currentObjectUrlRef.current) {
+                URL.revokeObjectURL(currentObjectUrlRef.current);
+              }
+              currentObjectUrlRef.current = objectUrl;
+              streamAudio.src = objectUrl;
+
+              // Pump chunks into the source buffer as they arrive. Start
+              // playback right away — the element plays once enough bytes
+              // are buffered (progressive MP3).
+              void (async () => {
+                ms.addEventListener('sourceopen', async () => {
+                  try {
+                    const sb = ms.addSourceBuffer('audio/mpeg');
+                    const reader = streamRes.body!.getReader();
+                    for (;;) {
+                      const { done, value } = await reader.read();
+                      if (done || ms.readyState !== 'open') {
+                        if (ms.readyState === 'open') ms.endOfStream();
+                        return;
+                      }
+                      await new Promise<void>((res2) => {
+                        sb.addEventListener('updateend', () => res2(), { once: true });
+                        sb.appendBuffer(value);
+                      });
+                    }
+                  } catch (pumpErr) {
+                    console.warn('[TTS] streaming pump failed', pumpErr);
+                  }
+                }, { once: true });
+              })();
+
+              if (ttsAbortRef.current === controller) ttsAbortRef.current = null;
+              if (activeDialogueIdRef.current !== dialogueId || controller.signal.aborted) {
+                return;
+              }
+              try {
+                await streamAudio.play();
+              } catch (playErr) {
+                console.warn('[TTS] streaming autoplay failed, waiting for buffer', playErr);
+              }
+              if (!streamAudio.paused) setPlaybackState('PLAYING');
+              return;
+            }
+          } catch (streamErr) {
+            console.warn('[TTS] streaming path unavailable, falling back to buffered path', streamErr);
+            setPlaybackState('LOADING');
+          }
+        }
+
         const blob = await speakInterviewText(sessionId, cleanText, controller.signal, effectiveVoice);
         if (ttsAbortRef.current === controller) ttsAbortRef.current = null;
 
@@ -504,6 +623,7 @@ export function useInterviewerSpeech({
     playbackState,
     speakQuestion,
     playInstantBackchannel,
+    playThinkingBridge,
     stopCurrentPlayback,
     handleReplayAudio,
     restoreMicrophoneTrack,

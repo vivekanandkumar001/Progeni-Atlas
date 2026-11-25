@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
+  fetchCandidateDashboard,
   fetchCandidateSkillInsights,
   fetchCandidateSkills,
   type CandidateSkillInsight,
@@ -119,17 +120,20 @@ function sourceFootnote(skill: CandidateSkill): string {
 export default function CandidateSkillsPage() {
   const [insights, setInsights] = useState<CandidateSkillInsights | null>(null);
   const [profileSkills, setProfileSkills] = useState<CandidateSkill[]>([]);
+  const [dashboardReadiness, setDashboardReadiness] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchSkills() {
       setLoading(true);
       try {
-        const [insightData, rawSkills] = await Promise.all([
+        const [insightData, rawSkills, dashboard] = await Promise.all([
           fetchCandidateSkillInsights(),
           fetchCandidateSkills(),
+          fetchCandidateDashboard(),
         ]);
         setInsights(insightData);
+        setDashboardReadiness(dashboard?.candidate?.readinessScore ?? null);
         const resolvedSkills =
           (insightData?.skills && insightData.skills.length > 0)
             ? insightData.skills
@@ -162,6 +166,11 @@ export default function CandidateSkillsPage() {
     () => profileSkills.filter((s) => (s.assessed ?? false)).length,
     [profileSkills]
   );
+  // One authoritative source: the candidate dashboard's server-computed score.
+  // Never substitute a locally derived skill score, which produced a second,
+  // conflicting readiness value for the same candidate.
+  const readinessScore = dashboardReadiness;
+  const readinessTier = dashboardReadiness !== null ? 'Readiness score' : 'Not evaluated';
 
   return (
     <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
@@ -178,12 +187,12 @@ export default function CandidateSkillsPage() {
                   <GraduationCap className="w-3.5 h-3.5 text-accent-cyan" />
                   Technical Skill Matrix
                 </span>
-                {hasResumeSkills && (
+                {!loading && hasResumeSkills && (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-emerald-500/10 border border-emerald-500/30 text-accent-emerald">
                     {profileSkills.length} Skills Linked
                   </span>
                 )}
-                {assessedCount > 0 && (
+                {!loading && assessedCount > 0 && (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-amber-500/10 border border-amber-500/30 text-accent-amber">
                     {assessedCount} Assessed
                   </span>
@@ -201,16 +210,26 @@ export default function CandidateSkillsPage() {
               <div className="flex flex-col items-center md:items-end gap-1">
                 <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-ink-faint">Overall Stars</p>
                 <div className="flex items-center gap-2">
-                  <StarRating score={avgStars} size={20} />
-                  <span className="font-mono font-bold text-lg text-accent-amber tabular-nums">{avgStars.toFixed(1)}</span>
+                  {loading ? (
+                    <span className="h-5 w-24 animate-pulse rounded bg-surface-3" aria-hidden="true" />
+                  ) : (
+                    <StarRating score={avgStars} size={20} />
+                  )}
+                  <span className="font-mono font-bold text-lg text-accent-amber tabular-nums">
+                    {loading ? '—' : avgStars.toFixed(1)}
+                  </span>
                 </div>
                 <p className="text-[10px] font-mono text-ink-faint">/ 5.0</p>
               </div>
               <div className="h-12 w-px bg-line hidden md:block" />
               <div className="flex flex-col items-center md:items-end gap-1">
                 <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-ink-faint">Readiness</p>
-                <p className="text-lg font-extrabold text-ink tabular-nums">{insights?.overallReadinessScore ?? '—'}</p>
-                <p className="text-[10px] font-mono text-ink-muted">{insights?.readinessTier ?? 'Not evaluated'}</p>
+                <p className="text-lg font-extrabold text-ink tabular-nums">
+                  {loading ? '—' : (readinessScore ?? '—')}
+                </p>
+                <p className="text-[10px] font-mono text-ink-muted">
+                  {loading ? 'Loading…' : readinessTier}
+                </p>
               </div>
             </div>
           </div>
@@ -427,7 +446,13 @@ export default function CandidateSkillsPage() {
             <span>Recommended Drills For Your Stack</span>
           </h2>
 
-          {insights?.recommendedDrills && insights.recommendedDrills.length > 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[0, 1].map((item) => (
+                <div key={item} className="h-28 animate-pulse rounded-2xl border border-line bg-surface" aria-hidden="true" />
+              ))}
+            </div>
+          ) : insights?.recommendedDrills && insights.recommendedDrills.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {insights.recommendedDrills.map((drill: any, i: number) => (
                 <div

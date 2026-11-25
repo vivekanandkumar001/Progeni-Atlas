@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     canonical: 'https://atlas.progeni.live/career',
   },
   openGraph: {
-    title: 'Careers — Progeni Atlas',
+    title: 'Careers',
     description:
       'Join Progeni Atlas to pioneer the future of autonomous AI technical interviewing and skills assessment intelligence.',
     url: 'https://atlas.progeni.live/career',

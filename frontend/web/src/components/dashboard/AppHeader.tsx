@@ -216,7 +216,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {walletBadge && (
             <Link
               href={walletBadge.href}
-              aria-label={`Wallet balance ₹${safeInr.toFixed(2)}`}
+              aria-label={`Wallet balance ₹${Number.isInteger(safeInr) ? safeInr.toLocaleString('en-IN') : safeInr.toFixed(2)}`}
               title="Available Interview Balance"
               className="hidden h-10 items-center gap-2 rounded-xl border border-accent-cyan/25 bg-accent-cyan/10 pl-2.5 pr-3 shadow-xs transition-colors hover:border-accent-cyan/40 hover:bg-accent-cyan/15 md:inline-flex"
             >
@@ -226,7 +226,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               </span>
               <Wallet aria-hidden="true" className="h-4 w-4 shrink-0 text-accent-cyan" />
               <span className="text-[13px] font-bold tabular-nums leading-none text-accent-cyan">
-                ₹{safeInr.toFixed(2)}
+                ₹{Number.isInteger(safeInr) ? safeInr.toLocaleString('en-IN') : safeInr.toFixed(2)}
               </span>
               <span className="hidden border-l border-accent-cyan/20 pl-2 text-[11px] font-semibold tabular-nums leading-none text-ink-muted xl:inline">
                 {safeCredits} cr
@@ -347,7 +347,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     <div className="mt-3 flex items-center justify-between rounded-xl border border-line/70 bg-surface px-3 py-2">
                       <span className="text-[11px] font-medium text-ink-muted">Wallet Balance</span>
                       <span className="font-mono text-[11px] font-bold tabular-nums text-accent-cyan">
-                        ₹{safeInr.toFixed(2)} · {safeCredits} cr
+                        ₹{Number.isInteger(safeInr) ? safeInr.toLocaleString('en-IN') : safeInr.toFixed(2)} · {safeCredits} cr
                       </span>
                     </div>
                   )}
@@ -458,7 +458,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   <span>Wallet Balance</span>
                 </span>
                 <span className="font-mono font-bold tabular-nums text-accent-cyan">
-                  ₹{safeInr.toFixed(2)} · {safeCredits} cr
+                  ₹{Number.isInteger(safeInr) ? safeInr.toLocaleString('en-IN') : safeInr.toFixed(2)} · {safeCredits} cr
                 </span>
               </Link>
             )}

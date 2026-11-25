@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { LegalShell, LegalSection, LegalBullets } from '@/components/legal/LegalShell';
 
 export const metadata: Metadata = {
-  title: 'Refund & Cancellation Policy | Progeni Atlas',
+  title: 'Refund & Cancellation Policy',
   description:
     'Credit pack refunds, interview settlement, system-failure compensation, org subscriptions, cancellation and chargeback policy for Progeni Atlas wallets and the ₹1 = 1 credit model.',
 };

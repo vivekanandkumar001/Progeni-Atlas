@@ -26,6 +26,8 @@ import {
   type AptitudeReportResponse,
   type AptitudeReviewItem,
 } from '@/lib/api';
+import { copyTextToClipboard } from '@/lib/clipboard';
+import { formatPercentile } from '@/lib/formatters';
 
 export default function AptitudeReportPage() {
   const params = useParams();
@@ -36,7 +38,7 @@ export default function AptitudeReportPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'correct' | 'incorrect' | 'unanswered'>('all');
-  const [copied, setCopied] = useState<boolean>(false);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   useEffect(() => {
     let isMounted = true;
@@ -67,12 +69,12 @@ export default function AptitudeReportPage() {
     };
   }, [sessionId]);
 
-  const handleShare = () => {
+  const handleShare = async () => {
     if (typeof window === 'undefined') return;
-    void navigator.clipboard.writeText(window.location.href);
+    const copied = await copyTextToClipboard(window.location.href);
     void logAptitudeEvent('share_click', sessionId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    setShareStatus(copied ? 'copied' : 'failed');
+    setTimeout(() => setShareStatus('idle'), 2500);
   };
 
   if (loading) {
@@ -81,7 +83,7 @@ export default function AptitudeReportPage() {
         <div className="w-12 h-12 border-4 border-accent-cyan border-t-transparent rounded-full animate-spin" />
         <div className="text-center">
           <p className="text-base font-semibold text-ink">Generating Cognitive Evaluation Scorecard…</p>
-          <p className="text-xs text-ink-faint mt-1">Aggregating 5-pillar performance, speed index & proctoring telemetry</p>
+          <p className="text-xs text-ink-faint mt-1">Aggregating 5-pillar performance, speed index &amp; disclosed interaction counters</p>
         </div>
       </div>
     );
@@ -195,12 +197,17 @@ export default function AptitudeReportPage() {
               PDF Scorecard
             </a>
             <button
-              onClick={handleShare}
+              onClick={() => void handleShare()}
               className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface border border-line hover:bg-surface-2 text-xs font-semibold text-ink transition cursor-pointer"
               title="Copy shareable scorecard URL"
+              aria-live="polite"
             >
               <Share2 className="w-3.5 h-3.5" />
-              {copied ? 'Link Copied!' : 'Share Scorecard'}
+              {shareStatus === 'copied'
+                ? 'Link Copied!'
+                : shareStatus === 'failed'
+                ? 'Copy Failed — Select URL'
+                : 'Share Scorecard'}
             </button>
             <Link
               href="/candidate/aptitude"
@@ -237,7 +244,7 @@ export default function AptitudeReportPage() {
             <p className="text-xs font-medium text-ink-muted uppercase tracking-wider">Cognitive Rank</p>
             <div className="mt-2 flex items-baseline gap-1.5">
               <span className="text-3xl sm:text-4xl font-extrabold text-accent-violet">
-                {percentile != null ? `${percentile}th` : '—'}
+                {formatPercentile(percentile)}
               </span>
             </div>
             <p className="text-[11px] text-accent-violet mt-1">
@@ -431,7 +438,7 @@ export default function AptitudeReportPage() {
                       <Clock className="w-3 h-3 text-ink-faint" />
                       Time: {mins > 0 ? `${mins}m ` : ''}{secs}s
                       {sectionalPercentile?.[secName] != null && (
-                        <span className="text-accent-violet font-semibold"> · {sectionalPercentile[secName]}th %ile</span>
+                        <span className="text-accent-violet font-semibold"> · {formatPercentile(sectionalPercentile[secName])}</span>
                       )}
                     </span>
                     <span className="text-ink-faint">

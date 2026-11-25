@@ -38,7 +38,7 @@ import {
   TableSkeleton,
 } from '@/components/super-admin/ui';
 import { useSuperAdmin } from '@/components/super-admin/SuperAdminShell';
-import { formatDateTime, formatNumber, saFetch } from '@/lib/super-admin';
+import { formatDateTime, formatNumber, saFetch, type InterviewItem } from '@/lib/super-admin';
 
 type PlatformInterviewStats = {
   total: number;
@@ -46,26 +46,6 @@ type PlatformInterviewStats = {
   completed: number;
   scheduled: number;
   cancelled_or_abandoned: number;
-};
-
-type InterviewItem = {
-  id: string;
-  orgId: string | null;
-  organizationName: string;
-  candidateId: string | null;
-  candidateName: string;
-  candidateEmail?: string | null;
-  recruiterId: string | null;
-  status: string;
-  sessionType?: string | null;
-  mode?: string | null;
-  durationMinutes: number;
-  jobTitle: string;
-  companyName?: string | null;
-  proctoringFlags?: number;
-  createdAt?: string | null;
-  startedAt?: string | null;
-  endedAt?: string | null;
 };
 
 type InterviewResponse = {

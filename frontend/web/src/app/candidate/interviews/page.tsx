@@ -10,6 +10,7 @@ import {
   type InterviewInvitation
 } from '@/lib/api';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { DemoBadge } from '@/components/common/DemoBadge';
 import {
   Video,
   Calendar,
@@ -96,7 +97,7 @@ export default function CandidateInterviewsPage() {
     if (st === 'completed' || st === 'abandoned') return false;
     const now = Date.now();
     const sched = s.scheduled_at ? new Date(s.scheduled_at).getTime() : 0;
-    const durMs = (s.duration_minutes || 30) * 60 * 1000;
+    const durMs = (s.duration_minutes ?? 0) * 60 * 1000;
     if (st === 'in_progress') {
       const started = s.started_at ? new Date(s.started_at).getTime() : sched;
       return started > 0 ? now <= started + durMs + 30 * 60 * 1000 : false;
@@ -260,6 +261,7 @@ export default function CandidateInterviewsPage() {
                               INVITATION PENDING
                             </span>
                           )}
+                          {session.isDemo && <DemoBadge demoNumber={session.demoNumber} compact />}
                         </div>
 
                         {companyName && (
@@ -272,7 +274,8 @@ export default function CandidateInterviewsPage() {
                         <p className="text-xs text-ink-muted font-mono flex items-center gap-2">
                           <Clock className="w-3.5 h-3.5 text-accent-cyan" />
                           <span>
-                            {new Date(session.scheduled_at).toLocaleString()} ({session.duration_minutes || 45} min)
+                            {new Date(session.scheduled_at).toLocaleString()}
+                            {session.duration_minutes ? ` (${session.duration_minutes} min)` : ''}
                           </span>
                         </p>
                       </div>
@@ -348,6 +351,11 @@ export default function CandidateInterviewsPage() {
                             <p className="text-[11px] text-ink-muted">
                               {companyName || '—'}
                             </p>
+                            {session.isDemo && (
+                              <span className="mt-1.5 inline-block">
+                                <DemoBadge demoNumber={session.demoNumber} compact />
+                              </span>
+                            )}
                           </td>
 
                           <td className="py-4 px-4">

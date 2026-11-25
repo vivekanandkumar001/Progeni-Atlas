@@ -5,6 +5,7 @@ import { PracticeDrillItem, MicroFeedbackReport, DrillTurnEvaluation } from '@/t
 import { apiFetch } from '@/lib/api';
 import { AudioVoiceRecorder } from './AudioVoiceRecorder';
 import { MicroFeedbackDossier } from './MicroFeedbackDossier';
+import { formatTimer } from '@/lib/formatters';
 import { X, Clock, Volume2, Sparkles, Send, AlertTriangle } from 'lucide-react';
 
 interface LiveDrillSessionModalProps {
@@ -92,12 +93,6 @@ export const LiveDrillSessionModal: React.FC<LiveDrillSessionModalProps> = ({
     }, 1000);
     return () => clearInterval(timer);
   }, [drill]);
-
-  const formatTimer = (totalSecs: number) => {
-    const mins = Math.floor(totalSecs / 60);
-    const secs = totalSecs % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handlePlayQuestionAudio = () => {
     setIsPlayingQuestionAudio(true);

@@ -4,7 +4,7 @@ import React from 'react';
 import type { SessionScorecard, SessionQuestion } from '@/lib/api';
 
 interface PDFDossierTemplateProps {
-  sessionId: string;
+  reportReference: string;
   interviewDate: string;
   roleTitle: string;
   companyName: string;
@@ -13,7 +13,7 @@ interface PDFDossierTemplateProps {
 }
 
 export const PDFDossierTemplate: React.FC<PDFDossierTemplateProps> = ({
-  sessionId,
+  reportReference,
   interviewDate,
   roleTitle,
   companyName,
@@ -33,11 +33,11 @@ export const PDFDossierTemplate: React.FC<PDFDossierTemplateProps> = ({
       {/* OFFICIAL HEADER */}
       <div className="flex items-center justify-between border-b border-slate-300 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Progeni Atlas</h1>
-          <p className="text-xs text-slate-500 font-mono">Candidate Verified Evaluation Dossier</p>
+          <h2 className="text-2xl font-bold text-slate-900">Progeni Atlas</h2>
+          <p className="text-xs text-slate-500 font-mono">Interview Feedback Summary</p>
         </div>
         <div className="text-right font-mono text-xs text-slate-500">
-          <p className="font-bold text-slate-900">SESSION ID: {sessionId}</p>
+          <p className="font-bold text-slate-900">REFERENCE: {reportReference}</p>
           <p>Issued: {interviewDate}</p>
         </div>
       </div>
@@ -49,32 +49,25 @@ export const PDFDossierTemplate: React.FC<PDFDossierTemplateProps> = ({
           <p className="text-xs text-slate-500">{companyName}</p>
         </div>
         <div className="text-right">
-          {scorecard.recommendation ? (
-            <span className="inline-block mt-1 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold text-xs">
-              {scorecard.recommendation.replace(/_/g, ' ')} (
-              {typeof scorecard.overall_score === 'number' ? `${scorecard.overall_score} / 100` : 'score unavailable'})
-            </span>
-          ) : (
-            <span className="inline-block mt-1 px-3 py-1 bg-slate-200 text-slate-700 rounded-full font-bold text-xs">
-              No recommendation recorded
-            </span>
-          )}
+          <span className="inline-block mt-1 px-3 py-1 bg-slate-200 text-slate-700 rounded-full font-bold text-xs">
+            Reviewed by the hiring team
+          </span>
         </div>
       </div>
 
       {/* EXECUTIVE SUMMARY */}
       <div className="space-y-2">
-        <h3 className="text-sm font-bold text-slate-900 border-b pb-1">Executive Summary</h3>
+        <h3 className="text-sm font-bold text-slate-900 border-b pb-1">What stood out</h3>
         <p className="text-xs text-slate-600 leading-relaxed">
-          {scorecard.executive_summary || 'No executive summary was recorded for this session.'}
+          {strengths[0] || 'You completed the structured interview — the hiring team reviews the full conversation before any decision is made.'}
         </p>
       </div>
 
-      {/* OVERALL PARAMETER-WISE MARKS */}
+      {/* PARAMETER BREAKDOWN — how the rubric dimensions read, no verdict */}
       {overallParams.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-slate-900 border-b pb-1">
-            Overall Parameter-Wise Evaluation Marks
+            How the rubric dimensions read
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             {overallParams.map((param) => (
@@ -95,7 +88,7 @@ export const PDFDossierTemplate: React.FC<PDFDossierTemplateProps> = ({
 
       {/* COMPETENCY BREAKDOWN */}
       <div className="space-y-3">
-        <h3 className="text-sm font-bold text-slate-900 border-b pb-1">Competency Breakdown</h3>
+        <h3 className="text-sm font-bold text-slate-900 border-b pb-1">Themes across the conversation</h3>
         {competencies.length === 0 ? (
           <p className="text-xs text-slate-500">No competency scores were recorded.</p>
         ) : (
@@ -118,7 +111,7 @@ export const PDFDossierTemplate: React.FC<PDFDossierTemplateProps> = ({
       {/* STRENGTHS AND GROWTH */}
       <div className="grid grid-cols-2 gap-6 text-xs">
         <div>
-          <h4 className="font-bold text-slate-900 border-b pb-1">Verified Strengths</h4>
+          <h4 className="font-bold text-slate-900 border-b pb-1">What stood out</h4>
           {strengths.length === 0 ? (
             <p className="text-slate-500 mt-2">None recorded.</p>
           ) : (
@@ -130,7 +123,7 @@ export const PDFDossierTemplate: React.FC<PDFDossierTemplateProps> = ({
           )}
         </div>
         <div>
-          <h4 className="font-bold text-slate-900 border-b pb-1">Targeted Growth Areas</h4>
+          <h4 className="font-bold text-slate-900 border-b pb-1">Where to sharpen</h4>
           {concerns.length === 0 ? (
             <p className="text-slate-500 mt-2">None recorded.</p>
           ) : (
@@ -147,7 +140,7 @@ export const PDFDossierTemplate: React.FC<PDFDossierTemplateProps> = ({
       {questions.length > 0 && (
         <div className="space-y-4 pt-4 border-t border-slate-200">
           <h3 className="text-sm font-bold text-slate-900 border-b pb-1">
-            Question-by-Question Evaluation & Model Benchmark Answers
+            Your answers, question by question
           </h3>
           <div className="space-y-4 text-xs">
             {questions.map((q) => (
@@ -157,7 +150,7 @@ export const PDFDossierTemplate: React.FC<PDFDossierTemplateProps> = ({
                     Turn #{q.turn_index > 0 ? q.turn_index : 1} [{q.stage.toUpperCase()}]
                   </span>
                   <span className="font-bold text-blue-800">
-                    {typeof q.score === 'number' ? `Marks: ${q.score} / 10` : 'Score Pending'}
+                    {typeof q.score === 'number' ? `Score: ${q.score} / 10` : 'Score Pending'}
                   </span>
                 </div>
 
@@ -188,16 +181,20 @@ export const PDFDossierTemplate: React.FC<PDFDossierTemplateProps> = ({
                   </div>
                 )}
 
-                {q.ideal_answer && (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded p-2.5 space-y-1">
-                    <p className="font-bold text-emerald-900 font-mono text-[11px]">
-                      ✨ Ideal Model Answer (10/10 Benchmark):
-                    </p>
+                <div className="bg-emerald-50 border border-emerald-200 rounded p-2.5 space-y-1">
+                  <p className="font-bold text-emerald-900 font-mono text-[11px]">
+                    Suggested Strong Answer:
+                  </p>
+                  {q.ideal_answer?.trim() ? (
                     <p className="text-emerald-950 text-[11px] leading-relaxed whitespace-pre-line">
                       {q.ideal_answer}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      A benchmark answer is not available for this question.
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
           </div>

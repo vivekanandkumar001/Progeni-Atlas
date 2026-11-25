@@ -9,17 +9,17 @@ import {
   fetchSessionQuestions,
   fetchSessionScorecard,
   USER_KEY,
+  apiFetch,
   type SessionQuestion,
   type SessionScorecard
 } from '@/lib/api';
 import { ReportHeaderToolbar } from '@/components/report/ReportHeaderToolbar';
-import { ExecutiveScorecardBanner } from '@/components/report/ExecutiveScorecardBanner';
-import { OverallParametersGrid } from '@/components/report/OverallParametersGrid';
-import { CompetencyPillarsGrid } from '@/components/report/CompetencyPillarsGrid';
 import { StrengthsAndGrowthCards } from '@/components/report/StrengthsAndGrowthCards';
 import { TurnByTurnAccordion } from '@/components/report/TurnByTurnAccordion';
 import { PDFDossierTemplate } from '@/components/report/PDFDossierTemplate';
-import { Loader2, AlertTriangle, FileText } from 'lucide-react';
+import { Loader2, AlertTriangle, FileText, ShieldCheck, RefreshCw } from 'lucide-react';
+import { formatInterviewDate } from '@/lib/dateTime';
+import { buildReportReference } from '@/lib/reportReference';
 
 /**
  * Real endpoints used by this page:
@@ -42,10 +42,20 @@ export default function CandidateEvaluationReportPage() {
   const [questions, setQuestions] = useState<SessionQuestion[]>([]);
   const [jobTitle, setJobTitle] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
-  const [scheduledAt, setScheduledAt] = useState<string | null>(null);
+  const [interviewDate, setInterviewDate] = useState<string | null>(null);
+  const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
+  const [demoNumber, setDemoNumber] = useState<number | string | null>(null);
+  const [reportReference, setReportReference] = useState(() => buildReportReference(null, null));
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isPreparingPdf, setIsPreparingPdf] = useState(false);
+  const pollAttemptRef = React.useRef(0);
+  const [npsScore, setNpsScore] = useState<number | null>(null);
+  const [npsComment, setNpsComment] = useState('');
+  const [npsSubmitting, setNpsSubmitting] = useState(false);
+  const [npsSubmitted, setNpsSubmitted] = useState<boolean>(false);
+  const [npsError, setNpsError] = useState<string | null>(null);
 
   // When report is generated, clicking browser "Back" redirects to dashboard
   // instead of re-entering the expired/completed interview room.
@@ -82,8 +92,9 @@ export default function CandidateEvaluationReportPage() {
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
-    (async () => {
+    const load = async () => {
       const [card, session, sessionQuestions, invitations] = await Promise.all([
         fetchSessionScorecard(sessionId),
         fetchSession(sessionId),
@@ -94,22 +105,45 @@ export default function CandidateEvaluationReportPage() {
 
       setScorecard(card);
       setQuestions(sessionQuestions ?? []);
-      if (session?.scheduled_at) setScheduledAt(session.scheduled_at);
 
+      // One authoritative metadata source: the session record, with completion
+      // time preferred over the scheduled time and invitation labels preferred
+      // over any denormalised copy on the session.
+      const lifecycle = session as {
+        finished_at?: string | null;
+        created_at?: string | null;
+      } | null;
+      const authoritativeDate =
+        session?.ended_at || lifecycle?.finished_at || session?.started_at || session?.scheduled_at || null;
       const invitation = (invitations ?? []).find((inv) => inv.session_id === sessionId);
-      setJobTitle(session?.job_title || session?.roleTitle || invitation?.job_title || null);
-      setOrgName(session?.company_name || session?.companyName || invitation?.org_name || null);
+      const role = invitation?.job_title || session?.job_title || session?.roleTitle || null;
+
+      setInterviewDate(authoritativeDate);
+      setDurationMinutes(session?.duration_minutes ?? null);
+      setIsDemo(Boolean(session?.isDemo));
+      setDemoNumber(session?.demoNumber ?? null);
+      setJobTitle(role);
+      setOrgName(invitation?.org_name || session?.company_name || session?.companyName || null);
+      setReportReference(buildReportReference(authoritativeDate, role));
 
       if (!card) {
-        setLoadError(
-          'No scorecard has been generated for this session. A scorecard is created after the interview is completed.'
-        );
+        setLoadError('Your scorecard is still being assembled — this usually takes under a minute after the interview ends.');
+        // Auto-retry with gentle backoff (up to ~30s of polling).
+        pollAttemptRef.current += 1;
+        if (pollAttemptRef.current <= 6 && !cancelled) {
+          retryTimer = setTimeout(load, 4000);
+        }
+      } else {
+        setLoadError(null);
       }
       setLoading(false);
-    })();
+    };
+
+    void load();
 
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [sessionId]);
 
@@ -136,32 +170,44 @@ export default function CandidateEvaluationReportPage() {
         <main className="max-w-3xl mx-auto px-4 sm:px-6 py-16 space-y-6">
           <ReportHeaderToolbar
             sessionId={sessionId}
-            dossierId={sessionId}
+            dossierId={reportReference}
             companyName={orgName || 'Organisation not specified'}
             roleTitle={jobTitle || 'Interview session'}
-            interviewDate="Date unavailable"
+            interviewDate={formatInterviewDate(interviewDate)}
+            durationMinutes={durationMinutes}
             onDownloadPdf={handleDownloadPdf}
             isDownloadingPdf={isPreparingPdf}
+            isDemo={isDemo}
+            demoNumber={demoNumber}
           />
           <div className="p-8 rounded-2xl bg-surface border border-amber-500/30 space-y-2">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-accent-amber" />
-              <h2 className="text-sm font-bold text-ink">Report not available yet</h2>
+              <h2 className="text-sm font-bold text-ink">Report is being assembled</h2>
             </div>
             <p className="text-xs text-ink-muted leading-relaxed">{loadError}</p>
-            <Link
-              href="/candidate/interviews"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-cyan"
-            >
-              <span>Back to my interviews</span>
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-cyan hover:underline"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Refresh now
+              </button>
+              <Link
+                href="/candidate/interviews"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted hover:text-ink"
+              >
+                <span>Back to my interviews</span>
               </Link>
+            </div>
           </div>
         </main>
       </div>
     );
   }
 
-  const interviewDate = scheduledAt ? new Date(scheduledAt).toLocaleDateString() : 'Date unavailable';
+  const formattedInterviewDate = formatInterviewDate(interviewDate);
 
   return (
     <div className="min-h-screen bg-canvas text-ink font-sans selection:bg-cyan-500 selection:text-slate-950 pb-16">
@@ -171,39 +217,37 @@ export default function CandidateEvaluationReportPage() {
         <section>
           <ReportHeaderToolbar
             sessionId={sessionId}
-            dossierId={sessionId}
+            dossierId={reportReference}
             companyName={orgName || 'Organisation not specified'}
             roleTitle={jobTitle || 'Interview session'}
-            interviewDate={interviewDate}
+            interviewDate={formattedInterviewDate}
+            durationMinutes={durationMinutes}
             onDownloadPdf={handleDownloadPdf}
             isDownloadingPdf={isPreparingPdf}
+            isDemo={isDemo}
+            demoNumber={demoNumber}
           />
         </section>
 
-        {/* SECTION 2: EXECUTIVE SCORECARD BANNER */}
+        {/* SECTION 2: HOW THIS CONVERSATION WENT — no verdict, ever */}
         <section>
-          <ExecutiveScorecardBanner
-            overallScore={scorecard.overall_score}
-            hiringRecommendation={scorecard.recommendation}
-            executiveSummary={scorecard.executive_summary}
-            hasScorecard
-          />
-        </section>
-
-        {/* SECTION 2.5: OVERALL PARAMETER-WISE EVALUATION MARKS */}
-        <section>
-          <OverallParametersGrid
-            overallParameters={scorecard.overall_parameter_scores ?? []}
-            overallScore={scorecard.overall_score}
-          />
-        </section>
-
-        {/* SECTION 3: COMPETENCY BREAKDOWN */}
-        <section className="space-y-3">
-          <h2 className="text-body font-semibold text-ink text-sm tracking-wide uppercase font-mono">
-            Core Competency Breakdown
-          </h2>
-          <CompetencyPillarsGrid competencies={scorecard.competencies ?? []} />
+          <div className="rounded-2xl border border-cyan-500/25 bg-gradient-to-br from-cyan-500/5 via-surface to-indigo-500/5 p-6 md:p-8 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
+                <ShieldCheck className="w-5 h-5 text-accent-cyan" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-ink">How this conversation went</h2>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  A human reviews every interview before any decision is made. Here is what stood out — whatever the outcome.
+                </p>
+              </div>
+            </div>
+            <div className="text-xs text-ink-muted leading-relaxed border-t border-line/60 pt-4">
+              Your answers below are quoted exactly as you spoke them. Scores reflect the role rubric, not a final verdict —
+              the hiring team makes that call and will reach out with next steps.
+            </div>
+          </div>
         </section>
 
         {/* SECTION 4: STRENGTHS VS. TARGET GROWTH AREAS */}
@@ -219,6 +263,86 @@ export default function CandidateEvaluationReportPage() {
         {/* SECTION 5: QUESTION-BY-QUESTION BREAKDOWN */}
         <section>
           <TurnByTurnAccordion questions={questions} />
+        </section>
+
+        {/* SECTION 5.5: NPS — one question, no verdict */}
+        <section className="bg-surface border border-line rounded-2xl p-6 md:p-8 space-y-4">
+          <div>
+            <h2 className="text-base font-bold text-ink">Quick feedback — one question</h2>
+            <p className="text-xs text-ink-muted mt-1">
+              How likely are you to recommend a Progeni Atlas interview to a friend? 0 = not at all, 10 = definitely.
+            </p>
+          </div>
+          {npsSubmitted ? (
+            <p className="text-sm font-semibold text-emerald-400 border border-emerald-500/30 bg-emerald-500/5 rounded-xl px-4 py-3">
+              Thank you — your feedback helps us make the interview fairer and kinder.
+            </p>
+          ) : (
+            <>
+              {npsError && <p className="text-xs text-accent-rose">{npsError}</p>}
+              <div className="flex flex-wrap gap-2">
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
+                  <button
+                    key={score}
+                    type="button"
+                    onClick={() => setNpsScore(score)}
+                    disabled={npsSubmitting}
+                    aria-pressed={npsScore === score}
+                    className={`h-10 w-10 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      npsScore === score
+                        ? 'bg-cyan-500/20 border-cyan-500/60 text-accent-cyan ring-2 ring-cyan-500/40'
+                        : 'bg-surface border-line text-ink-muted hover:border-cyan-500/40 hover:text-ink'
+                    }`}
+                  >
+                    {score}
+                  </button>
+                ))}
+              </div>
+              {npsScore !== null && (
+                <div className="space-y-2">
+                  <label className="text-xs text-ink-muted" htmlFor="nps-comment">
+                    Anything you&apos;d like us to know (optional)
+                  </label>
+                  <textarea
+                    id="nps-comment"
+                    value={npsComment}
+                    onChange={(e) => setNpsComment(e.target.value)}
+                    rows={2}
+                    maxLength={600}
+                    placeholder="What went well? What would you change?"
+                    className="w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-xs text-ink placeholder:text-ink-faint focus:outline-none focus:border-cyan-500/50"
+                  />
+                  <button
+                    type="button"
+                    disabled={npsSubmitting}
+                    onClick={async () => {
+                      if (npsScore === null || npsSubmitting) return;
+                      setNpsSubmitting(true);
+                      setNpsError(null);
+                      try {
+                        const res = await apiFetch('/api/candidate/nps', {
+                          method: 'POST',
+                          body: JSON.stringify({ score: npsScore, comment: npsComment || undefined, session_id: sessionId }),
+                        });
+                        if (!res.ok) {
+                          const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+                          throw new Error((typeof body.error === 'string' && body.error) || 'Could not save your feedback. Please try again.');
+                        }
+                        setNpsSubmitted(true);
+                      } catch (err) {
+                        setNpsError(err instanceof Error ? err.message : 'Could not save your feedback. Please try again.');
+                      } finally {
+                        setNpsSubmitting(false);
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-cyan-500/15 border border-cyan-500/40 text-accent-cyan text-xs font-semibold hover:bg-cyan-500/20 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {npsSubmitting ? 'Saving…' : 'Send feedback'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </section>
 
         {/* SECTION 6: NEXT STEPS */}
@@ -251,8 +375,8 @@ export default function CandidateEvaluationReportPage() {
 
       {/* PRINTABLE VIEW — contains only data stored on the scorecard */}
       <PDFDossierTemplate
-        sessionId={sessionId}
-        interviewDate={interviewDate}
+        reportReference={reportReference}
+        interviewDate={formattedInterviewDate}
         roleTitle={jobTitle || 'Interview session'}
         companyName={orgName || 'Organisation not specified'}
         scorecard={scorecard}

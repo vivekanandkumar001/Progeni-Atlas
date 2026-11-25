@@ -110,6 +110,13 @@ export type AuditLogItem = {
   timestamp: string | null;
 };
 
+export type AuditResponse = {
+  success: boolean;
+  count?: number;
+  logs?: AuditLogItem[];
+  items?: AuditLogItem[];
+};
+
 export type PlatformUser = {
   id: string;
   email: string;
@@ -146,6 +153,9 @@ export type InterviewItem = {
   jobTitle: string | null;
   companyName: string | null;
   organizationName?: string | null;
+  candidateName?: string | null;
+  candidateEmail?: string | null;
+  proctoringFlags?: number;
   createdAt: string | null;
   startedAt: string | null;
   endedAt: string | null;
@@ -338,11 +348,7 @@ export function initialsOf(name: string | null | undefined, fallback = 'SA'): st
   return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() || '').join('') || fallback;
 }
 
-export function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—';
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString();
-}
+export { formatDateTime } from './formatters';
 
 export function formatNumber(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return '—';

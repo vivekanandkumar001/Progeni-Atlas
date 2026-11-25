@@ -14,9 +14,7 @@ import {
   TableSkeleton,
 } from '@/components/super-admin/ui';
 import { useSuperAdmin } from '@/components/super-admin/SuperAdminShell';
-import { formatDateTime, saFetch, type AuditLogItem } from '@/lib/super-admin';
-
-type AuditResponse = { success: boolean; logs?: AuditLogItem[] };
+import { formatDateTime, saFetch, type AuditLogItem, type AuditResponse } from '@/lib/super-admin';
 
 export default function SuperAdminSupportPage() {
   const { supportReason, openSupport, toast } = useSuperAdmin();

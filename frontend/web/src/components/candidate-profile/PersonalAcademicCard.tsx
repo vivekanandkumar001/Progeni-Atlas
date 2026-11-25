@@ -46,7 +46,7 @@ export function PersonalAcademicCard({ profile, onChange }: PersonalAcademicCard
             required
             value={profile.fullName}
             onChange={onChange}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
           />
         </div>
 
@@ -82,7 +82,7 @@ export function PersonalAcademicCard({ profile, onChange }: PersonalAcademicCard
             required
             value={profile.phone}
             onChange={onChange}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
           />
         </div>
 
@@ -100,7 +100,7 @@ export function PersonalAcademicCard({ profile, onChange }: PersonalAcademicCard
             value={profile.course}
             onChange={onChange}
             placeholder="Please enter your course (e.g. B.Tech / M.Tech / B.Sc)"
-            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
           />
         </div>
 
@@ -118,7 +118,7 @@ export function PersonalAcademicCard({ profile, onChange }: PersonalAcademicCard
             value={profile.branch}
             onChange={onChange}
             placeholder="Please enter your branch / major (e.g. Computer Science)"
-            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
           />
         </div>
 
@@ -136,7 +136,7 @@ export function PersonalAcademicCard({ profile, onChange }: PersonalAcademicCard
             value={profile.academicYear}
             onChange={onChange}
             placeholder="Please enter your academic year (e.g. 4th Year)"
-            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
           />
         </div>
 
@@ -154,7 +154,7 @@ export function PersonalAcademicCard({ profile, onChange }: PersonalAcademicCard
             value={profile.collegeName}
             onChange={onChange}
             placeholder="Please enter your college or institution name"
-            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
           />
         </div>
 
@@ -171,7 +171,7 @@ export function PersonalAcademicCard({ profile, onChange }: PersonalAcademicCard
             value={profile.bio}
             onChange={onChange}
             placeholder="Please provide a brief summary of your technical background, domain expertise, and target roles..."
-            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors resize-none"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface resize-none"
           />
         </div>
       </div>

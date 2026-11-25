@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request, g
 
 from core.db import get_mongo_db
+from core.audit_chain import chain_append
 from core.security import require_super_admin
 from core.cost_model import (
     DEFAULT_ASSUMPTIONS,
@@ -89,7 +90,7 @@ def pricing_create():
         }
         db.platform_llm_pricing.insert_one(doc)
         try:
-            db.audit_logs.insert_one({
+            chain_append(db.audit_logs, {
                 "id": str(uuid.uuid4()),
                 "actor_id": str(user.get("id") or user.get("_id") or actor_email),
                 "actor_email": actor_email,
@@ -206,7 +207,7 @@ def infra_costs_update(infra_id):
 
         db.platform_infra_costs.update_one({"id": infra_id}, {"$set": updates})
         try:
-            db.audit_logs.insert_one({
+            chain_append(db.audit_logs, {
                 "id": str(uuid.uuid4()),
                 "actor_id": str(user.get("id") or user.get("_id") or actor_email),
                 "actor_email": actor_email,
@@ -242,7 +243,7 @@ def cost_assumptions():
         cfg = save_cost_assumptions(db, data)
         user = getattr(g, "user", None) or {}
         try:
-            db.audit_logs.insert_one({
+            chain_append(db.audit_logs, {
                 "id": str(uuid.uuid4()),
                 "actor_email": str(user.get("email") or "").strip().lower() or "super_admin",
                 "actor_name": str(user.get("full_name") or "Super Administrator"),

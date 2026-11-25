@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { FaqSection } from '@/components/FaqSection';
 import {
   Video,
   Code2,
@@ -40,6 +41,8 @@ type Service = {
   linkText: string;
   linkHref: string;
   externalNote?: string;
+  publicLinkText?: string;
+  publicLinkHref?: string;
   metrics: MetricTile[];
 };
 
@@ -92,23 +95,23 @@ const SERVICES: Service[] = [
   {
     id: 'proctoring',
     icon: ShieldCheck,
-    badge: 'SECURITY & INTEGRITY',
-    title: 'Real-Time AI Proctoring & Anti-Cheat Intelligence',
+    badge: 'DISCLOSED COUNTERS',
+    title: 'Honest, Disclosed Interaction Counters',
     tagline: 'Integrity without surveillance creep.',
     description:
-      'Absolute confidence in interview integrity with client-side vision telemetry, multi-face presence tracking, tab-focus departure telemetry and copy-paste detection — privacy-first and fully GDPR/DPDP compliant.',
+      'Interview integrity through disclosed counters only — tab-focus departures, fullscreen exits and copy-paste attempts are recorded as counts for the human reviewer. No gaze tracking, no facial analysis, no emotion inference; nothing is watched or scored covertly.',
     features: [
-      'Client-side MediaPipe face mesh — absence and multi-face presence detection',
-      'Tab-switch frequency and window-blur timestamps captured in the report',
-      'Speech-activity telemetry without background audio surveillance',
-      'No biometric storage — signals are processed on-device and discarded',
+      'Tab-switch and window-blur counts captured and shown in the report',
+      'Paste events logged for large code submissions (visible to the recruiter as counts)',
+      'Fullscreen-exit events recorded with timestamps',
+      'No biometric storage, no face mesh, no gaze — disclosed in the lobby before you begin',
     ],
-    linkText: 'Review Security Controls',
-    linkHref: '/about#integrity',
+    linkText: 'See how we handle integrity',
+    linkHref: '/ai-transparency',
     metrics: [
-      { label: 'Signal channels', value: '14 in parallel', emphasis: true },
-      { label: 'Camera pairing', value: 'Web + Phone' },
-      { label: 'Data retention', value: 'None (on-device)' },
+      { label: 'What we record', value: 'Counts, not faces', emphasis: true },
+      { label: 'Review', value: 'Human, always' },
+      { label: 'Camera analysis', value: 'None' },
     ],
   },
   {
@@ -125,9 +128,11 @@ const SERVICES: Service[] = [
       'One-click PDF export for hiring committees and executive summaries',
       'Role-based recruiter permissions with shareable, time-boxed links',
     ],
-    linkText: 'View Recruiter Dossiers',
+    linkText: 'Open Recruiter Dossiers',
     linkHref: '/recruiter/dossiers',
-    externalNote: 'Requires recruiter sign-in',
+    externalNote: 'Recruiter sign-in required',
+    publicLinkText: 'See a sample dossier',
+    publicLinkHref: '/portfolio#showcase',
     metrics: [
       { label: 'Read time', value: '< 2 min', emphasis: true },
       { label: 'Format', value: 'PDF · Web' },
@@ -148,9 +153,11 @@ const SERVICES: Service[] = [
       'Automated ATS webhooks triggered on calibrated score thresholds',
       'Audit log for every rubric change — by hiring managers, immutable',
     ],
-    linkText: 'Configure Rubrics',
+    linkText: 'Configure Rubrics (Recruiters)',
     linkHref: '/recruiter/rubrics',
-    externalNote: 'Requires recruiter sign-in',
+    externalNote: 'Recruiter sign-in required',
+    publicLinkText: 'Preview scorecard structure',
+    publicLinkHref: '/portfolio#showcase',
     metrics: [
       { label: 'Level templates', value: '6 tracks', emphasis: true },
       { label: 'ATS webhooks', value: 'Greenhouse · Lever · Workday' },
@@ -187,7 +194,7 @@ export default function ServicesPage() {
           </h1>
 
           <p className="mx-auto max-w-3xl text-base sm:text-lg text-ink-muted leading-relaxed">
-            Autonomous video interviews, a real-time coding sandbox, on-device anti-cheat telemetry,
+            Autonomous video interviews, a real-time coding sandbox, disclosed interaction counters,
             evidence-backed dossiers and calibrated rubrics — one modular platform instead of five disconnected tools.
           </p>
 
@@ -262,7 +269,7 @@ export default function ServicesPage() {
                     ))}
                   </ul>
 
-                  <div className="pt-2 flex flex-wrap items-center gap-4">
+                  <div className="pt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
                     <Link
                       href={service.linkHref}
                       className="inline-flex items-center gap-2 text-sm font-bold text-accent-blue hover:underline underline-offset-4"
@@ -274,6 +281,14 @@ export default function ServicesPage() {
                       <span className="text-[10px] font-mono uppercase tracking-wider text-ink-faint">
                         {service.externalNote}
                       </span>
+                    )}
+                    {service.publicLinkHref && service.publicLinkText && (
+                      <Link
+                        href={service.publicLinkHref}
+                        className="text-xs font-semibold text-ink-muted hover:text-accent-blue hover:underline underline-offset-4"
+                      >
+                        {service.publicLinkText}
+                      </Link>
                     )}
                   </div>
                 </div>
@@ -344,6 +359,10 @@ export default function ServicesPage() {
           </div>
         </div>
       </section>
+
+      {/* Public FAQ anchor: /services stays reachable for signed-out visitors,
+          unlike the landing page that signed-in users are redirected away from. */}
+      <FaqSection />
 
       {/* =========================================================
           4. FINAL CTA

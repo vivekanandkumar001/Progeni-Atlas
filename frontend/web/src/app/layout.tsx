@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import { StreamErrorGuard } from "@/components/common/StreamErrorGuard";
+import { AnalyticsConsent } from "@/components/analytics/AnalyticsConsent";
 import { streamGuardScript } from "@/components/common/streamGuardScript";
 import { JsonLd } from "@/components/seo/JsonLd";
 import "./globals.css";
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
     template: "%s | Progeni Atlas",
   },
   description:
-    "Enterprise autonomous AI technical interview platform. Conduct real-time two-way voice interviews, multi-language coding assessments, tamper-proof anti-cheat proctoring, and instant calibrated candidate dossiers.",
+    "Enterprise autonomous AI technical interview platform. Conduct real-time two-way voice interviews, multi-language coding assessments, disclosed interaction counters, and calibrated human-reviewed candidate dossiers.",
   keywords: [
     "AI technical interview",
     "autonomous technical interview",
@@ -69,7 +70,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Progeni Atlas — Autonomous AI Technical Interviews & Skills Evaluation",
     description:
-      "Enterprise autonomous AI technical interview platform with real-time two-way voice, multi-language coding environments, anti-cheat proctoring, and instant candidate dossiers.",
+      "Enterprise autonomous AI technical interview platform with real-time two-way voice, multi-language coding environments, disclosed interaction counters, and calibrated candidate dossiers.",
     url: "https://atlas.progeni.live",
     siteName: "Progeni Atlas",
     locale: "en_US",
@@ -151,27 +152,10 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <Script id="stream-guard-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: streamGuardScript }} />
         <JsonLd />
-        {process.env.NEXT_PUBLIC_GA_ID ? (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script
-              id="ga4-config"
-              strategy="afterInteractive"
-              dangerouslySetInnerHTML={{
-                __html: `window.dataLayer = window.dataLayer || [];
-function gtag(){window.dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}', { anonymize_ip: true });`,
-              }}
-            />
-          </>
-        ) : null}
       </head>
       <body className="min-h-full flex flex-col bg-canvas text-ink">
         <StreamErrorGuard />
+        <AnalyticsConsent />
         {children}
       </body>
     </html>

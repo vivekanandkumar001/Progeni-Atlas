@@ -39,7 +39,7 @@ export const NetworkJitterGauge: React.FC<NetworkJitterGaugeProps> = ({ autoStar
       packetQuality: 'Unavailable',
       passed: false,
       status: 'RUNNING',
-      message: 'Measuring network round-trip & timing variation...',
+      message: 'Checking connection quality...',
     });
 
     // Five tiny, rate-limit-exempt probes to a route that does no database work,
@@ -61,8 +61,8 @@ export const NetworkJitterGauge: React.FC<NetworkJitterGaugeProps> = ({ autoStar
       const passed = avg <= MAX_ALLOWABLE_RTT_MS;
       const finalStatus: NetworkCheckStatus = passed ? 'PASSED' : 'FAILED';
       const msg = passed
-        ? `Network test complete – ${avg} ms RTT (Quality acceptable)`
-        : `Network latency too high – ${avg} ms RTT (Exceeds ${MAX_ALLOWABLE_RTT_MS} ms limit)`;
+        ? 'Connection looks good — your network is stable for the interview.'
+        : 'Network latency too high. Try switching to a stronger Wi‑Fi or using a phone companion.';
 
       setStatus(finalStatus);
 
@@ -138,25 +138,19 @@ export const NetworkJitterGauge: React.FC<NetworkJitterGaugeProps> = ({ autoStar
       <div className="flex items-center justify-between border-b border-line pb-3">
         <div className="flex items-center gap-2.5">
           <Wifi
-            className={`w-5 h-5 ${
-              status === 'PASSED'
-                ? 'text-accent-emerald'
-                : status === 'FAILED' || status === 'ERROR'
-                ? 'text-accent-rose'
-                : 'text-accent-cyan animate-pulse'
-            }`}
+            className={`w-5 h-5 ${status === 'PASSED' ? 'text-accent-emerald' : status === 'FAILED' || status === 'ERROR' ? 'text-accent-rose' : 'text-accent-cyan animate-pulse'}`}
           />
           <div>
-            <h3 className="text-sm font-bold text-ink">Network Reachability &amp; HTTP Timing</h3>
+            <h3 className="text-sm font-bold text-ink">Connection Check</h3>
             <p className="text-[11px] text-ink-muted">
               {status === 'RUNNING'
-                ? 'Measuring round-trip health timing...'
+                ? 'Checking connection quality...'
                 : status === 'PASSED'
-                ? `Test complete (${latency} ms RTT)`
+                ? 'Connection looks good — your network is stable for the interview.'
                 : status === 'FAILED'
-                ? `High latency detected (${latency} ms RTT)`
+                ? 'Network latency too high. Try switching to a stronger Wi‑Fi or using a phone companion.'
                 : status === 'ERROR'
-                ? 'Network test unreachable'
+                ? 'Network health check error. Please check your connection and retry.'
                 : 'Measurement pending'}
             </p>
           </div>

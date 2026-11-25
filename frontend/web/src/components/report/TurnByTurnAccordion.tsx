@@ -12,7 +12,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Sliders,
-  Lightbulb,
 } from 'lucide-react';
 
 interface TurnByTurnAccordionProps {
@@ -20,6 +19,12 @@ interface TurnByTurnAccordionProps {
 }
 
 const STAGE_LABELS: Record<string, string> = {
+  warm_open: 'Warm Open',
+  rapport: 'Your Background',
+  technical_core: 'Technical Deep-Dive',
+  behavioral: 'How You Work',
+  candidate_questions: 'Your Questions',
+  close: 'Wrap Up',
   intro: 'Introduction',
   resume_probe: 'Resume Probe',
   technical: 'Technical',
@@ -80,10 +85,10 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
         <div>
           <div className="flex items-center gap-2.5">
             <FileText className="w-5 h-5 text-accent-cyan" />
-            <h2 className="text-lg font-bold text-ink">Question-by-Question Evaluation & Model Answers</h2>
+            <h2 className="text-lg font-bold text-ink">Your answers, question by question</h2>
           </div>
           <p className="text-xs text-ink-muted mt-0.5">
-            Detailed breakdown of what you answered, marks awarded per parameter, evaluator analysis, and exemplary ideal responses.
+            What you said, how it lands on the role rubric, and where to sharpen — straight from the conversation.
           </p>
         </div>
 
@@ -142,19 +147,19 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
                       className={`px-3 py-1 rounded-lg border font-mono text-xs font-bold inline-flex items-center gap-1.5 ${scoreBadge.bg} ${scoreBadge.text} ${scoreBadge.border}`}
                     >
                       <Award className="w-3.5 h-3.5" />
-                      <span>{question.score} / 10 marks</span>
+                      <span>{question.score} / 10</span>
                       {typeof question.score_percentage === 'number' && (
                         <span className="text-[10px] opacity-80">({question.score_percentage}%)</span>
                       )}
                     </span>
                   ) : (
                     <span className="px-2.5 py-1 rounded-lg border border-line bg-surface text-ink-muted font-mono text-xs">
-                      Marks pending
+                      Score pending
                     </span>
                   )}
 
                   <span className="hidden sm:inline-block text-[10px] font-mono text-ink-muted border border-line rounded-lg px-2 py-1 bg-surface">
-                    {question.is_ai_generated ? 'AI Adaptive' : 'Rubric'}
+                    {question.is_ai_generated && hasAnswer ? 'AI Adaptive' : 'Rubric'}
                   </span>
 
                   {isExpanded ? (
@@ -184,7 +189,7 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
                     </p>
                     {question.expected_concepts.length > 0 && (
                       <div className="pt-2 flex flex-wrap items-center gap-1.5">
-                        <span className="text-[10px] font-mono text-ink-muted mr-1">Target concepts:</span>
+                        <span className="text-[10px] font-mono text-ink-muted mr-1">Concepts this question explores:</span>
                         {question.expected_concepts.map((concept) => (
                           <span
                             key={concept}
@@ -235,7 +240,7 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
                       </span>
                       {typeof question.score === 'number' && (
                         <span className="text-xs font-mono font-bold text-ink">
-                          Total Turn Marks:{' '}
+                          Turn score:{' '}
                           <span className={scoreBadge.text}>{question.score} / 10</span>
                         </span>
                       )}
@@ -332,7 +337,7 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
                       {question.missing_concepts && question.missing_concepts.length > 0 && (
                         <div className="pt-2 space-y-1.5 border-t border-line/60">
                           <p className="text-[10px] font-mono text-ink-muted uppercase tracking-wider">
-                            Omitted Key Concepts (Marks Deducted):
+                            Areas to strengthen in this answer:
                           </p>
                           <div className="flex flex-wrap gap-1.5">
                             {question.missing_concepts.map((concept) => (
@@ -349,43 +354,41 @@ export const TurnByTurnAccordion: React.FC<TurnByTurnAccordionProps> = ({ questi
                     </div>
                   )}
 
-                  {/* 3. IDEAL MODEL ANSWER (KYA BEST ANSWER HONA CHAHIYE THA) */}
-                  <div className="p-5 rounded-xl bg-gradient-to-br from-emerald-950/20 via-surface to-cyan-950/20 border border-emerald-500/40 space-y-3 relative overflow-hidden shadow-lg">
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+                  {/* IDEAL ANSWER — explicit unavailable state, never a placeholder */}
+                  <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
+                    <div className="flex items-center gap-1.5 text-emerald-500 font-semibold text-[11px] font-mono uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Suggested Strong Answer:
+                    </div>
+                    {question.ideal_answer?.trim() ? (
+                      <p className="text-ink leading-relaxed font-normal text-xs whitespace-pre-line">
+                        {question.ideal_answer}
+                      </p>
+                    ) : (
+                      <p className="text-ink-muted text-xs leading-relaxed">
+                        A benchmark answer is not available for this question.
+                      </p>
+                    )}
+                  </div>
 
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-emerald-500/20 text-accent-emerald border border-emerald-500/30">
-                          <Sparkles className="w-4 h-4 text-accent-emerald" />
-                        </span>
-                        <div>
-                          <h4 className="text-xs font-bold text-ink uppercase font-mono tracking-wider">
-                            ✨ Exemplary Model Answer (10 / 10 Benchmark)
-                          </h4>
-                          <p className="text-[11px] text-ink-muted">
-                            Kya best answer hona chahiye tha — Production-grade response demonstrating deep engineering mastery:
-                          </p>
-                        </div>
+                  {/* 3. COACHING NUDGE — the report is feedback, not a verdict */}
+                  <div className="p-5 rounded-xl bg-gradient-to-br from-cyan-950/20 via-surface to-indigo-950/20 border border-cyan-500/30 space-y-2 relative overflow-hidden shadow-lg">
+                    <div className="flex items-start gap-2.5">
+                      <span className="p-1.5 rounded-lg bg-cyan-500/15 text-accent-cyan border border-cyan-500/30 shrink-0">
+                        <Sparkles className="w-4 h-4 text-accent-cyan" />
+                      </span>
+                      <div>
+                        <h3 className="text-xs font-bold text-ink uppercase font-mono tracking-wider">
+                          Turn this into practice
+                        </h3>
+                        <p className="text-[11px] text-ink-muted mt-1 leading-relaxed">
+                          The fastest way to sharpen the areas above: drill them in practice mode, then take another
+                          run when you are ready. Your practice answers are not scored against this application.
+                        </p>
+                        <a href="/candidate/practice" className="inline-flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-accent-cyan hover:underline">
+                          Open practice drills <span aria-hidden="true">→</span>
+                        </a>
                       </div>
-
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-accent-emerald text-[10px] font-mono font-bold">
-                        10/10 Target Response
-                      </span>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-inset/90 text-ink leading-relaxed font-sans text-xs space-y-2 whitespace-pre-line shadow-inner">
-                      {question.ideal_answer || (
-                        <span className="text-ink-muted italic">
-                          Generating senior engineer benchmark answer for this question…
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-start gap-2 pt-1 text-[11px] text-ink-muted font-mono">
-                      <Lightbulb className="w-3.5 h-3.5 text-accent-amber shrink-0 mt-0.5" />
-                      <span>
-                        <strong>Coaching Takeaway:</strong> Notice how the model answer directly cites architectural decisions, quantified scale/performance impact, and explicit production trade-offs.
-                      </span>
                     </div>
                   </div>
                 </div>

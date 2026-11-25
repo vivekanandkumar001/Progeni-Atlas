@@ -42,14 +42,32 @@ export const SnapshotStrip: React.FC = () => {
   const aptAvg =
     aptCompleted.length > 0 ? Math.round(aptCompleted.reduce((sum, a) => sum + a.accuracy, 0) / aptCompleted.length) : null;
   const skillCount = dashboard?.skill_count ?? 0;
+  const readinessScore = dashboard?.candidate?.readinessScore;
+  const hasReadinessScore = typeof readinessScore === 'number' && Number.isFinite(readinessScore);
 
   const stats = [
     { label: 'Interviews done', value: interviews === null ? '…' : interviewsDone, sub: 'Total scored sessions' },
     { label: 'Aptitude attempts', value: apt === null ? '…' : aptCompleted.length, sub: '5-pillar assessments' },
-    { label: 'Best aptitude', value: aptBest != null ? `${aptBest}%` : '—', sub: 'vs 60% benchmark' },
-    { label: 'Avg APT accuracy', value: aptAvg != null ? `${aptAvg}%` : '—', sub: 'Correct / attempted' },
-    { label: 'Skills on file', value: dashboard === null ? '…' : skillCount, sub: dashboard?.has_resume ? 'Resume parsed' : 'No resume yet' },
-    { label: 'Readiness score', value: '—', sub: 'Unlocks after 1st interview' },
+    {
+      label: 'Best aptitude',
+      value: apt === null ? '…' : aptBest != null ? `${aptBest}%` : '—',
+      sub: apt === null ? 'Loading attempts…' : aptBest != null ? 'vs 60% benchmark' : 'No completed attempts yet',
+    },
+    {
+      label: 'Avg APT accuracy',
+      value: apt === null ? '…' : aptAvg != null ? `${aptAvg}%` : '—',
+      sub: apt === null ? 'Loading attempts…' : aptAvg != null ? 'Correct / attempted' : 'No completed attempts yet',
+    },
+    {
+      label: 'Skills on file',
+      value: dashboard === null ? '…' : skillCount,
+      sub: dashboard === null ? 'Loading resume…' : dashboard.has_resume ? 'Resume parsed' : 'No resume on file',
+    },
+    {
+      label: 'Readiness score',
+      value: dashboard === null ? '…' : hasReadinessScore ? `${readinessScore}` : '—',
+      sub: dashboard === null ? 'Loading readiness…' : hasReadinessScore ? 'Score of record' : 'Not available yet',
+    },
   ];
 
   return (

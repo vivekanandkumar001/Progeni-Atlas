@@ -2,8 +2,15 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Award, Zap, Lock, CheckCircle2, X, Play, Loader2, Flame } from 'lucide-react';
-import { fetchCandidateDashboard, fetchCandidateProfile, type CandidateDashboard, type CandidateProfile } from '@/lib/api';
+import { Award, Zap, Lock, CheckCircle2, X, Play, Flame } from 'lucide-react';
+import {
+  candidateDemoQuota,
+  fetchCandidateDashboard,
+  fetchCandidateProfile,
+  type CandidateDashboard,
+  type CandidateProfile,
+} from '@/lib/api';
+import { getIsoWeekNumber } from '@/lib/dateTime';
 import { LOADING_RESUME_STATUS } from '@/constants/ui_strings';
 
 const MILESTONES = [
@@ -53,9 +60,9 @@ export const HeroStrip: React.FC = () => {
 
   const hasResume = Boolean(dashboard?.has_resume || profile?.resume);
   const skillCount = dashboard?.skill_count ?? 0;
-  const demos = dashboard?.demo_allowance;
-  const demosLeft = demos?.freeDemosRemaining ?? 0;
-  const demoTotal = demos?.freeDemosTotal ?? 0;
+  const demoQuota = candidateDemoQuota(dashboard);
+  const demosLeft = demoQuota?.remaining ?? 0;
+  const demoTotal = demoQuota?.total ?? 0;
 
   // Honest, derivable completeness score from real signals
   const completeness = useMemo(() => {
@@ -67,8 +74,9 @@ export const HeroStrip: React.FC = () => {
     return Math.min(100, score);
   }, [hasResume, skillCount, profile]);
 
-  const now = new Date();
-  const weekNo = Math.ceil(((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000 + now.getDay() + 1) / 7);
+  const weekNo = useMemo(() => getIsoWeekNumber(new Date()), []);
+  const readinessScore = dashboard?.candidate?.readinessScore;
+  const hasReadinessScore = typeof readinessScore === 'number' && Number.isFinite(readinessScore);
 
   const resumeLabel =
     dashboard === null && profile === null
@@ -105,7 +113,11 @@ export const HeroStrip: React.FC = () => {
             Week {weekNo} · Placement Prep
           </p>
           <h1 className="mt-2 text-3xl sm:text-4xl md:text-5xl font-extrabold text-ink tracking-tight leading-[1.05]">
-            {firstName ? `Back at it, ${firstName}` : 'Welcome to Progeni Atlas'}
+            {loading
+              ? 'Loading your dashboard…'
+              : firstName
+                ? `Back at it, ${firstName}`
+                : 'Welcome back'}
           </h1>
           <p className="mt-2 text-sm text-ink-muted max-w-lg leading-relaxed">
             Two tracks, one goal. Close the gap one interview at a time — and make every score count.
@@ -144,7 +156,11 @@ export const HeroStrip: React.FC = () => {
             className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-xs font-bold text-on-brand btn-primary-gradient transition-all cursor-pointer whitespace-nowrap shadow-[0_10px_28px_-10px_var(--brand-glow)]"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
-            {demosLeft > 0 ? `Start free demo interview` : 'Start practice interview'}
+            {dashboard === null
+              ? 'Choose an interview'
+              : demosLeft > 0
+                ? 'Start free demo interview'
+                : 'Start practice interview'}
           </Link>
           <div className="flex items-center gap-3 text-[11px] text-ink-faint">
             <span className="flex items-center gap-1.5">
@@ -156,8 +172,16 @@ export const HeroStrip: React.FC = () => {
               {dashboard === null ? '…' : `${skillCount} skills`}
             </span>
             <span className="flex items-center gap-1.5">
-              <Lock className="w-3.5 h-3.5" />
-              Readiness locked
+              {hasReadinessScore ? (
+                <Award className="w-3.5 h-3.5 text-accent-emerald" />
+              ) : (
+                <Lock className="w-3.5 h-3.5" />
+              )}
+              {loading
+                ? 'Readiness calculating…'
+                : hasReadinessScore
+                  ? `Readiness ${readinessScore}`
+                  : 'Readiness unavailable'}
             </span>
           </div>
         </div>

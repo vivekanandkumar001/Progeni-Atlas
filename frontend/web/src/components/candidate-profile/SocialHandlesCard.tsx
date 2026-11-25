@@ -74,7 +74,7 @@ export function SocialHandlesCard({
             value={githubUrl}
             onChange={onChange}
             placeholder="Please enter your GitHub profile URL"
-            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
           />
         </div>
 
@@ -91,7 +91,7 @@ export function SocialHandlesCard({
             value={linkedinUrl}
             onChange={onChange}
             placeholder="Please enter your LinkedIn profile URL"
-            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
           />
         </div>
 
@@ -108,7 +108,7 @@ export function SocialHandlesCard({
             value={portfolioUrl}
             onChange={onChange}
             placeholder="Please enter your portfolio URL"
-            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
           />
         </div>
       </div>

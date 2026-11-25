@@ -1,22 +1,10 @@
-import React from 'react';
-import { MediaSourceProvider } from '@/lib/media/MediaSourceProvider';
-import { isValidSessionId } from '@/lib/api';
+import type { ReactNode } from 'react';
 
-
-export default async function CandidateInterviewLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params?: Promise<any>;
-}) {
-  const resolvedParams = params ? await params : {};
-  const id = typeof resolvedParams?.id === 'string' ? resolvedParams.id : '';
-  const validSessionId = isValidSessionId(id) ? id : '';
-
-  return (
-    <MediaSourceProvider sessionId={validSessionId}>
-      {children}
-    </MediaSourceProvider>
-  );
+/**
+ * Interview media must only be provisioned by the lobby and live room. Keeping
+ * the provider here would also mount it on the passive report page and mint a
+ * LiveKit token for a completed session.
+ */
+export default function CandidateInterviewLayout({ children }: { children: ReactNode }) {
+  return children;
 }

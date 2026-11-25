@@ -95,6 +95,8 @@ class TurnAssessment:
     follow_up: FollowUpProbe | None = None
     model_used: str = ""
     degraded: bool = False
+    unscored: bool = False
+    bridged_next_question: str = ""
 
 
 # --------------------------------------------------------------------------- #
@@ -152,6 +154,7 @@ def interviewer_system_prompt(
     *,
     job_title: str | None = None,
     candidate_name: str = "the candidate",
+    include_bridge: bool = False,
 ) -> str:
     """System prompt for a single assessed turn.
 
@@ -197,7 +200,12 @@ def interviewer_system_prompt(
         '  "red_flags": ["..."],\n'
         '  "decision": "PASS|PROBE_FURTHER|SWITCH_TOPIC|CLARIFY",\n'
         '  "interviewer_line": "one or two natural spoken sentences",\n'
-        '  "follow_up": null | {\n'
+        + (
+            '  "bridged_next_question": "one spoken-aloud sentence bridging the conversation to the NEXT topic named in the user message; under 38 words; no stage names like stage/step/number; no JSON, no quotes",\n'
+            if include_bridge
+            else ""
+        )
+        + '  "follow_up": null | {\n'
         '    "question": "one investigative question probing code edge-cases, scaling limits, or architectural trade-offs",\n'
         '    "dimension": "depth|accuracy|reasoning|experience",\n'
         '    "anchored_on": "the exact claim, code logic, or architectural component from the answer being probed",\n'
@@ -254,6 +262,8 @@ _CLARIFICATION_PATTERNS = (
     r"\bcan you (?:repeat|rephrase|reword|clarify|explain) (?:the|that) question\b",
     r"\bcould you (?:repeat|rephrase|reword|clarify|explain) (?:the|that) question\b",
     r"\bcan you (?:repeat|rephrase|reword|clarify) (?:it|that)\b",
+    r"\b(?:could|would) you (?:repeat|rephrase|reword|clarify) (?:it|that)\b",
+    r"\b(?:could|would) you (?:repeat|rephrase|reword|clarify) (?:the|that) question\b",
     r"\b(?:can|could|would) you clarify(?: that)?\??$",
     r"\b(?:can|could) you repeat that\??$",
     r"\bsay that again\??$",
@@ -478,11 +488,15 @@ def _build_user_message(
     asked_questions: list[str],
     recent_turns: list[dict],
     clarifications_used: int,
+    interview_level: str | None = None,
+    bridge_context: dict | None = None,
 ) -> str:
     parts = [
         f"Candidate: {candidate_name}",
         f"Target role: {job_title or 'unspecified engineering role'}",
     ]
+    if interview_level:
+        parts.append(f"Bar for this assessment: {interview_level} engineer. Score against THAT bar — not against principal/staff, not against an intern.")
     if job_description:
         parts.append(f"Job description (for evaluation criteria only):\n{job_description[:1200]}")
     parts.append(f"Interview stage: {stage or 'technical'}")
@@ -513,6 +527,15 @@ def _build_user_message(
         parts.append(
             f"CANDIDATE'S CURRENT CODE IN IDE ({code_language or 'code'}):\n```{code_language or ''}\n{code[:3500]}\n```"
         )
+    if bridge_context and isinstance(bridge_context, dict):
+        planned = str(bridge_context.get("planned_focus") or "").strip()
+        stage = str(bridge_context.get("next_stage") or "").strip()
+        if planned:
+            parts.append(
+                "NEXT TOPIC the conversation will likely move to (for your bridged_next_question only — do NOT score the candidate on it, and do not ask it if they chose CLARIFY or are PROBE_FURTHER):\n"
+                + f"Stage: {stage}\nPlanned focus: {planned}\n\n"
+                "Write bridged_next_question as one natural spoken sentence (under 38 words, no stage/step/number wording) that smoothly bridges from what the candidate just said into this topic."
+            )
     parts.append(f"CANDIDATE'S LATEST MESSAGE:\n{answer[:4000]}")
     return "\n\n".join(parts)
 
@@ -535,6 +558,8 @@ def assess_turn(
     recent_turns: list[dict] | None = None,
     recent_lines: list[str] | None = None,
     clarifications_used: int = 0,
+    interview_level: str | None = None,
+    bridge_context: dict | None = None,
 ) -> TurnAssessment:
     """Assess one candidate turn with the LLM, falling back deterministically."""
     expected = [str(item) for item in (expected_concepts or []) if str(item).strip()]
@@ -542,7 +567,7 @@ def assess_turn(
     recent = recent_turns or []
     lines = recent_lines or []
 
-    system = interviewer_system_prompt(job_title=job_title, candidate_name=candidate_name)
+    system = interviewer_system_prompt(job_title=job_title, candidate_name=candidate_name, include_bridge=bool(bridge_context))
     user = _build_user_message(
         question=question,
         expected_concepts=expected,
@@ -559,6 +584,8 @@ def assess_turn(
         asked_questions=asked,
         recent_turns=recent,
         clarifications_used=clarifications_used,
+        interview_level=interview_level,
+        bridge_context=bridge_context,
     )
 
     try:
@@ -609,6 +636,7 @@ def _parse_assessment(
         missing_concepts=_string_list(payload.get("missing_concepts")),
         red_flags=_string_list(payload.get("red_flags")),
         model_used=model_used,
+        bridged_next_question=_clean_text(payload.get("bridged_next_question"))[:300],
     )
 
     decision = _clean_text(payload.get("decision")).upper()
@@ -662,6 +690,83 @@ def _parse_assessment(
 
 def default_clarification_line(question: str) -> str:
     return f"Sure — I'm asking: {_clean_text(question)}"
+
+
+def answer_candidate_question(
+    *,
+    question: str,
+    job_title: str | None,
+    company_name: str | None = None,
+    job_description: str | None = None,
+    recent_lines: list[str] | None = None,
+    candidate_name: str = "the candidate",
+) -> TurnAssessment:
+    """The candidate asked US a question. Answer it like a human interviewer.
+
+    Honest by construction: only facts present in (job_title, company_name,
+    job_description) plus universally-true statements about THIS process.
+    Anything else is "I'd rather confirm that than guess — the team will
+    follow up." Never fabricate people, salaries, or policies.
+    """
+    facts = [f"Role: {job_title or 'this position'}"]
+    if company_name:
+        facts.append(f"Company: {company_name}")
+    if job_description:
+        facts.append(f"Job description (the only source of role truth):\n{job_description[:1500]}")
+    facts.append(
+        "Process facts you may state: this AI conversation is the first screen; "
+        "a human from the hiring team reviews the evidence afterwards; candidates "
+        "hear back within a few business days; compensation is benchmarked and "
+        "discussed at offer stage with the People team."
+    )
+    system = (
+        "You are Sarah Chen, Staff Systems Engineer and hiring lead. "
+        "The candidate just asked you a question. Answer it warmly, specifically, and briefly (under 70 words), "
+        "using ONLY the facts below. If the facts do not contain the answer, say so plainly and promise a follow-up — never invent. "
+        "No markdown. Speak aloud. Do not gush or hedge more than once.\n\n"
+        + "\n\n".join(facts)
+    )
+    user = f"Candidate ({candidate_name}) asked:\n{_clean_text(question)[:600]}"
+
+    try:
+        llm_service.set_operation("candidate_qa")
+        content, model_used = llm_service._chat(system, user, temperature=0.4, max_tokens=220)
+        line = _clean_interviewer_line(
+            content,
+            question="",
+            recent_lines=recent_lines or [],
+            allow_question=False,
+            answer=question,
+            expected_concepts=[],
+        )
+    except Exception as exc:
+        logger.warning("Candidate Q&A LLM call failed (%s); using honest fallback", exc)
+        line = ""
+
+    if not line:
+        # Deterministic honest fallback, zero fabrication risk
+        lowered = _clean_text(question).lower()
+        if any(k in lowered for k in ("salary", "compensation", "pay", "ctc", "offer")):
+            line = "Honestly, comp here is benchmarked and discussed at the offer stage with our People team — I can't quote a number today, but I can tell you it's reviewed against the market."
+        elif any(k in lowered for k in ("remote", "location", "office", "hybrid", "wfh")):
+            line = "I'd rather not guess and get it wrong — the recruiter has the exact location and flexibility policy, and I'll make sure they cover it whenever we connect."
+        elif any(k in lowered for k in ("team", "size", "who", "manager")):
+            line = "You'd be working with a focused product team — I don't want to invent names and sizes for you. The hiring manager can walk you through the org in the follow-up."
+        elif any(k in lowered for k in ("stack", "tech", "tools", "language", "framework")):
+            line = "The tech is laid out in the job description — and the team cares more about how you think than whether you've memorized our exact stack."
+        elif any(k in lowered for k in ("next", "process", "after", "timeline", "happen")):
+            line = "After this, a human from the team reviews everything and reaches out within a few business days — either way, you'll hear from us. That's my commitment."
+        else:
+            line = "That's a fair question — I'd rather confirm it for you than guess. I'll make sure the team covers it in the follow-up, I promise it won't get lost."
+
+    return TurnAssessment(
+        intent="answer",
+        decision="PASS",
+        interviewer_line=line,
+        notes=f"Candidate question answered by AI hiring lead from role facts. Question: {_clean_text(question)[:240]}",
+        model_used="candidate-qa",
+        unscored=True,
+    )
 
 
 def default_acknowledgement(answer: str, recent_lines: list[str] | None = None) -> str:
@@ -736,14 +841,19 @@ def fallback_assessment(
 
 
 def insufficient_assessment(answer: str, *, recent_lines: list[str] | None = None) -> TurnAssessment:
-    """Explicit no-answer / timeout result."""
+    """Explicit no-answer / timeout result.
+
+    A timeout is an absence of evidence, not a 1/10 answer. It is never scored,
+    never counted as an answered turn and never used as a hiring signal.
+    """
     return TurnAssessment(
         intent="insufficient",
-        relevance=1.0,
-        depth=1.0,
-        correctness=1.0,
-        notes="Candidate did not provide a substantive response within the allotted time.",
+        relevance=0.0,
+        depth=0.0,
+        correctness=0.0,
+        notes="No substantive response was recorded; this turn is not assessed.",
         decision="SWITCH_TOPIC",
         interviewer_line=default_acknowledgement(answer, recent_lines),
         degraded=True,
+        unscored=True,
     )

@@ -3,6 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
 import { RecruiterHeader } from '@/components/dashboard/RecruiterHeader';
+import { useToast } from '@/lib/hooks/useToast';
+import {
+  INDUSTRY_OPTIONS,
+  INDUSTRY_TAXONOMY_VERSION,
+  OTHER_INDUSTRY_OPTION,
+  type IndustryOption,
+} from '@/lib/industry-taxonomy';
 import {
   User,
   Mail,
@@ -48,6 +55,8 @@ interface OrganizationData {
   tier: string;
   websiteUrl: string;
   industry: string;
+  industryCode?: string;
+  industryTaxonomy?: string;
   companySize: string;
   headquartersCity: string;
   bio: string;
@@ -89,6 +98,8 @@ const EMPTY_PROFILE: RecruiterProfileData = {
     tier: '',
     websiteUrl: '',
     industry: '',
+    industryCode: '',
+    industryTaxonomy: '',
     companySize: '',
     headquartersCity: '',
     bio: '',
@@ -103,7 +114,13 @@ export default function RecruiterProfilePage() {
   const [profile, setProfile] = useState<RecruiterProfileData>(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const { toastMessage, showToast } = useToast();
+
+  // Industry taxonomy options come from the backend; the local list is a fallback.
+  const [industryOptions, setIndustryOptions] = useState<IndustryOption[]>([
+    ...INDUSTRY_OPTIONS,
+  ]);
+  const [industryChoice, setIndustryChoice] = useState<string>(OTHER_INDUSTRY_OPTION.code);
 
   // Team Invite Form state
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -130,6 +147,20 @@ export default function RecruiterProfilePage() {
       }
     } catch {}
 
+    async function fetchIndustries() {
+      try {
+        const res = await apiFetch('/api/recruiter/industries');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data.industries) && data.industries.length) {
+          setIndustryOptions([...data.industries, OTHER_INDUSTRY_OPTION]);
+        }
+      } catch {
+        // Keep the bundled fallback taxonomy when the API is unavailable.
+      }
+    }
+    fetchIndustries();
+
     async function fetchProfile() {
       try {
         setLoading(true);
@@ -148,6 +179,12 @@ export default function RecruiterProfilePage() {
             teamMembers: data.teamMembers?.length ? data.teamMembers : prev.teamMembers,
             auditLogs: data.auditLogs?.length ? data.auditLogs : prev.auditLogs,
           }));
+          const savedOrg = data.organization || {};
+          const savedCode = savedOrg.industryCode || '';
+          const matched = INDUSTRY_OPTIONS.find(
+            (option) => option.code === savedCode || option.label === savedOrg.industry,
+          );
+          setIndustryChoice(matched ? matched.code : OTHER_INDUSTRY_OPTION.code);
         } else if (res.status === 401) {
           if (typeof window !== 'undefined') {
             window.location.href = '/login?error=session_expired&next=' + encodeURIComponent(window.location.pathname);
@@ -168,10 +205,7 @@ export default function RecruiterProfilePage() {
     fetchProfile();
   }, []);
 
-  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
-    setToastMessage({ text, type });
-    setTimeout(() => setToastMessage(null), 4000);
-  };
+
 
   // Recruiter Input Change Handler
   const handleRecruiterInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,6 +219,23 @@ export default function RecruiterProfilePage() {
     setProfile((prev) => ({
       ...prev,
       organization: { ...prev.organization, [name]: value }
+    }));
+  };
+
+  // Industry selection keeps the legacy display field in sync with the
+  // canonical code/taxonomy fields consumed by the backend and analytics.
+  const handleIndustrySelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const code = e.target.value;
+    const option = industryOptions.find((item) => item.code === code) ?? OTHER_INDUSTRY_OPTION;
+    setIndustryChoice(code);
+    setProfile((prev) => ({
+      ...prev,
+      organization: {
+        ...prev.organization,
+        industry: code === OTHER_INDUSTRY_OPTION.code ? '' : option.label,
+        industryCode: option.code,
+        industryTaxonomy: option.taxonomy,
+      },
     }));
   };
 
@@ -384,7 +435,7 @@ export default function RecruiterProfilePage() {
                     value={profile.fullName}
                     onChange={handleRecruiterInputChange}
                     placeholder="Your full name"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
                   />
                 </div>
 
@@ -421,7 +472,7 @@ export default function RecruiterProfilePage() {
                     value={profile.phone}
                     onChange={handleRecruiterInputChange}
                     placeholder="+91 98765 43210"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
                   />
                 </div>
 
@@ -439,7 +490,7 @@ export default function RecruiterProfilePage() {
                     value={profile.designation}
                     onChange={handleRecruiterInputChange}
                     placeholder="Lead Technical Recruiter"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
                   />
                 </div>
 
@@ -457,7 +508,7 @@ export default function RecruiterProfilePage() {
                     value={profile.department}
                     onChange={handleRecruiterInputChange}
                     placeholder="Engineering Talent"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
                   />
                 </div>
 
@@ -474,7 +525,7 @@ export default function RecruiterProfilePage() {
                     value={profile.linkedinUrl}
                     onChange={handleRecruiterInputChange}
                     placeholder="https://linkedin.com/in/recruiter-profile"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
                   />
                 </div>
               </div>
@@ -504,7 +555,7 @@ export default function RecruiterProfilePage() {
                     value={profile.organization.name}
                     onChange={handleOrgInputChange}
                     placeholder="Your workspace name"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
                   />
                 </div>
 
@@ -522,26 +573,43 @@ export default function RecruiterProfilePage() {
                     value={profile.organization.websiteUrl}
                     onChange={handleOrgInputChange}
                     placeholder="https://progeni.live"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
                   />
                 </div>
 
-                {/* Industry Sector */}
+                {/* Industry Sector — canonical NAICS 2022 taxonomy */}
                 <div className="space-y-1.5">
-                  <label htmlFor="industry" className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+                  <label htmlFor="industryCode" className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
                     <Briefcase className="w-3.5 h-3.5 text-accent-blue" />
                     <span>Industry Sector <span className="text-rose-500">*</span></span>
                   </label>
-                  <input
-                    id="industry"
-                    name="industry"
-                    type="text"
+                  <select
+                    id="industryCode"
+                    value={industryChoice}
+                    onChange={handleIndustrySelectChange}
                     required
-                    value={profile.organization.industry}
-                    onChange={handleOrgInputChange}
-                    placeholder="Artificial Intelligence / SaaS"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
-                  />
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
+                  >
+                    <option value="" disabled>Select an industry sector</option>
+                    {industryOptions.map((option) => (
+                      <option key={option.code} value={option.code}>{option.label}</option>
+                    ))}
+                  </select>
+                  {industryChoice === OTHER_INDUSTRY_OPTION.code && (
+                    <input
+                      id="industry"
+                      name="industry"
+                      type="text"
+                      required
+                      value={profile.organization.industry}
+                      onChange={handleOrgInputChange}
+                      placeholder="Describe your industry"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
+                    />
+                  )}
+                  <p className="text-[11px] text-ink-muted">
+                    Standardized to {INDUSTRY_TAXONOMY_VERSION} sectors so reports and benchmarks stay comparable.
+                  </p>
                 </div>
 
                 {/* Company Size */}
@@ -558,7 +626,7 @@ export default function RecruiterProfilePage() {
                     value={profile.organization.companySize}
                     onChange={handleOrgInputChange}
                     placeholder="10-50 Employees"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
                   />
                 </div>
 
@@ -576,7 +644,7 @@ export default function RecruiterProfilePage() {
                     value={profile.organization.headquartersCity}
                     onChange={handleOrgInputChange}
                     placeholder="Bengaluru, India"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
                   />
                 </div>
 
@@ -594,7 +662,7 @@ export default function RecruiterProfilePage() {
                     value={profile.organization.billingEmail}
                     onChange={handleOrgInputChange}
                     placeholder="billing@progeni.live"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium"
                   />
                 </div>
 
@@ -611,7 +679,7 @@ export default function RecruiterProfilePage() {
                     value={profile.organization.bio}
                     onChange={handleOrgInputChange}
                     placeholder="Tell candidates about your company mission, technical culture, and hiring focus..."
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs transition-colors font-medium resize-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs transition-colors font-medium resize-none"
                   />
                 </div>
               </div>
@@ -787,7 +855,7 @@ export default function RecruiterProfilePage() {
                     placeholder="colleague@organization.com"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink placeholder:text-ink-muted text-sm focus:outline-none focus:border-blue-600 shadow-xs font-medium"
                   />
                 </div>
 
@@ -798,7 +866,7 @@ export default function RecruiterProfilePage() {
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value as 'admin' | 'recruiter' | 'interviewer')}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-accent-blue/30 shadow-xs font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-ink text-sm focus:outline-none focus:border-blue-600 shadow-xs font-medium"
                   >
                     <option value="recruiter">Recruiter (Full Candidate & Dossier Access)</option>
                     <option value="interviewer">Interviewer (Evaluation & Rubrics Only)</option>

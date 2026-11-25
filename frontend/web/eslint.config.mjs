@@ -1,11 +1,18 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import reactHooks from "eslint-plugin-react-hooks";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
+    // eslint-config-next does not register this plugin under the flat-config
+    // key used below in every version; declare it explicitly so the rules
+    // resolve and `npm run lint` works without extra CLI flags.
+    plugins: {
+      "react-hooks": reactHooks,
+    },
     rules: {
       // Promoted to error: correctness rules with zero current violations, or
       // violations fixed in this pass. CI (`npm run lint`) fails on errors.
@@ -28,6 +35,15 @@ const eslintConfig = defineConfig([
       "react-hooks/refs": "warn",
       "react-hooks/exhaustive-deps": "warn",
       "react-hooks/preserve-manual-memoization": "warn",
+    },
+  },
+  {
+    // Standalone Node build/maintenance scripts legitimately use CommonJS
+    // requires and console.log; the React rules above target app source only.
+    files: ["scripts/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "no-console": "off",
     },
   },
   // Override default ignores of eslint-config-next.

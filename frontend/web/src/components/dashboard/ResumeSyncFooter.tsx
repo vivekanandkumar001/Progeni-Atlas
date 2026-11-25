@@ -121,6 +121,7 @@ export const ResumeSyncFooter: React.FC = () => {
         ref={inputRef}
         type="file"
         accept=".pdf,.doc,.docx"
+        aria-label="Upload resume"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];

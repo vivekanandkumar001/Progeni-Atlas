@@ -88,7 +88,7 @@ export function SkillsTagsCard({
               handleAdd(newSkillInput);
             }
           }}
-          className="flex-1 px-3.5 py-2 rounded-xl bg-inset border border-line text-ink text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+          className="flex-1 px-3.5 py-2 rounded-xl bg-inset border border-line text-ink text-sm transition-colors hover:border-line-strong focus:outline-none focus:border-accent-cyan focus:bg-surface"
         />
         <button
           type="button"

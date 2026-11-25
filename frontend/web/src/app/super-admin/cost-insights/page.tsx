@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   FlaskConical,
   Cpu,
+  Gauge,
 } from 'lucide-react';
 import {
   Card,
@@ -158,6 +159,8 @@ type PricingDoc = {
   version: number;
 };
 
+type LatencyStats = { samples: number; p50: number | null; p95: number | null; avg: number | null; min: number | null; max: number | null };
+
 type CostOverview = {
   success: boolean;
   attempts_total: number;
@@ -167,6 +170,7 @@ type CostOverview = {
   completed_interviews_total: number;
   cost_per_completed_interview_inr: number | null;
   run_rate_month_inr: number;
+  latency_ms?: { all_time: LatencyStats; month: LatencyStats; today: LatencyStats };
   series: Array<{ date: string; count: number }>;
   pricing: PricingDoc[];
 };
@@ -480,7 +484,7 @@ export default function SuperAdminCostInsightsPage() {
       )}
 
       {/* KPI cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label="LLM spend · this month"
           value={inr(month?.inr, 2)}
@@ -508,6 +512,13 @@ export default function SuperAdminCostInsightsPage() {
           hint={`${data?.completed_interviews_month ?? 0} completed interviews this month`}
           tone="emerald"
           icon={Video}
+        />
+        <StatCard
+          label="Provider latency p50 / p95"
+          value={data?.latency_ms?.month?.p50 != null ? `${Math.round(data.latency_ms.month.p50)} / ${Math.round(data.latency_ms.month.p95 ?? 0)} ms` : '—'}
+          hint={`${data?.latency_ms?.month?.samples ?? 0} metered attempts (all-time p50 ${data?.latency_ms?.all_time?.p50 != null ? Math.round(data.latency_ms.all_time.p50) : '—'} ms)`}
+          tone="cyan"
+          icon={Gauge}
         />
       </div>
 

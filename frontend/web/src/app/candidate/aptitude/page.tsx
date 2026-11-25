@@ -6,12 +6,10 @@ import { useRouter } from 'next/navigation';
 import {
   Brain,
   Clock,
-  CheckCircle2,
   AlertTriangle,
   Award,
   TrendingUp,
   ShieldCheck,
-  Zap,
   BookOpen,
   Target,
   Sparkles,
@@ -25,53 +23,15 @@ import {
   type AptitudeTemplate,
   type AptitudeAttemptHistory,
 } from '@/lib/api';
-
-const DEFAULT_TEMPLATES: AptitudeTemplate[] = [
-  {
-    id: 'template-campus-general',
-    title: 'Standard Campus Employability Assessment',
-    subtitle: 'AMCAT & CoCubes Benchmark Pattern',
-    description: 'Comprehensive 5-pillar cognitive screening simulating top IT & product company hiring filters.',
-    durationMinutes: 30,
-    totalQuestions: 12,
-    sections: [
-      { name: 'Quantitative', questionCount: 4, timeMinutes: 10 },
-      { name: 'Logical', questionCount: 3, timeMinutes: 8 },
-      { name: 'Verbal', questionCount: 2, timeMinutes: 5 },
-      { name: 'Data Interpretation', questionCount: 2, timeMinutes: 5 },
-      { name: 'Abstract', questionCount: 1, timeMinutes: 2 },
-    ],
-    negativeMarking: false,
-    proctoringStrictness: 'STRICT',
-  },
-  {
-    id: 'template-quant-speed-sprint',
-    title: 'Quantitative Speed & Accuracy Sprint',
-    subtitle: 'High-Velocity Math & Number Systems',
-    description: 'Focus on arithmetic shortcuts, probability, percentages, and modular speed math.',
-    durationMinutes: 15,
-    totalQuestions: 5,
-    sections: [{ name: 'Quantitative', questionCount: 5, timeMinutes: 15 }],
-    negativeMarking: true,
-    proctoringStrictness: 'STANDARD',
-  },
-  {
-    id: 'template-analytical-reasoning',
-    title: 'Logical & Critical Deductions Test',
-    subtitle: 'Puzzles, Arrangements & Syllogisms',
-    description: 'Evaluate non-verbal fluid intelligence, critical reasoning, and algorithmic logic under pressure.',
-    durationMinutes: 15,
-    totalQuestions: 4,
-    sections: [{ name: 'Logical', questionCount: 4, timeMinutes: 15 }],
-    negativeMarking: false,
-    proctoringStrictness: 'STANDARD',
-  },
-];
+import { uniqueBy } from '@/lib/collections';
+import { formatPercentile } from '@/lib/formatters';
 
 export default function AptitudeHubPage() {
   const router = useRouter();
-  const [templates, setTemplates] = useState<AptitudeTemplate[]>(DEFAULT_TEMPLATES);
+  const [templates, setTemplates] = useState<AptitudeTemplate[]>([]);
   const [history, setHistory] = useState<AptitudeAttemptHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [startingTemplateId, setStartingTemplateId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -82,10 +42,13 @@ export default function AptitudeHubPage() {
           fetchAptitudeTemplates(),
           fetchCandidateAptitudeHistory(),
         ]);
-        if (tmpls && tmpls.length > 0) setTemplates(tmpls);
-        if (hist) setHistory(hist);
+        setTemplates(tmpls ?? []);
+        setHistory(hist ?? []);
       } catch (err) {
         console.warn('[AptitudeHub] Failed to load data:', err);
+        setLoadError('Assessment details could not be loaded. Reload the page to try again.');
+      } finally {
+        setLoading(false);
       }
     }
     void loadData();
@@ -106,12 +69,15 @@ export default function AptitudeHubPage() {
     }
   };
 
-  const completedAttempts = history.filter((h) => h.status === 'completed');
+  const uniqueHistory = uniqueBy(history, (item) => item.sessionId);
+  const completedAttempts = uniqueHistory.filter((h) => h.status === 'completed');
   const avgAccuracy =
     completedAttempts.length > 0
       ? Math.round(completedAttempts.reduce((acc, h) => acc + h.accuracy, 0) / completedAttempts.length)
-      : 0;
-  const percentileValues = completedAttempts.map((h) => h.percentile).filter((p): p is number => p != null);
+      : null;
+  const percentileValues = completedAttempts
+    .map((h) => h.percentile)
+    .filter((p): p is number => p != null);
   const bestPercentile =
     percentileValues.length > 0 ? Math.max(...percentileValues) : null;
 
@@ -138,22 +104,26 @@ export default function AptitudeHubPage() {
             </h1>
             <p className="text-ink-muted text-sm sm:text-base leading-relaxed">
               Calibrated against top recruitment benchmarks (AMCAT, CoCubes, eLitmus). Master Quantitative Speed,
-              Logical Deductions, Verbal Nuance, and Data Interpretation under strict anti-cheating protocols.
+              Logical Deductions, Verbal Nuance, and Data Interpretation with disclosed interaction counters.
             </p>
 
             {/* Quick Stats Pill Strip */}
             <div className="pt-2 flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm">
               <div className="flex items-center gap-2 text-ink-muted bg-inset px-3 py-1.5 rounded-lg border border-line">
                 <Target className="w-4 h-4 text-accent-cyan" />
-                <span>Attempts: <strong className="text-ink">{completedAttempts.length}</strong></span>
+                <span>Completed attempts: <strong className="text-ink">{loading ? '—' : completedAttempts.length}</strong></span>
               </div>
               <div className="flex items-center gap-2 text-ink-muted bg-inset px-3 py-1.5 rounded-lg border border-line">
                 <TrendingUp className="w-4 h-4 text-accent-emerald" />
-                <span>Avg Accuracy: <strong className="text-accent-emerald">{avgAccuracy}%</strong></span>
+                <span>Avg Accuracy: <strong className="text-accent-emerald">
+                  {loading ? '—' : avgAccuracy !== null ? `${avgAccuracy}%` : '—'}
+                </strong></span>
               </div>
               <div className="flex items-center gap-2 text-ink-muted bg-inset px-3 py-1.5 rounded-lg border border-line">
                 <Award className="w-4 h-4 text-accent-amber" />
-                <span>Best Percentile: <strong className="text-accent-amber">{bestPercentile != null ? `${bestPercentile}th` : '- (benchmarking)'}</strong></span>
+                <span>Best Percentile: <strong className="text-accent-amber">
+                  {loading ? '—' : formatPercentile(bestPercentile)}
+                </strong></span>
               </div>
             </div>
           </div>
@@ -166,6 +136,13 @@ export default function AptitudeHubPage() {
           </div>
         )}
 
+        {loadError && (
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-accent-amber text-sm flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0 text-accent-amber" />
+            <span>{loadError}</span>
+          </div>
+        )}
+
         {/* SECTION 1: STANDARDIZED TEST TRACKS */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
@@ -175,13 +152,24 @@ export default function AptitudeHubPage() {
                 Select Assessment Track
               </h2>
               <p className="text-xs sm:text-sm text-ink-muted">
-                Tests run in fullscreen mode with server-authoritative monotonic timers and anti-tamper telemetry.
+                Tests run in fullscreen mode with server-authoritative monotonic timers and disclosed interaction counters.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {templates.map((tmpl) => {
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6" aria-hidden="true">
+              {[0, 1, 2].map((item) => (
+                <div key={item} className="h-80 animate-pulse rounded-2xl border border-line bg-surface" />
+              ))}
+            </div>
+          ) : templates.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-surface border border-line text-center text-sm text-ink-muted">
+              No assessment tracks are available right now.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {templates.map((tmpl) => {
               const isStarting = startingTemplateId === tmpl.id;
               return (
                 <div
@@ -254,8 +242,9 @@ export default function AptitudeHubPage() {
                   </div>
                 </div>
               );
-            })}
-          </div>
+              })}
+            </div>
+          )}
         </section>
 
         {/* SCORE TREND (visible once 2+ attempts exist) */}
@@ -307,12 +296,18 @@ export default function AptitudeHubPage() {
             Previous Assessment Scorecards
           </h2>
 
-          {history.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3" aria-hidden="true">
+              {[0, 1].map((item) => (
+                <div key={item} className="h-20 animate-pulse rounded-2xl border border-line bg-surface" />
+              ))}
+            </div>
+          ) : completedAttempts.length === 0 ? (
             <div className="p-8 rounded-2xl bg-surface border border-line text-center space-y-3">
               <Brain className="w-10 h-10 text-ink-faint mx-auto" />
-              <h3 className="text-base font-semibold text-ink">No Test Attempts Yet</h3>
+              <h3 className="text-base font-semibold text-ink">No Completed Scorecards Yet</h3>
               <p className="text-xs text-ink-muted max-w-md mx-auto">
-                Launch a 15-minute speed sprint or standard campus mock to benchmark your speed, accuracy, and percentile rank.
+                Scorecards appear here after an assessment is completed. In-progress attempts are not scored.
               </p>
             </div>
           ) : (
@@ -330,7 +325,7 @@ export default function AptitudeHubPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {history.map((att) => (
+                  {completedAttempts.map((att) => (
                     <tr key={att.sessionId} className="hover:bg-surface-2/60 transition-colors">
                       <td className="py-3.5 px-4 sm:px-6 font-medium text-ink">
                         <div>{att.templateTitle}</div>
@@ -340,7 +335,7 @@ export default function AptitudeHubPage() {
                       </td>
                       <td className="py-3.5 px-4 font-bold text-accent-cyan">{att.score}%</td>
                       <td className="py-3.5 px-4 text-accent-emerald font-semibold">{att.accuracy}%</td>
-                      <td className="py-3.5 px-4 font-bold text-accent-amber">{att.percentile != null ? `${att.percentile}th` : '—'}</td>
+                      <td className="py-3.5 px-4 font-bold text-accent-amber">{formatPercentile(att.percentile)}</td>
                       <td className="py-3.5 px-4">
                         <span className={`inline-flex items-center gap-1 font-semibold ${att.trustScore >= 80 ? 'text-accent-emerald' : 'text-rose-500'}`}>
                           <ShieldCheck className="w-3.5 h-3.5" />

@@ -514,7 +514,7 @@ export default function RecruiterRecordingViewPage() {
                       </span>
                     </h3>
                     <p className="text-[11px] text-ink-muted">
-                      Skip watching 45 minutes — click any item below to jump the video directly to that critical moment.
+                      Skip watching the full recording — click any item below to jump the video directly to that critical moment.
                     </p>
                   </div>
                 </div>
@@ -887,8 +887,8 @@ export default function RecruiterRecordingViewPage() {
             </div>
 
             <p className="text-[11px] text-ink-muted leading-relaxed">
-              Real-time video gaze, multi-face presence, and fullscreen enforcement logs were audited during
-              this session.
+              Disclosed interaction counters (tab switches, paste events, fullscreen exits) were recorded during this session —
+              facts for your review, never an automated judgment. No gaze or facial analysis is performed.
             </p>
 
             {/* AUDITED FLAGGED MOMENTS LIST */}
@@ -935,6 +935,51 @@ export default function RecruiterRecordingViewPage() {
               </div>
             )}
           </div>
+
+          {/* 11. WHITEBOARD SNAPSHOT AT END OF INTERVIEW */}
+          {recordingData?.whiteboardSnapshot && (
+            <div className="rounded-2xl bg-surface border border-line p-5 shadow-xl space-y-4">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-accent-indigo" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="16" rx="2" />
+                    <path d="M8 9h3M8 13h6M8 17h4" />
+                  </svg>
+                  <h3 className="text-sm font-bold text-ink">Whiteboard Snapshot (end of interview)</h3>
+                </div>
+                {recordingData.whiteboardSnapshot.captured_at && (
+                  <span className="text-[10px] font-mono text-ink-faint">
+                    {new Date(recordingData.whiteboardSnapshot.captured_at).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              {recordingData.whiteboardSnapshot.summary && (
+                <p className="text-xs text-ink-muted leading-relaxed whitespace-pre-wrap">
+                  {recordingData.whiteboardSnapshot.summary}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {(recordingData.whiteboardSnapshot.nodes || []).map((node, i) => (
+                  <span
+                    key={node.id || i}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700 text-[11px] text-slate-200"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                    <span className="truncate max-w-[140px]">{node.label || node.type || 'node'}</span>
+                    <span className="text-[9px] font-mono text-slate-500">{node.type}</span>
+                  </span>
+                ))}
+                {(recordingData.whiteboardSnapshot.connections || []).length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-950/60 border border-indigo-500/30 text-[10px] text-indigo-300">
+                    {recordingData.whiteboardSnapshot.connections?.length} connection(s)
+                  </span>
+                )}
+                {(recordingData.whiteboardSnapshot.nodes || []).length === 0 && (
+                  <span className="text-xs text-ink-muted italic">No architecture components recorded.</span>
+                )}
+              </div>
+            </div>
+          )}
         </section>
       </main>
     </div>

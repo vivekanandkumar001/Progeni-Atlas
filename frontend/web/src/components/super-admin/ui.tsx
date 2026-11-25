@@ -342,8 +342,8 @@ export function SearchInput({
   className?: string;
 }) {
   return (
-    <div className={`relative ${className}`}>
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" />
+    <div className={`group relative ${className}`}>
+      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint transition-colors group-focus-within:text-accent-cyan" />
       <input
         type="text"
         value={value}
@@ -353,7 +353,7 @@ export function SearchInput({
         onKeyDown={(e) => {
           if (e.key === 'Enter' && onEnter) onEnter();
         }}
-        className="w-full rounded-xl border border-line bg-inset py-1.5 pl-8 pr-3 text-xs text-ink outline-none placeholder:text-ink-faint"
+        className="w-full rounded-xl border border-line bg-inset py-1.5 pl-8 pr-3 text-xs text-ink outline-none transition-colors hover:border-line-strong focus:border-accent-cyan focus:bg-surface placeholder:text-ink-faint"
       />
     </div>
   );

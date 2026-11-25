@@ -31,8 +31,10 @@ jobs:
           pylint backend/ --score=no --report=no
 
       - name: Run tests
+        working-directory: backend
         run: |
-          python -m pytest --tb=short 2>/dev/null || echo "No tests directory found"
+          cd backend
+          python -m pytest tests/ --tb=short -q
 
       - name: Verify Docker build
         run: |

@@ -14,10 +14,8 @@ import {
   SearchInput,
   TableSkeleton,
 } from '@/components/super-admin/ui';
-import { formatDateTime, formatNumber, saFetch, type AuditLogItem } from '@/lib/super-admin';
+import { formatDateTime, formatNumber, saFetch, type AuditLogItem, type AuditResponse } from '@/lib/super-admin';
 import { AuditAnalyticsPanel } from '@/components/super-admin/charts/AuditAnalyticsPanel';
-
-type AuditResponse = { success: boolean; count?: number; logs?: AuditLogItem[] };
 
 function actionTone(action: string): 'cyan' | 'violet' | 'rose' | 'amber' | 'indigo' | 'neutral' {
   const a = action.toLowerCase();

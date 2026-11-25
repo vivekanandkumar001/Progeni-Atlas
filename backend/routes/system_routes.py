@@ -37,6 +37,7 @@ def api_ping():
 
 
 @system_bp.route("/health", methods=["GET"])
+@system_bp.route("/api/health", methods=["GET"])
 def healthcheck():
     """System health check route. Returns database connectivity metrics."""
     mongo_status = check_mongo_connection()
@@ -67,17 +68,3 @@ def ready_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }), (200 if ready else 503)
 
-
-@system_bp.route("/api/health", methods=["GET"])
-def health_check():
-    mongo_status = check_mongo_connection()
-    qdrant_status = check_qdrant_connection()
-    all_healthy = mongo_status.get("status") in ("connected", "ok", "disabled")
-
-    return jsonify({
-        "status": "healthy" if all_healthy else "degraded",
-        "services": {
-            "mongodb": mongo_status,
-            "qdrant": qdrant_status,
-        }
-    }), (200 if all_healthy else 503)

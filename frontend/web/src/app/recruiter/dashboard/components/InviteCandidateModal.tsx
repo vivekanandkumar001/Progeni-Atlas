@@ -191,6 +191,7 @@ export function InviteCandidateModal({
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf,.docx,.doc,.txt,.md"
+                  aria-label="Upload job description file"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];

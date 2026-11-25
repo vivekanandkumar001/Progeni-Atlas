@@ -4,14 +4,14 @@ import type { ReactNode } from 'react';
 export const metadata: Metadata = {
   title: 'Pricing & Rate Cards',
   description:
-    'Simple, transparent duration-based billing for AI technical interviews. ₹1 = 1 Credit, billed at 1 Credit per 3 minutes with 2 free trial demo screenings.',
+    'Simple, transparent duration-based billing for AI technical interviews. ₹1 = 1 Credit, billed at 0.5 Credits per minute (2 minutes per credit) with 2 free trial demo screenings.',
   alternates: {
     canonical: 'https://atlas.progeni.live/pricing',
   },
   openGraph: {
-    title: 'Pricing & Rate Cards — Progeni Atlas',
+    title: 'Pricing & Rate Cards',
     description:
-      'Simple, transparent duration-based billing for AI technical interviews. ₹1 = 1 Credit, billed at 1 Credit per 3 minutes with 2 free trial demo screenings.',
+      'Simple, transparent duration-based billing for AI technical interviews. ₹1 = 1 Credit, billed at 0.5 Credits per minute (2 minutes per credit) with 2 free trial demo screenings.',
     url: 'https://atlas.progeni.live/pricing',
   },
 };

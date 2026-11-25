@@ -263,6 +263,8 @@ export interface CandidateProfile {
   years_experience: number | null;
   created_at: string;
   resume?: CandidateResume | null;
+  /** Seeded profile values are blanked server-side and labelled in the UI. */
+  isDemoProfile?: boolean;
 }
 
 export interface CandidateSkill {
@@ -326,8 +328,8 @@ export interface InterviewSession {
   status: string;
   current_stage: string;
   agent_state: string;
-  scheduled_at: string;
-  duration_minutes: number;
+  scheduled_at: string | null;
+  duration_minutes: number | null;
   started_at: string | null;
   ended_at: string | null;
   total_score: number | null;
@@ -340,6 +342,9 @@ export interface InterviewSession {
   /** Present only when a real report/scorecard exists for the session. */
   reportUrl?: string | null;
   isPractice?: boolean;
+  /** Seeded/demo sessions are never presented as verified assessments. */
+  isDemo?: boolean;
+  demoNumber?: number | string | null;
 }
 
 export interface PracticeHistoryItem {
@@ -424,6 +429,12 @@ export interface CandidateDashboard {
   upcoming_interviews: InterviewSession[];
   recent_interviews: InterviewSession[];
   demo_allowance?: DemoAllowance;
+  demoQuota?: {
+    totalAllowed: number;
+    completed: number;
+    remaining: number;
+    maxDurationSeconds?: number;
+  };
   free_demos_total?: number;
   free_demos_used?: number;
   free_demos_remaining?: number;
@@ -442,6 +453,49 @@ export interface CandidateDashboard {
     status?: string;
     extractedSkills?: string[];
   };
+}
+
+export interface DemoQuotaSummary {
+  total: number;
+  used: number;
+  remaining: number;
+}
+
+/**
+ * The dashboard, wallet and lobby all use the same server-computed quota.
+ * Return null when no authoritative value exists so the UI shows an empty
+ * state instead of inventing "2 free demos".
+ */
+export function candidateDemoQuota(dashboard: CandidateDashboard | null | undefined): DemoQuotaSummary | null {
+  const quota = dashboard?.demoQuota;
+  if (quota && Number.isFinite(quota.totalAllowed) && Number.isFinite(quota.remaining)) {
+    return {
+      total: Math.max(0, quota.totalAllowed),
+      remaining: Math.max(0, quota.remaining),
+      used: Number.isFinite(quota.completed) ? Math.max(0, quota.completed) : Math.max(0, quota.totalAllowed - quota.remaining),
+    };
+  }
+  if (
+    dashboard?.free_demos_total != null &&
+    dashboard?.free_demos_remaining != null
+  ) {
+    const total = Math.max(0, dashboard.free_demos_total);
+    const remaining = Math.max(0, dashboard.free_demos_remaining);
+    return {
+      total,
+      remaining,
+      used: dashboard.free_demos_used != null ? Math.max(0, dashboard.free_demos_used) : Math.max(0, total - remaining),
+    };
+  }
+  const legacy = dashboard?.demo_allowance;
+  if (legacy && Number.isFinite(legacy.freeDemosTotal) && Number.isFinite(legacy.freeDemosRemaining)) {
+    return {
+      total: Math.max(0, legacy.freeDemosTotal),
+      remaining: Math.max(0, legacy.freeDemosRemaining),
+      used: Math.max(0, legacy.freeDemosUsed ?? legacy.freeDemosTotal - legacy.freeDemosRemaining),
+    };
+  }
+  return null;
 }
 
 export interface ScorecardCompetency {
@@ -815,16 +869,20 @@ export async function fetchCandidateInterviews(): Promise<InterviewSession[] | n
   if (!Array.isArray(list)) return null;
   return list.map((item) => {
     const id = item.id || item.sessionId || item.session_id || '';
+    const config = item.config && typeof item.config === 'object' ? item.config : {};
+    const demoNumber = item.demoNumber ?? item.demo_number ?? config.demo_number ?? null;
     return {
       ...item,
       id,
       sessionId: item.sessionId || id,
-      scheduled_at: item.scheduled_at || item.scheduledTime || item.scheduledAt || new Date().toISOString(),
-      duration_minutes: item.duration_minutes ?? item.durationMinutes ?? 45,
+      scheduled_at: item.scheduled_at || item.scheduledTime || item.scheduledAt || item.completedAt || null,
+      duration_minutes: item.duration_minutes ?? item.durationMinutes ?? null,
       total_score: item.total_score ?? item.score ?? null,
       final_recommendation: item.final_recommendation ?? item.recommendation ?? null,
       reportUrl: item.reportUrl || (item.status === 'completed' ? `/candidate/interview/${id}/report` : null),
       isPractice: Boolean(item.isPractice || item.sessionType === 'mock' || item.is_practice),
+      isDemo: Boolean(item.isDemo || item.is_demo || demoNumber || config.is_demo || item.sessionType === 'demo'),
+      demoNumber,
     } as InterviewSession;
   });
 }
@@ -1372,10 +1430,17 @@ export interface InterviewRecordingResponse {
   status: 'available' | 'processing' | 'unavailable' | 'error';
   playbackUrl?: string | null;
   durationSec?: number | null;
+  durationSeconds?: number | null;
   publicId?: string | null;
   mimeType?: string;
   message?: string;
   sessionId?: string;
+  whiteboardSnapshot?: {
+    nodes?: Array<{ id?: string; label?: string; type?: string; x?: number; y?: number }>;
+    connections?: Array<{ fromId?: string; toId?: string; id?: string }>;
+    summary?: string;
+    captured_at?: string;
+  } | null;
 }
 
 export interface CandidateEvaluationReport {
@@ -1405,10 +1470,8 @@ export interface CandidateEvaluationReport {
     threshold: number;
     flagged: boolean;
     eventCounts: Record<string, number>;
-    overallIntegrityScore?: number;
-    gazeConsistencyPercentage?: number;
     tabSwitchCount?: number;
-    multipleVoicesDetected?: boolean;
+    pasteCount?: number;
     suspiciousEvents?: Array<{
       id: string;
       title: string;

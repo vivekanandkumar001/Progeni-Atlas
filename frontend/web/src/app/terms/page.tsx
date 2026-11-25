@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { LegalShell, LegalSection, LegalBullets } from '@/components/legal/LegalShell';
 
 export const metadata: Metadata = {
-  title: 'Candidate Terms of Service | Progeni Atlas',
+  title: 'Candidate Terms of Service',
   description:
     'The terms that govern your use of Progeni Atlas as a candidate or hiring organisation: account eligibility, wallets and credits, payments, recording consent, anti-cheat integrity, termination and liability.',
 };
@@ -102,7 +102,7 @@ export default function TermsPage() {
           items={[
             <><strong>Prohibited</strong> — reading prepared answers aloud from a script; pasting JD/answers into live model prompts; camera bypass or feed substitution; earphones with a prompter; impersonation; using another person’s identity; sharing the room link after pairing.</>,
             <><strong>Phone companion</strong> — pairing links are single-use, short-lived, session-bound and revocable on entry/exit. You may not screen-record the recruiter side nor the companion feed for publication.</>,
-            <><strong>Detection signals</strong> — tab-focus departures, gaze drift events, copy/paste attempts, multi-face presence, duplicate submissions, and speech-vs-text mismatch scoring. Signals are flagged, not auto-rejected; a human decides resume/onboarding eligibility.</>,
+            <><strong>Disclosed counters</strong> — tab-focus departures, fullscreen exits, and copy/paste attempts, recorded as counts. Signals are reviewed by the hiring team, never auto-rejected; a human decides resume/onboarding eligibility.</>,
             <>Integrity violations may result in session termination, score voiding, account suspension, and (where the session was used for an active job application) notice to the employer.</>,
           ]}
         />

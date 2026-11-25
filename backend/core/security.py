@@ -856,63 +856,68 @@ def send_interview_completion_email_smtp(
     candidate_name: str,
     role: str,
     company_name: str,
-    overall_score: int | float | None = None
+    overall_score: int | float | None = None,
+    *,
+    strengths: list[str] | None = None,
+    coaching_tip: str | None = None,
 ) -> tuple[bool, str | None]:
-    """Send automated email notification to candidate confirming successful interview submission & AI evaluation."""
-    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
-    try:
-        smtp_port = int(os.environ.get("SMTP_PORT", 465))
-    except (ValueError, TypeError):
-        smtp_port = 465
+    """Send the candidate their post-interview note: what stood out + one tip.
 
-    smtp_user = os.environ.get("SMTP_USER", "").strip()
-    smtp_pass = os.environ.get("SMTP_PASS", "").strip()
+    Deliberately NO score, NO hiring verdict — the hiring team decides, and
+    the candidate receives useful, human feedback either way (Sapia-style
+    feedback-for-all). `overall_score` is accepted for backwards compatibility
+    but never rendered.
+    """
     from_name = os.environ.get("SMTP_FROM_NAME", "Progeni Atlas").strip()
-    smtp_from = os.environ.get("SMTP_FROM", f'"{from_name}" <{smtp_user}>').strip()
 
-    subject = f"Technical Assessment Completed: {role} at {company_name}"
-    score_badge = f'<div style="text-align: right;"><span style="background-color: #0284c7; color: #ffffff; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;">OVERALL SCORE: {overall_score}%</span></div>' if overall_score is not None else ''
+    subject = f"Thank you for interviewing — {role} at {company_name}"
+
+    def _li(items: list[str]) -> str:
+        return "".join(
+            f'<li style="margin: 6px 0; color: #cbd5e1;">{item}</li>'
+            for item in items[:4] if str(item).strip()
+        )
+
+    strengths_html = (
+        f"""<ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 14px; line-height: 1.6;">{_li(strengths)}</ul>"""
+        if strengths else """<p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">You stayed engaged throughout the conversation and gave the team a genuine sense of how you think.</p>"""
+    )
+    tip_html = (
+        f"""<div style="background-color: #0f172a; border-left: 4px solid #22d3ee; padding: 14px; border-radius: 6px; margin: 20px 0;">
+         <p style="margin: 0 0 4px 0; color: #67e8f9; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;">One thing to sharpen</p>
+         <p style="margin: 0; color: #e2e8f0; font-size: 14px; line-height: 1.6;">{coaching_tip}</p>
+       </div>"""
+        if coaching_tip else ""
+    )
 
     html_content = f"""
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #090d16; color: #f8fafc; padding: 36px 20px; max-width: 580px; margin: 0 auto; border-radius: 14px; border: 1px solid #1e293b;">
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 18px; margin-bottom: 24px;">
-        <div>
-          <h2 style="color: #38bdf8; margin: 0; font-size: 20px; font-weight: 700;">{company_name}</h2>
-          <span style="color: #64748b; font-size: 12px;">Autonomous Technical Screening</span>
-        </div>
-        {score_badge}
+      <div style="border-bottom: 1px solid #1e293b; padding-bottom: 18px; margin-bottom: 24px;">
+        <h2 style="color: #38bdf8; margin: 0; font-size: 20px; font-weight: 700;">{company_name}</h2>
+        <span style="color: #64748b; font-size: 12px;">Interview feedback</span>
       </div>
 
-      <h3 style="color: #f1f5f9; font-size: 17px; margin-top: 0; margin-bottom: 12px;">Your technical assessment is complete!</h3>
-
-      <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6; margin-top: 0;">
-        Hello <strong>{candidate_name}</strong>,
-      </p>
+      <h3 style="color: #f1f5f9; font-size: 17px; margin-top: 0; margin-bottom: 12px;">Thank you for the conversation, {candidate_name}.</h3>
 
       <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-        Thank you for completing your technical interview session for the <strong>{role}</strong> position at <strong>{company_name}</strong>.
+        Thank you for the time you spent with us for the <strong>{role}</strong> role at <strong>{company_name}</strong>.
+        The hiring team will review the full conversation and be in touch about next steps. Here is what stood out to us, whatever the outcome:
       </p>
 
-      <div style="background-color: #0c1322; border: 1px solid #1e293b; border-radius: 10px; padding: 16px; margin: 20px 0;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-          <tr>
-            <td style="color: #64748b; padding: 4px 0;">Target Role:</td>
-            <td style="color: #f1f5f9; font-weight: 600; text-align: right; padding: 4px 0;">{role}</td>
-          </tr>
-          <tr>
-            <td style="color: #64748b; padding: 4px 0;">Status:</td>
-            <td style="color: #34d399; font-weight: 700; text-align: right; padding: 4px 0;">Submitted & Verified</td>
-          </tr>
-          <tr>
-            <td style="color: #64748b; padding: 4px 0;">Evaluation Model:</td>
-            <td style="color: #94a3b8; text-align: right; padding: 4px 0;">4-Pillar Competency Engine</td>
-          </tr>
-        </table>
+      <div style="background-color: #0c1322; border: 1px solid #1e293b; border-radius: 10px; padding: 16px 20px; margin: 20px 0;">
+        <p style="margin: 0 0 6px 0; color: #67e8f9; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;">What stood out</p>
+        {strengths_html}
       </div>
+
+      {tip_html}
+
+      <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+        If there is anything you would like us to reconsider, or you need an alternative assessment format, just reply to this email. A human reads it.
+      </p>
 
       <div style="background-color: #0f172a; border-left: 4px solid #0ea5e9; padding: 14px; border-radius: 6px; margin: 20px 0;">
         <p style="margin: 0; color: #cbd5e1; font-size: 13px; line-height: 1.5;">
-          Our recruiting committee has been notified and is reviewing your scorecard, code execution benchmarks, and response transcripts. You will receive an email update as soon as the hiring team finalizes next steps.
+          A human reviews every interview before any decision is made. If the team moves forward, you will hear from them within a few business days. If not, we still wanted you to leave with something useful.
         </p>
       </div>
 

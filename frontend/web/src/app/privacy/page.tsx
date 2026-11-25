@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { LegalShell, LegalSection, LegalBullets } from '@/components/legal/LegalShell';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | Progeni Atlas',
+  title: 'Privacy Policy',
   description:
     'How Progeni Atlas collects, uses, stores and deletes candidate and recruiter data, including interview recordings, AI-scored evaluation results, wallet and payment information, and your rights under GDPR, India DPDP and US AEDT laws.',
 };

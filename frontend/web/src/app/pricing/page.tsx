@@ -63,7 +63,7 @@ const DEFAULT_CANDIDATE_PLANS: PlanCard[] = [
     description: 'Quick pre-interview brush-up right before your actual technical round.',
     popular: false,
     buttonText: 'Buy Pack (₹49)',
-    buttonHref: '/candidate/wallet',
+    buttonHref: '/candidate/wallet?pack=pack_49',
     features: [
       '50 AI Credits (100 mins practice)',
       '3 Full In-Depth DSA or Behavioral Rounds',
@@ -85,7 +85,7 @@ const DEFAULT_CANDIDATE_PLANS: PlanCard[] = [
     description: 'Most chosen by engineering students preparing for placements and product companies.',
     popular: true,
     buttonText: 'Get 100 Credits (₹99)',
-    buttonHref: '/candidate/wallet',
+    buttonHref: '/candidate/wallet?pack=pack_99',
     features: [
       '100 AI Credits (200 mins practice)',
       '6-7 Full Technical & Architecture Rounds',
@@ -105,7 +105,7 @@ const DEFAULT_CANDIDATE_PLANS: PlanCard[] = [
     description: 'Comprehensive preparation for high-stakes FAANG, startup, and campus hiring.',
     popular: false,
     buttonText: 'Get 200 Credits (₹199)',
-    buttonHref: '/candidate/wallet',
+    buttonHref: '/candidate/wallet?pack=pack_199',
     features: [
       '200 AI Credits (400 mins practice)',
       '13+ Full Technical, DSA & HR Mock Rounds',
@@ -431,7 +431,7 @@ export default function PricingPage() {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-accent-cyan">
                       {plan.badge}
                     </span>
-                    <h3 className="text-xl font-bold text-ink mt-1">{plan.name}</h3>
+                    <h2 className="text-xl font-bold text-ink mt-1">{plan.name}</h2>
                     <p className="text-xs text-ink-muted mt-2 min-h-[36px] leading-relaxed">{plan.description}</p>
                   </div>
 
@@ -482,9 +482,9 @@ export default function PricingPage() {
                 <ShieldCheck className="w-4 h-4 text-cyan-500" />
                 <span>100% Student Friendly · No Hidden Charges</span>
               </div>
-              <h3 className="text-xl font-bold text-ink">
+              <h2 className="text-xl font-bold text-ink">
                 Start with 10 Free Credits upon Signup
-              </h3>
+              </h2>
               <p className="text-xs sm:text-sm text-ink-muted max-w-xl">
                 Every new user gets 10 credits after OTP verification. Practice your first live AI interview without entering any payment card.
               </p>

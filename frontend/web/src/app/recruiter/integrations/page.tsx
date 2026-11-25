@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { RecruiterHeader } from '@/components/dashboard/RecruiterHeader';
+import { useToast } from '@/lib/hooks/useToast';
 import { apiFetch } from '@/lib/api';
 import {
   Activity,
@@ -191,7 +192,7 @@ export default function ATSIntegrationsPage() {
   const [data, setData] = useState<IntegrationsState>(DEFAULT_STATE);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'platforms' | 'rules' | 'bulk_import' | 'activity'>('platforms');
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const { toastMessage, showToast } = useToast();
 
   // Connection Modal
   const [selectedProviderKey, setSelectedProviderKey] = useState<string | null>(null);
@@ -209,10 +210,7 @@ export default function ATSIntegrationsPage() {
   // Filter logs
   const [logSearch, setLogSearch] = useState('');
 
-  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
-    setToastMessage({ text, type });
-    setTimeout(() => setToastMessage(null), 4000);
-  };
+
 
   // Fetch Integrations & Jobs
   const loadData = useCallback(async () => {
@@ -983,7 +981,7 @@ export default function ATSIntegrationsPage() {
                     value={selectedJobId}
                     onChange={(e) => setSelectedJobId(e.target.value)}
                     required
-                    className="w-full sm:w-96 px-3.5 py-2.5 rounded-xl border border-line bg-surface text-xs font-bold text-ink focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full sm:w-96 px-3.5 py-2.5 rounded-xl border border-line bg-surface text-xs font-bold text-ink transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue"
                   >
                     {availableJobs.map((j) => (
                       <option key={j.id} value={j.id}>
@@ -1008,7 +1006,7 @@ export default function ATSIntegrationsPage() {
                   value={pastedCandidates}
                   onChange={(e) => setPastedCandidates(e.target.value)}
                   placeholder={`Aarav Sharma, aarav.sharma@example.com, +91 9876543210\nPooja Verma, pooja.verma@example.com, +91 9811223344\nRohan Iyer, rohan.iyer@example.com, +91 9988776655`}
-                  className="w-full p-4 rounded-2xl border border-line bg-surface-2 font-mono text-xs text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
+                  className="w-full p-4 rounded-2xl border border-line bg-surface-2 font-mono text-xs text-ink placeholder:text-ink-faint transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue focus:bg-surface leading-relaxed"
                 />
 
                 {/* CSV File Upload Dropzone */}
@@ -1219,7 +1217,7 @@ export default function ATSIntegrationsPage() {
                   placeholder="Filter by candidate or role..."
                   value={logSearch}
                   onChange={(e) => setLogSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-line bg-surface-2 text-xs text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-line bg-surface-2 text-xs text-ink placeholder:text-ink-faint transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue focus:bg-surface"
                 />
               </div>
             </div>
@@ -1333,7 +1331,7 @@ export default function ATSIntegrationsPage() {
                         placeholder="Paste your Greenhouse Harvest API key"
                         value={editingConfig.apiKey || ''}
                         onChange={(e) => setEditingConfig({ ...editingConfig, apiKey: e.target.value })}
-                        className="w-full p-3 rounded-xl border border-line bg-surface-2 text-ink font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 rounded-xl border border-line bg-surface-2 text-ink font-mono transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue focus:bg-surface"
                       />
                       <p className="text-[10px] text-ink-muted">
                         Generated in Greenhouse: <em>Settings &gt; Dev Center &gt; API Credential Management</em>.
@@ -1349,7 +1347,7 @@ export default function ATSIntegrationsPage() {
                         placeholder="hiring-lead@company.com"
                         value={editingConfig.onBehalfOfEmail || ''}
                         onChange={(e) => setEditingConfig({ ...editingConfig, onBehalfOfEmail: e.target.value })}
-                        className="w-full p-3 rounded-xl border border-line bg-surface-2 text-ink focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 rounded-xl border border-line bg-surface-2 text-ink transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue focus:bg-surface"
                       />
                     </div>
                   </>
@@ -1366,7 +1364,7 @@ export default function ATSIntegrationsPage() {
                         placeholder="e.g. acme_enterprise_us"
                         value={editingConfig.tenantId || ''}
                         onChange={(e) => setEditingConfig({ ...editingConfig, tenantId: e.target.value })}
-                        className="w-full p-3 rounded-xl border border-line bg-surface-2 text-ink font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 rounded-xl border border-line bg-surface-2 text-ink font-mono transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue focus:bg-surface"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -1378,7 +1376,7 @@ export default function ATSIntegrationsPage() {
                         placeholder="https://services1.workday.com/ccx/service/v1"
                         value={editingConfig.tenantUrl || ''}
                         onChange={(e) => setEditingConfig({ ...editingConfig, tenantUrl: e.target.value })}
-                        className="w-full p-3 rounded-xl border border-line bg-surface-2 text-ink focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 rounded-xl border border-line bg-surface-2 text-ink transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue focus:bg-surface"
                       />
                     </div>
                   </>
@@ -1394,7 +1392,7 @@ export default function ATSIntegrationsPage() {
                       placeholder={`Enter your ${activeProviderObj.name} token`}
                       value={editingConfig.apiKey || ''}
                       onChange={(e) => setEditingConfig({ ...editingConfig, apiKey: e.target.value })}
-                      className="w-full p-3 rounded-xl border border-line bg-surface-2 text-ink font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 rounded-xl border border-line bg-surface-2 text-ink font-mono transition-colors hover:border-line-strong focus:outline-none focus:border-accent-blue focus:bg-surface"
                     />
                   </div>
                 )}

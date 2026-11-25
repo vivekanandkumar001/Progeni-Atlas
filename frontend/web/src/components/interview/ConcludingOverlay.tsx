@@ -29,11 +29,11 @@ export const ConcludingOverlay: React.FC<ConcludingOverlayProps> = ({
         </div>
         <h2 className="text-3xl font-extrabold text-white tracking-tight">Thank You!</h2>
         <p className="text-sm text-cyan-300 font-medium">
-          {concludingMessage || 'Thank you for your time and responses! Generating your scorecard...'}
+          {concludingMessage || 'Thank you for your time — that was a real conversation. The hiring team will review everything personally.'}
         </p>
         <div className="flex items-center justify-center gap-2 pt-3 text-xs font-mono text-slate-400">
           <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
-          <span>Aggregating technical marks, evaluation metrics & scorecard report...</span>
+          <span>Wrapping up and sending your feedback summary…</span>
         </div>
       </div>
     </div>

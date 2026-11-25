@@ -9,7 +9,18 @@ import { NetworkJitterGauge } from '@/components/interview/NetworkJitterGauge';
 import { InterviewBriefingCard } from '@/components/interview/InterviewBriefingCard';
 import { Radio, AlertCircle, Lock, LogIn } from 'lucide-react';
 import { getInterviewState, isValidSessionId } from '@/lib/api';
+import { MediaSourceProvider } from '@/lib/media/MediaSourceProvider';
 import { BrandLogo } from '@/components/common/BrandLogo';
+
+type LobbySessionStatus = 'loading' | 'active' | 'terminal' | 'error';
+
+const TERMINAL_SESSION_STATES = new Set([
+  'COMPLETED',
+  'EXPIRED',
+  'CANCELLED',
+  'FAILED',
+  'TERMINATED',
+]);
 
 export default function CandidateLobbyPage() {
   const params = useParams();
@@ -40,8 +51,10 @@ export default function CandidateLobbyPage() {
   const [networkStatus, setNetworkStatus] = useState<'PENDING' | 'RUNNING' | 'PASSED' | 'FAILED' | 'ERROR'>('PENDING');
   const [networkMessage, setNetworkMessage] = useState<string>('');
 
+  const sanitizeDeviceName = (name: string) => name.replace(/\s*\([^)]*\)\s*$/g, '');
+
   const [selectedVideoDevice, setSelectedVideoDevice] = useState<string>('Integrated Webcam');
-  const [selectedAudioDevice, setSelectedAudioDevice] = useState<string>('Default Microphone');
+  const [selectedAudioDevice, setSelectedAudioDevice] = useState<string>('Microphone');
 
   const [latencyMs, setLatencyMs] = useState<number>(28);
   const [jitterMs, setJitterMs] = useState<number>(4);
@@ -51,6 +64,7 @@ export default function CandidateLobbyPage() {
   // weakens the lobby requirements.
   const [sessionMode, setSessionMode] = useState<string>('real');
   const [isSessionExpired, setIsSessionExpired] = useState<boolean>(false);
+  const [sessionStatus, setSessionStatus] = useState<LobbySessionStatus>('loading');
 
   useEffect(() => {
     if (!sessionId) return;
@@ -58,9 +72,18 @@ export default function CandidateLobbyPage() {
     void (async () => {
       try {
         const state = await getInterviewState(sessionId);
-        if (!cancelled && state && typeof state.mode === 'string' && state.mode) {
+        if (cancelled) return;
+        if (state && typeof state.mode === 'string' && state.mode) {
           setSessionMode(state.mode);
         }
+
+        const stateName = typeof state?.state === 'string' ? state.state.toUpperCase() : '';
+        const statusName = typeof state?.status === 'string' ? state.status.toLowerCase() : '';
+        const isTerminal =
+          TERMINAL_SESSION_STATES.has(stateName) ||
+          ['completed', 'expired', 'cancelled', 'failed', 'terminated'].includes(statusName) ||
+          state?.finished === true;
+        setSessionStatus(isTerminal ? 'terminal' : 'active');
       } catch (err: unknown) {
         if (cancelled) return;
         const errorObj = err as Error & { status_code?: number };
@@ -77,6 +100,7 @@ export default function CandidateLobbyPage() {
           setIsSessionExpired(true);
         } else {
           console.warn('[CandidateLobbyPage] Failed to fetch interview state:', err);
+          setSessionStatus('error');
         }
       }
     })();
@@ -84,6 +108,12 @@ export default function CandidateLobbyPage() {
       cancelled = true;
     };
   }, [sessionId]);
+
+  // A completed/expired session must never keep a media pre-flight alive.
+  useEffect(() => {
+    if (sessionStatus !== 'terminal' || !sessionId) return;
+    router.replace(`/candidate/interview/${encodeURIComponent(sessionId)}/report`);
+  }, [router, sessionId, sessionStatus]);
 
   if (isSessionExpired) {
     const returnUrl = `/candidate/interview/${encodeURIComponent(sessionId)}/lobby`;
@@ -151,7 +181,47 @@ export default function CandidateLobbyPage() {
     );
   }
 
+  if (sessionStatus !== 'active') {
+    const isTerminal = sessionStatus === 'terminal';
+    const isError = sessionStatus === 'error';
+    const heading = isTerminal
+      ? 'Interview Complete'
+      : isError
+        ? 'Interview Status Unavailable'
+        : 'Preparing Interview Lobby';
+    const message = isTerminal
+      ? 'This interview has ended. Opening your report now…'
+      : isError
+        ? 'We could not confirm the interview status. Please reload to try again.'
+        : 'Checking your session before starting camera and microphone pre-flight…';
+
+    return (
+      <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
+        <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-header border-b border-line">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <BrandLogo href="/candidate/dashboard" />
+          </div>
+        </header>
+
+        <main className="flex-grow max-w-3xl w-full mx-auto px-4 py-16 flex flex-col items-center justify-center text-center">
+          <h1 className="text-2xl font-bold text-ink mb-2">{heading}</h1>
+          <p className="text-ink-muted text-sm max-w-md">{message}</p>
+          {isError && (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-6 px-6 py-3 rounded-xl bg-surface hover:bg-surface-raised border border-line text-ink font-semibold text-sm cursor-pointer"
+            >
+              Reload lobby
+            </button>
+          )}
+        </main>
+      </div>
+    );
+  }
+
   return (
+    <MediaSourceProvider sessionId={sessionId}>
     <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
       {/* HEADER NAVBAR */}
       <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-header border-b border-line">
@@ -160,14 +230,14 @@ export default function CandidateLobbyPage() {
             <BrandLogo href="/candidate/dashboard" />
             <span className="hidden sm:inline-block text-ink-faint">|</span>
             <span className="hidden sm:inline-block text-xs font-mono text-ink-muted">
-              Checkpoint ID: <span className="text-accent-cyan">{sessionId.substring(0, 8)}</span>
+              Interview Lobby
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-line text-xs font-mono text-accent-cyan">
               <Radio className="w-3.5 h-3.5 text-accent-cyan animate-pulse" />
-              <span>Pre-Flight Diagnostic Lobby</span>
+              <span>Interview Lobby</span>
             </div>
           </div>
         </div>
@@ -175,6 +245,12 @@ export default function CandidateLobbyPage() {
 
       {/* MAIN CONTAINER (FLEX MOBILE / 2-COLUMN DESKTOP SPLIT) */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-ink">Interview Pre-Flight Lobby</h1>
+          <p className="text-sm text-ink-muted mt-1">
+            Check your camera, microphone and connection before entering the interview room.
+          </p>
+        </div>
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8">
           {/* COLUMN 1: HARDWARE DIAGNOSTIC VIEWPORT (DESKTOP: COL SPAN 7, MOBILE: ORDER 1) */}
           <div className="lg:col-span-7 order-1 space-y-6">
@@ -182,11 +258,11 @@ export default function CandidateLobbyPage() {
             <CameraMicPreview
               onCameraStateChange={(passed, dev) => {
                 setIsCameraPassed(passed);
-                if (dev) setSelectedVideoDevice(dev);
+                if (dev) setSelectedVideoDevice(sanitizeDeviceName(dev));
               }}
               onMicStateChange={(passed, dev) => {
                 setIsMicPassed(passed);
-                if (dev) setSelectedAudioDevice(dev);
+                if (dev) setSelectedAudioDevice(sanitizeDeviceName(dev));
               }}
               onSpeakerStateChange={(passed) => {
                 setIsSpeakerPassed(passed);
@@ -231,5 +307,6 @@ export default function CandidateLobbyPage() {
         </div>
       </main>
     </div>
+    </MediaSourceProvider>
   );
 }

@@ -13,6 +13,7 @@ import io
 import re
 import traceback
 from datetime import datetime, timezone, timedelta
+from typing import Any
 from core.http_utils import generic_500
 from flask import Blueprint, request, jsonify, g, Response
 
@@ -25,8 +26,26 @@ from core.security import (
 from core.context import get_current_recruiter
 from core.wallet import get_user_wallet_balance
 from core.interview_params import generate_dynamic_interview_parameters
+from core.industry_taxonomy import (
+    INDUSTRY_TAXONOMY_VERSION,
+    canonicalize_industry,
+    industry_display,
+    industry_options,
+)
 
 recruiter_bp = Blueprint("recruiter_bp", __name__)
+
+
+@recruiter_bp.route("/api/recruiter/industries", methods=["GET"])
+@require_auth
+def get_industry_taxonomy():
+    """Canonical industry options for profile forms (NAICS 2022 sectors)."""
+    return jsonify({
+        "success": True,
+        "taxonomy": INDUSTRY_TAXONOMY_VERSION,
+        "industries": industry_options(),
+    }), 200
+
 
 @recruiter_bp.route("/api/recruiter/profile", methods=["GET"])
 @require_auth
@@ -81,13 +100,27 @@ def get_recruiter_profile():
 
         org_name = org_data.get("name") or (user and user.get("company_name")) or f"{user_name.split()[0]} Workspace"
 
+        raw_industry = org_data.get("industry") or (user and user.get("industry")) or ""
+        canonical_industry = canonicalize_industry(raw_industry)
+
         org_payload = {
             "id": str(org_data.get("id") or (user and user.get("org_id")) or "org-default"),
             "name": org_name,
             "slug": org_data.get("slug") or org_name.lower().replace(" ", "-"),
             "tier": org_data.get("tier") or (user and user.get("tier")) or "starter",
             "websiteUrl": org_data.get("website_url") or (user and user.get("website_url")) or "",
-            "industry": org_data.get("industry") or (user and user.get("industry")) or "",
+            "industry": canonical_industry["industry"],
+            "industryCode": (
+                org_data.get("industry_code")
+                or (user and user.get("industry_code"))
+                or canonical_industry["industryCode"]
+            ),
+            "industryTaxonomy": (
+                org_data.get("industry_taxonomy")
+                or (user and user.get("industry_taxonomy"))
+                or canonical_industry["industryTaxonomy"]
+            ),
+            "industryMatched": canonical_industry["industryMatched"],
             "companySize": org_data.get("company_size") or (user and user.get("company_size")) or "",
             "headquartersCity": org_data.get("headquarters_city") or (user and user.get("headquarters_city")) or "",
             "bio": org_data.get("bio") or (user and user.get("bio")) or f"{org_name} hiring workspace.",
@@ -164,7 +197,14 @@ def update_recruiter_profile():
         org = data.get("organization", {})
         org_name = org.get("name", "").strip()
         website_url = org.get("websiteUrl", "").strip()
+        # Accept either the canonical label (select) or a NAICS code. Both are
+        # normalized through the same taxonomy before persistence.
         industry = org.get("industry", "").strip()
+        industry_code = str(org.get("industryCode") or "").strip()
+        # "OTHER" without a custom label is a placeholder, not a real value.
+        if industry_code.upper() == "OTHER" and not industry:
+            industry_code = ""
+        canonical_industry = canonicalize_industry(industry or industry_code)
         company_size = org.get("companySize", "").strip()
         headquarters_city = org.get("headquartersCity", "").strip()
         bio = org.get("bio", "").strip()
@@ -203,7 +243,15 @@ def update_recruiter_profile():
             org_updates = {"updated_at": datetime.now(timezone.utc)}
             if org_name: org_updates["name"] = org_name
             if website_url: org_updates["website_url"] = website_url
-            if industry: org_updates["industry"] = industry
+            if canonical_industry["industry"]:
+                org_updates["industry"] = canonical_industry["industry"]
+                org_updates["industry_code"] = canonical_industry["industryCode"]
+                org_updates["industry_taxonomy"] = canonical_industry["industryTaxonomy"]
+            elif "industry" in org or "industryCode" in org:
+                # Explicit clear from a full-profile form submission.
+                org_updates["industry"] = ""
+                org_updates["industry_code"] = ""
+                org_updates["industry_taxonomy"] = ""
             if company_size: org_updates["company_size"] = company_size
             if headquarters_city: org_updates["headquarters_city"] = headquarters_city
             if bio: org_updates["bio"] = bio
@@ -253,7 +301,6 @@ def send_team_invite():
         org_name = "your organization"
         if org_id and db is not None:
             try:
-                from core.db import get_mongo_db as _gmd
                 _org = db.organizations.find_one({"$or": [{"id": org_id}, {"_id": org_id}]})
                 if _org and _org.get("name"):
                     org_name = _org["name"]
@@ -683,9 +730,16 @@ def recruiter_jobs():
         job_description = data.get("jobDescription", "").strip()
         skills = data.get("skillsRequired", [])
         duration_minutes = int(data.get("durationMinutes", 30))
+        blueprint_id = str(data.get("blueprintId") or "").strip()
+        weights = data.get("weights") or DEFAULT_RUBRIC_WEIGHTS
+        custom_instructions = str(data.get("customInstructions") or "").strip()
 
         if not title:
             return jsonify({"error": "Job title is required."}), 400
+        if not is_valid_rubric_weights(weights):
+            return jsonify({"error": "Invalid rubric weights: four standard dimensions must sum to 100."}), 400
+        if blueprint_id and blueprint_id not in {bp["id"] for bp in INDUSTRY_ROLE_BLUEPRINTS}:
+            return jsonify({"error": "Unknown blueprintId."}), 400
 
         job_id = str(uuid.uuid4())
         created_at = datetime.now(timezone.utc).isoformat()
@@ -699,6 +753,9 @@ def recruiter_jobs():
             "job_description": job_description,
             "skills_required": skills,
             "duration_minutes": duration_minutes,
+            "blueprint_id": blueprint_id,
+            "weights": weights,
+            "custom_instructions": custom_instructions,
             "applicants_count": 0,
             "recruiter_id": recruiter_id,
             "recruiter_email": recruiter_email,
@@ -718,6 +775,9 @@ def recruiter_jobs():
                 "skillsRequired": skills,
                 "jobDescription": job_description,
                 "durationMinutes": duration_minutes,
+                "blueprintId": blueprint_id,
+                "weights": weights,
+                "customInstructions": custom_instructions,
                 "createdAt": created_at
             }
         }), 201
@@ -995,6 +1055,7 @@ def confirm_bulk_schedules():
 
         db = get_mongo_db()
         company_name = user.get("company_name") or user.get("org_name") or user.get("companyName") or user.get("organization") or "Progeni Atlas Hiring Partner"
+        org_doc = None
         if org_id and db is not None:
             try:
                 org_doc = db.organizations.find_one({"$or": [{"id": org_id}, {"_id": org_id}]})
@@ -1002,6 +1063,14 @@ def confirm_bulk_schedules():
                     company_name = org_doc.get("name")
             except Exception:
                 pass
+
+        raw_industry = ""
+        if org_doc:
+            raw_industry = org_doc.get("industry_code") or org_doc.get("industry") or ""
+        industry_context = industry_display(raw_industry)
+        base_jd = custom_message or f"Technical interview for {role} role."
+        if industry_context:
+            base_jd = f"Industry context: {industry_context}\n{base_jd}"
 
         job_jd = ""
         if job_id and job_id != "custom" and db is not None:
@@ -1059,7 +1128,9 @@ def confirm_bulk_schedules():
                 "config": {
                     "is_practice": False,
                     "job_role": role,
-                    "job_description": custom_message or f"Technical interview for {role} role."
+                    "job_description": base_jd,
+                    "industry": industry_context,
+                    "industry_code": raw_industry,
                 },
                 "created_at": now.isoformat(),
                 "updated_at": now.isoformat()
@@ -1188,8 +1259,9 @@ def invite_candidate_screening():
                 if not jd:
                     jd = job_doc.get("job_description", "")
 
-        # Determine organization / company name
+        # Determine organization / company name and canonical industry context
         company_name = user.get("company_name") or user.get("org_name") or user.get("companyName") or user.get("organization") or "Progeni Atlas Hiring Partner"
+        org_doc = None
         if org_id and db is not None:
             try:
                 org_doc = db.organizations.find_one({"$or": [{"id": org_id}, {"_id": org_id}]})
@@ -1197,6 +1269,14 @@ def invite_candidate_screening():
                     company_name = org_doc.get("name")
             except Exception:
                 pass
+
+        raw_industry = ""
+        if org_doc:
+            raw_industry = org_doc.get("industry_code") or org_doc.get("industry") or ""
+        industry_context = industry_display(raw_industry)
+        session_jd = jd[:2500] if jd else ""
+        if industry_context:
+            session_jd = f"Industry context: {industry_context}\n{session_jd}"
 
         session_id = str(uuid.uuid4())
         invitation_id = str(uuid.uuid4())
@@ -1245,7 +1325,9 @@ def invite_candidate_screening():
             "config": {
                 "is_practice": False,
                 "job_role": role,
-                "job_description": jd[:2500] if jd else ""
+                "job_description": session_jd,
+                "industry": industry_context,
+                "industry_code": raw_industry,
             },
             "created_at": now.isoformat(),
             "updated_at": now.isoformat()
@@ -1880,6 +1962,28 @@ INDUSTRY_ROLE_BLUEPRINTS = [
     }
 ]
 
+DEFAULT_RUBRIC_WEIGHTS = {
+    "technicalDepth": 40,
+    "systemArchitecture": 30,
+    "communication": 15,
+    "problemSolving": 15,
+}
+RUBRIC_WEIGHT_KEYS = set(DEFAULT_RUBRIC_WEIGHTS)
+
+
+def is_valid_rubric_weights(weights: Any) -> bool:
+    """Shared server-side guard for rubric weight payloads."""
+    return (
+        isinstance(weights, dict)
+        and set(weights) == RUBRIC_WEIGHT_KEYS
+        and all(
+            not isinstance(v, bool) and isinstance(v, (int, float)) and v >= 0
+            for v in weights.values()
+        )
+        and abs(sum(weights.values()) - 100) <= 0.01
+    )
+
+
 @recruiter_bp.route("/api/recruiter/rubrics", methods=["GET"])
 def get_evaluation_rubrics():
     """Fetch all active evaluation rubrics, scoring weights, standard taxonomy, and industry blueprints."""
@@ -1908,12 +2012,7 @@ def get_evaluation_rubrics():
         for job in job_profiles:
             job_id_str = str(job.get("id", ""))
             stored = custom_rubrics_map.get(job_id_str) or custom_rubrics_map.get(f"rubric-{job_id_str}") or {}
-            stored_weights = stored.get("weights") or job.get("weights") or {
-                "technicalDepth": 40,
-                "systemArchitecture": 30,
-                "communication": 15,
-                "problemSolving": 15
-            }
+            stored_weights = stored.get("weights") or job.get("weights") or DEFAULT_RUBRIC_WEIGHTS
 
             rubrics.append({
                 "id": f"rubric-{job['id']}",
@@ -1924,7 +2023,8 @@ def get_evaluation_rubrics():
                 "skillsRequired": job.get("skillsRequired") or ["Full Stack"],
                 "weights": stored_weights,
                 "status": "Active",
-                "customInstructions": stored.get("custom_instructions") or f"Focus on production-level scenarios, edge-case resilience, and code clarity for {job['title']}."
+                "customInstructions": stored.get("custom_instructions") or f"Focus on production-level scenarios, edge-case resilience, and code clarity for {job['title']}.",
+                "blueprintId": stored.get("blueprint_id") or job.get("blueprint_id") or ""
             })
 
         return jsonify({
@@ -1952,10 +2052,18 @@ def update_evaluation_rubric():
         rubric_id = str(data.get("rubricId") or uuid.uuid4())
         job_profile_id = data.get("jobProfileId")
         title = data.get("title", "Software Engineer").strip()
-        weights = data.get("weights") or {"technicalDepth": 40, "systemArchitecture": 30, "communication": 15, "problemSolving": 15}
+        weights = data.get("weights") or DEFAULT_RUBRIC_WEIGHTS
         experience_level = data.get("experienceLevel", "Senior")
         custom_instructions = data.get("customInstructions", "")
-        blueprint_id = data.get("blueprintId")
+        blueprint_id = data.get("blueprintId") or ""
+
+        # Server-side contract: same four dimensions, non-negative numbers,
+        # exactly 100% total, and a known role-family blueprint id. The UI
+        # enforces this too, but API clients must not be able to bypass it.
+        if not is_valid_rubric_weights(weights):
+            return jsonify({"success": False, "error": "Weights must contain exactly the four standard dimensions and sum to 100."}), 400
+        if blueprint_id and blueprint_id not in {bp["id"] for bp in INDUSTRY_ROLE_BLUEPRINTS}:
+            return jsonify({"success": False, "error": "Unknown blueprintId."}), 400
 
         db = get_mongo_db()
         if db is not None:
@@ -3125,3 +3233,111 @@ def semantic_search_candidates():
         traceback.print_exc()
         return jsonify({"success": False, "error": "An unexpected error occurred"}), 500
 
+
+
+@recruiter_bp.route("/api/recruiter/dossiers/<session_id>/ats-scorecard", methods=["GET"])
+def recruiter_ats_scorecard(session_id):
+    """Greenhouse-compatible structured scorecard JSON for a single dossier.
+
+    Tenant-scoped the same way the dossiers page is: only the calling
+    recruiter's rows are reachable. Private by design — no public handle.
+    """
+    try:
+        db = get_mongo_db()
+        if db is None:
+            return jsonify({"error": "Database unavailable"}), 503
+
+        # Scope check through the same dashboard payload the page uses
+        resp = get_recruiter_dashboard()
+        if hasattr(resp, "get_json"):
+            data = resp.get_json() or {}
+        elif isinstance(resp, tuple) and len(resp) > 0 and hasattr(resp[0], "get_json"):
+            data = resp[0].get_json() or {}
+        else:
+            data = {}
+        candidates = data.get("candidates", []) or []
+        row = next((c for c in candidates if str(c.get("sessionId") or c.get("sameSessionId") or "") == session_id), None)
+        if row is None:
+            # Fallback: allow if caller has direct session access through recruiter scope
+            session = db.interview_sessions.find_one(
+                {"$or": [{"id": session_id}, {"session_id": session_id}]},
+                {"_id": 0},
+            )
+            if not session:
+                return jsonify({"error": "Dossier not found"}), 404
+            row = {
+                "name": session.get("candidate_name") or session.get("candidateName") or "Candidate",
+                "email": session.get("candidate_email") or session.get("email") or "",
+                "targetPosition": session.get("job_title") or session.get("jobTitle") or "",
+                "sessionId": session_id,
+            }
+        elif row is not None:
+            session = db.interview_sessions.find_one(
+                {"$or": [{"id": session_id}, {"session_id": session_id}]},
+                {"_id": 0},
+            ) or {}
+        else:
+            session = {}
+
+        scorecard = session.get("scorecard") or {}
+        recommendation = (session.get("recommendation") or scorecard.get("recommendation") or "NOT_EVALUATED")
+        overall_score = session.get("overall_score") or scorecard.get("overall_score")
+        competencies = scorecard.get("competencies") or []
+        questions_total = len(session.get("questions") or [])
+
+        payload = {
+            "schema": "greenhouse.scorecard.v3+progeni",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "application": {
+                "id": session_id,
+                "candidate_id": row.get("id") or row.get("candidateId") or session.get("candidate_id") or "",
+                "job_id": row.get("jobId") or row.get("jobProfileId") or session.get("job_id") or row.get("targetPosition") or "",
+                "job_name": row.get("targetPosition") or session.get("job_title") or session.get("jobTitle") or "",
+            },
+            "interview": {
+                "id": session_id,
+                "candidate_name": row.get("name"),
+                "candidate_email": row.get("email"),
+                "status": session.get("status"),
+                "questions_asked": questions_total,
+                "answered_turns": session.get("answered_turns"),
+            },
+            "overall_recommendation": recommendation,
+            "overall_score": overall_score,
+            "private_note": scorecard.get("executive_summary") or "",
+            "competencies": [
+                {
+                    "name": str(c.get("competency") or ""),
+                    "score": c.get("score"),
+                    "weight": c.get("weight"),
+                    "evidence": c.get("evidence"),
+                }
+                for c in competencies
+            ],
+            "interview_deficits": session.get("missing_concepts") or [],
+            "provenance": {
+                "engine": "progeni-atlas",
+                "model_used": scorecard.get("model_used") or "unknown",
+                "needs_human_review": bool(scorecard.get("needs_human_review")),
+                "review_reasons": scorecard.get("review_reasons") or [],
+            },
+            "ats_import_instructions": (
+                "Map application.id -> application application_id, overall_recommendation -> overall_recommendation, "
+                "competencies[*] -> question ratings by competency name. Private note -> private_note. "
+                "needs_human_review=true means a human must inspect before any ATS write."
+            ),
+        }
+
+        import io
+        import json
+        body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+        filename = f"ats-scorecard-{str(session_id)[:24]}.json"
+        from flask import Response as _Response
+        return _Response(
+            body,
+            mimetype="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": generic_500(e)}), 500

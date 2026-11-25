@@ -114,6 +114,18 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       { source: '/careers', destination: '/career', permanent: false },
+      // Legacy signup URL. /register is the canonical page and already has its
+      // own sitemap/canonical entry, so /signup is intentionally not indexed.
+      { source: '/signup', destination: '/register', permanent: false },
+      // Direct loads of /verify-otp without an email are a dead end: the page
+      // can only work when the registration flow supplies ?email=... Send those
+      // visits straight back to signup instead of showing "Redirecting…" copy.
+      {
+        source: '/verify-otp',
+        missing: [{ type: 'query', key: 'email' }],
+        destination: '/register',
+        permanent: false,
+      },
       { source: '/pay-us-now', destination: '/pricing', permanent: false },
       { source: '/candidate/dashboard/interviews', destination: '/candidate/interviews', permanent: false },
       { source: '/candidate/dashboard/practice', destination: '/candidate/practice', permanent: false },
