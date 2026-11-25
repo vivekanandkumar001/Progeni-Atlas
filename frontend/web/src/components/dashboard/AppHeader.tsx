@@ -174,12 +174,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {/* ================= LEFT: LOGO + PRIMARY NAV ================= */}
         <BrandLogo href={brandHref} badge={brandBadge} hideTextOnMobile />
 
-        <div className="mx-1 hidden h-6 w-px shrink-0 bg-line lg:block" aria-hidden="true" />
+        <div className="mx-1 hidden h-5 w-px shrink-0 bg-line xl:block" aria-hidden="true" />
 
-        {/* Segmented primary navigation — horizontally scrollable on smaller desktops */}
+        {/* Clean flat primary navigation (no outer/inner card boxes) */}
         <nav
           aria-label="Primary"
-          className="hidden h-11 min-w-0 items-center gap-0.5 overflow-x-auto rounded-xl border border-line bg-surface-2/60 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex"
+          className="hidden h-16 min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex"
         >
           {navLinks.map((item) => {
             const isActive = isNavItemActive(pathname, item.href);
@@ -189,19 +189,27 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 key={item.name}
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
-                className={`inline-flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-[13px] font-semibold transition-colors duration-150 xl:px-3 ${
+                className={`group relative inline-flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 text-[13px] font-semibold transition-colors duration-150 xl:px-3 ${
                   isActive
-                    ? 'border-line bg-surface text-ink shadow-xs'
-                    : 'border-transparent text-ink-muted hover:bg-surface/70 hover:text-ink'
+                    ? 'text-ink'
+                    : 'text-ink-muted hover:text-ink'
                 }`}
               >
                 {Icon && (
                   <Icon
                     aria-hidden="true"
-                    className={`h-4 w-4 transition-colors ${isActive ? 'text-accent-cyan' : 'text-ink-faint'}`}
+                    className={`h-4 w-4 transition-colors ${
+                      isActive ? 'text-accent-cyan' : 'text-ink-faint group-hover:text-ink-muted'
+                    }`}
                   />
                 )}
                 <span>{item.name}</span>
+                {isActive && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-2.5 bottom-0 h-0.5 rounded-full bg-accent-cyan xl:inset-x-3"
+                  />
+                )}
               </Link>
             );
           })}
@@ -242,10 +250,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               aria-expanded={notificationsOpen}
               aria-haspopup="dialog"
               onClick={toggleNotifications}
-              className={`relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border shadow-xs transition-colors ${
+              className={`relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors ${
                 notificationsOpen
-                  ? 'border-accent-cyan/40 bg-accent-cyan/10 text-accent-cyan'
-                  : 'border-line bg-surface text-ink-muted hover:border-line-strong hover:bg-surface-2 hover:text-ink'
+                  ? 'bg-accent-cyan/10 text-accent-cyan'
+                  : 'text-ink-muted hover:bg-surface-2 hover:text-ink'
               }`}
             >
               <Bell aria-hidden="true" className="h-[18px] w-[18px]" />
@@ -287,10 +295,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               aria-expanded={profileDropdownOpen}
               aria-haspopup="menu"
               title={profileTitle}
-              className={`flex h-10 cursor-pointer items-center gap-2 rounded-2xl border py-1 pl-1 pr-1 shadow-xs transition-colors sm:pr-2 ${
+              className={`flex h-9 cursor-pointer items-center gap-2 rounded-full py-1 pl-1 pr-1.5 transition-colors sm:pr-2.5 ${
                 profileDropdownOpen
-                  ? 'border-accent-cyan/40 bg-accent-cyan/10'
-                  : 'border-line bg-surface hover:border-line-strong hover:bg-surface-2'
+                  ? 'bg-accent-cyan/10'
+                  : 'hover:bg-surface-2'
               }`}
             >
               <span
