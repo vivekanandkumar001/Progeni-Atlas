@@ -14,6 +14,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import { AppHeader } from '@/components/dashboard/AppHeader';
+import { SkeletonRows } from '@/components/ui';
 import { formatRelativeTime } from '@/lib/formatters';
 import {
   fetchRecruiterNotifications,
@@ -207,7 +208,9 @@ export const RecruiterHeader: React.FC = () => {
           )}
 
           {loading ? (
-            <div className="py-6 text-center text-xs text-ink-muted">Loading notifications...</div>
+            <div className="p-3" role="status" aria-busy="true" aria-label="Loading notifications">
+              <SkeletonRows rows={3} className="border-t-0" />
+            </div>
           ) : notifications.length === 0 ? (
             <div className="rounded-xl border border-line bg-surface-2 p-4 text-center text-xs text-ink-muted">
               You have no new notifications.

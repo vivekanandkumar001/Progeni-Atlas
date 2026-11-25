@@ -1,15 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { Video, Brain } from 'lucide-react';
 import { SkeletonRows } from '@/components/ui';
-import {
-  fetchCandidateInterviews,
-  fetchCandidateAptitudeHistory,
-  type InterviewSession,
-  type AptitudeAttemptHistory,
-} from '@/lib/api';
+import { useCandidateWorkspace } from './CandidateWorkspaceProvider';
 
 interface ActivityItem {
   id: string;
@@ -32,52 +27,37 @@ function toIso(d: string | null | undefined): number {
  * Plain rows with hairline dividers — nothing boxed.
  */
 export const RecentActivity: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<ActivityItem[]>([]);
+  const { interviews, aptitudeAttempts, loading } = useCandidateWorkspace();
+  const failed = !loading && (interviews === null || aptitudeAttempts === null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [sessions, attempts] = await Promise.all([
-          fetchCandidateInterviews(),
-          fetchCandidateAptitudeHistory(),
-        ]);
-        if (cancelled) return;
-        const merged: ActivityItem[] = [];
-        for (const s of sessions ?? []) {
-          const status = String(s.status || '').toLowerCase();
-          merged.push({
-            id: `int-${s.id}`,
-            kind: 'interview',
-            title: status === 'completed' ? 'AI interview completed' : 'Interview session',
-            detail: s.session_type || s.duration_minutes ? `${s.session_type || 'Technical'} · ${s.duration_minutes ?? '—'} min` : 'Technical screening',
-            date: s.scheduled_at ?? null,
-            badge: status === 'completed' && s.total_score != null ? `${s.total_score}%` : status === 'completed' ? 'Scored' : 'Scheduled',
-            href: s.reportUrl ?? `/candidate/interviews`,
-          });
-        }
-        for (const a of attempts ?? []) {
-          merged.push({
-            id: `apt-${a.sessionId}`,
-            kind: 'aptitude',
-            title: a.templateTitle || 'Aptitude assessment',
-            detail: `AMCAT-style · ${a.speedIndex}`,
-            date: a.startedAt ?? null,
-            badge: `${a.score}%`,
-            href: `/candidate/aptitude/test/${a.sessionId}/report`,
-          });
-        }
-        merged.sort((a, b) => toIso(b.date) - toIso(a.date));
-        setItems(merged.slice(0, 6));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const items = useMemo<ActivityItem[]>(() => {
+    const merged: ActivityItem[] = [];
+    for (const s of interviews ?? []) {
+      const status = String(s.status || '').toLowerCase();
+      merged.push({
+        id: `int-${s.id}`,
+        kind: 'interview',
+        title: status === 'completed' ? 'AI interview completed' : 'Interview session',
+        detail: s.session_type || s.duration_minutes ? `${s.session_type || 'Technical'} · ${s.duration_minutes ?? '—'} min` : 'Technical screening',
+        date: s.scheduled_at ?? null,
+        badge: status === 'completed' && s.total_score != null ? `${s.total_score}%` : status === 'completed' ? 'Scored' : 'Scheduled',
+        href: s.reportUrl ?? `/candidate/interviews`,
+      });
+    }
+    for (const a of aptitudeAttempts ?? []) {
+      merged.push({
+        id: `apt-${a.sessionId}`,
+        kind: 'aptitude',
+        title: a.templateTitle || 'Aptitude assessment',
+        detail: `AMCAT-style · ${a.speedIndex}`,
+        date: a.startedAt ?? null,
+        badge: `${a.score}%`,
+        href: `/candidate/aptitude/test/${a.sessionId}/report`,
+      });
+    }
+    merged.sort((a, b) => toIso(b.date) - toIso(a.date));
+    return merged.slice(0, 6);
+  }, [interviews, aptitudeAttempts]);
 
   return (
     <div>
@@ -90,6 +70,10 @@ export const RecentActivity: React.FC = () => {
 
       {loading ? (
         <SkeletonRows rows={4} />
+      ) : failed ? (
+        <p className="py-6 text-xs text-ink-muted border-t border-line">
+          Recent activity could not be loaded. Refresh the page to try again.
+        </p>
       ) : items.length === 0 ? (
         <p className="py-6 text-xs text-ink-muted border-t border-line">
           Nothing yet — your first interview or aptitude attempt will show up here.

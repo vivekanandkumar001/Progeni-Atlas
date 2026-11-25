@@ -1,5 +1,6 @@
-﻿import { Edit2, Scale } from 'lucide-react';
-import { Card, CardHeader, Pill, Spinner } from '@/components/super-admin/ui';
+import { Edit2, Scale } from 'lucide-react';
+import { Card, CardHeader, Pill } from '@/components/super-admin/ui';
+import { Skeleton } from '@/components/ui';
 import { formatDateTime, type RateCard } from '@/lib/super-admin';
 import type { PricingPolicy } from '../billing-types';
 
@@ -196,9 +197,16 @@ export function RatesTab({
         />
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {loadingRates ? (
-            <div className="col-span-full py-8 text-center">
-              <Spinner />
-            </div>
+            Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="rounded-2xl bg-surface-2 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-5 w-10 rounded-full" />
+                </div>
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+            ))
           ) : (
             rateCards.map((rc) => (
               <div

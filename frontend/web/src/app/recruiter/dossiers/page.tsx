@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { RecruiterHeader } from '@/components/dashboard/RecruiterHeader';
+import { SkeletonTable } from '@/components/ui';
 import { exportCandidateDossierPdf } from '@/lib/export-pdf-dossier';
 import { useToast } from '@/lib/hooks/useToast';
 import {
@@ -623,10 +624,7 @@ export default function CandidateDossiersPage() {
  {/* CANDIDATES DOSSIERS TABLE */}
  <section className="rounded-2xl bg-surface border border-line overflow-hidden backdrop-blur-md shadow-2xl">
  {loading ? (
- <div className="p-16 text-center space-y-3">
- <RefreshCw className="w-8 h-8 text-accent-indigo animate-spin mx-auto"/>
- <p className="text-ink-muted text-sm">Fetching evaluation dossiers from Python backend...</p>
- </div>
+ <SkeletonTable rows={6} cols={6} />
  ) : filteredCandidates.length === 0 ? (
  <div className="p-16 text-center space-y-4">
  <Search className="w-10 h-10 text-ink-muted mx-auto"/>

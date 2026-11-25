@@ -26,8 +26,8 @@ import {
   PageHeader,
   Pill,
   RefreshButton,
-  Spinner,
 } from '@/components/super-admin/ui';
+import { Skeleton, SkeletonStatCards } from '@/components/ui';
 import { useSuperAdmin } from '@/components/super-admin/SuperAdminShell';
 import { formatCurrencyUsd, formatDateTime, formatNumber, saFetch } from '@/lib/super-admin';
 
@@ -138,9 +138,20 @@ export default function SuperAdminOrganizationDetailPage() {
 
   if (loading && !data) {
     return (
-      <Card>
-        <Spinner label="Loading organization dossier…" />
-      </Card>
+      <div className="space-y-6" role="status" aria-busy="true" aria-label="Loading organization dossier">
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-9 w-28 rounded-xl" />
+        </div>
+        <SkeletonStatCards count={4} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-56 w-full rounded-2xl" />
+          <Skeleton className="h-56 w-full rounded-2xl" />
+        </div>
+      </div>
     );
   }
 

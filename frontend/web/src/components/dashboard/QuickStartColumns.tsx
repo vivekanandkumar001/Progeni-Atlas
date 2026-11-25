@@ -1,17 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { Video, Brain, Calendar, Clock } from 'lucide-react';
 import { Skeleton } from '@/components/ui';
-import {
-  fetchCandidateDashboard,
-  fetchCandidateInvitations,
-  fetchCandidateAptitudeHistory,
-  type InterviewSession,
-  type InterviewInvitation,
-  type AptitudeAttemptHistory,
-} from '@/lib/api';
+import type { InterviewSession } from '@/lib/api';
+import { useCandidateWorkspace } from './CandidateWorkspaceProvider';
 
 function isUpcoming(s: InterviewSession): boolean {
   const status = String(s.status || '').toLowerCase();
@@ -22,42 +16,26 @@ function isUpcoming(s: InterviewSession): boolean {
 /**
  * Two equal-weight lanes side by side: AI Interview on the left, Aptitude on
  * the right. Same width, same density, same visual priority — the candidate
- * picks what needs work. Divided by a hairline, no cards.
+ * picks what needs work. Data comes from the shared workspace load.
  */
 export const QuickStartColumns: React.FC = () => {
-  const [interviewLoading, setInterviewLoading] = useState(true);
-  const [aptitudeLoading, setAptitudeLoading] = useState(true);
-  const [nextInterview, setNextInterview] = useState<InterviewSession | null>(null);
-  const [invitation, setInvitation] = useState<InterviewInvitation | undefined>(undefined);
-  const [aptAttempts, setAptAttempts] = useState<AptitudeAttemptHistory[]>([]);
+  const { dashboard, invitations, aptitudeAttempts, loading } = useCandidateWorkspace();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [dashboard, invitations] = await Promise.all([fetchCandidateDashboard(), fetchCandidateInvitations()]);
-        if (cancelled) return;
-        const upcoming = (dashboard?.upcoming_interviews ?? []).filter(isUpcoming);
-        const chosen = upcoming[0] ?? null;
-        setNextInterview(chosen);
-        setInvitation(chosen ? invitations?.find((inv) => inv.session_id === chosen.id) : undefined);
-      } finally {
-        if (!cancelled) setInterviewLoading(false);
-      }
-    })();
-    (async () => {
-      try {
-        const data = await fetchCandidateAptitudeHistory();
-        if (cancelled) return;
-        setAptAttempts(Array.isArray(data) ? data.filter((a) => a.status === 'completed') : []);
-      } finally {
-        if (!cancelled) setAptitudeLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const nextInterview = useMemo(
+    () => (dashboard?.upcoming_interviews ?? []).filter(isUpcoming)[0] ?? null,
+    [dashboard]
+  );
+  const invitation = useMemo(
+    () => (nextInterview ? invitations?.find((inv) => inv.session_id === nextInterview.id) : undefined),
+    [invitations, nextInterview]
+  );
+  const aptAttempts = useMemo(
+    () => (aptitudeAttempts ?? []).filter((a) => a.status === 'completed'),
+    [aptitudeAttempts]
+  );
+
+  const interviewFailed = !loading && dashboard === null;
+  const aptitudeFailed = !loading && aptitudeAttempts === null;
 
   const interviewMeta = nextInterview?.scheduled_at
     ? [new Date(nextInterview.scheduled_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
@@ -83,12 +61,16 @@ export const QuickStartColumns: React.FC = () => {
           </Link>
         </div>
 
-        {interviewLoading ? (
+        {loading ? (
           <div aria-hidden="true" className="space-y-2.5 pt-1">
             <Skeleton className="h-5 w-48" />
             <Skeleton className="h-3.5 w-56" />
             <Skeleton className="h-9 w-40 rounded-lg mt-1" />
           </div>
+        ) : interviewFailed ? (
+          <p className="text-sm text-ink-muted leading-relaxed">
+            Upcoming interviews could not be loaded. Refresh the page to try again.
+          </p>
         ) : nextInterview ? (
           <div className="space-y-2">
             <p className="text-base font-bold text-ink leading-snug">{interviewTitle}</p>
@@ -98,7 +80,7 @@ export const QuickStartColumns: React.FC = () => {
             </p>
             <Link
               href={`/candidate/interview/${nextInterview.id}/lobby`}
-              className="inline-flex items-center gap-1.5 mt-1 text-xs font-bold btn-primary-gradient text-on-brand text-xs font-bold px-4 py-2 rounded-lg transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 mt-1 text-xs font-bold btn-primary-gradient text-on-brand px-4 py-2 rounded-lg transition-all cursor-pointer"
             >
               Enter interview lobby
             </Link>
@@ -110,7 +92,7 @@ export const QuickStartColumns: React.FC = () => {
             </p>
             <Link
               href="/candidate/practice"
-              className="inline-flex items-center gap-1.5 text-xs font-bold btn-primary-gradient text-on-brand text-xs font-bold px-4 py-2 rounded-lg transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-bold btn-primary-gradient text-on-brand px-4 py-2 rounded-lg transition-all cursor-pointer"
             >
               Practice the interview loop
             </Link>
@@ -130,12 +112,16 @@ export const QuickStartColumns: React.FC = () => {
           </Link>
         </div>
 
-        {aptitudeLoading ? (
+        {loading ? (
           <div aria-hidden="true" className="space-y-2.5 pt-1">
             <Skeleton className="h-5 w-44" />
             <Skeleton className="h-3.5 w-60" />
             <Skeleton className="h-9 w-44 rounded-lg mt-1" />
           </div>
+        ) : aptitudeFailed ? (
+          <p className="text-sm text-ink-muted leading-relaxed">
+            Aptitude attempts could not be loaded. Refresh the page to try again.
+          </p>
         ) : aptAttempts.length > 0 ? (
           <div className="space-y-2">
             <p className="text-base font-bold text-ink leading-snug">
@@ -144,7 +130,7 @@ export const QuickStartColumns: React.FC = () => {
             <p className="text-xs text-ink-muted font-mono">AMCAT-style · 5 pillars · section-wise percentiles</p>
             <Link
               href="/candidate/aptitude"
-              className="inline-flex items-center gap-1.5 mt-1 text-xs font-bold btn-primary-gradient text-on-brand text-xs font-bold px-4 py-2 rounded-lg transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 mt-1 text-xs font-bold btn-primary-gradient text-on-brand px-4 py-2 rounded-lg transition-all cursor-pointer"
             >
               Keep climbing — retake
             </Link>
@@ -156,7 +142,7 @@ export const QuickStartColumns: React.FC = () => {
             </p>
             <Link
               href="/candidate/aptitude"
-              className="inline-flex items-center gap-1.5 text-xs font-bold btn-primary-gradient text-on-brand text-xs font-bold px-4 py-2 rounded-lg transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-bold btn-primary-gradient text-on-brand px-4 py-2 rounded-lg transition-all cursor-pointer"
             >
               Take your aptitude baseline
             </Link>

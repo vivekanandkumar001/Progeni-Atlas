@@ -20,10 +20,10 @@ import {
   PageHeader,
   Pill,
   RefreshButton,
-  Spinner,
   StatCard,
   StatSkeleton,
 } from '@/components/super-admin/ui';
+import { Skeleton, SkeletonStatCards, SkeletonTable } from '@/components/ui';
 import { formatNumber, saFetch, type UsageAnalytics } from '@/lib/super-admin';
 
 interface AptitudeBankStats {
@@ -528,9 +528,11 @@ export default function SuperAdminUsagePage() {
           </Card>
         </>
       ) : (
-        <Card>
-          <Spinner />
-        </Card>
+        <div className="space-y-6" role="status" aria-busy="true" aria-label="Loading usage analytics">
+          <SkeletonStatCards count={4} />
+          <Skeleton className="h-64 w-full rounded-2xl" />
+          <SkeletonTable rows={5} cols={4} />
+        </div>
       )}
     </div>
   );

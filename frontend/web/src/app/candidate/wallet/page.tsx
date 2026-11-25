@@ -249,6 +249,11 @@ export default function CandidateWalletPage() {
         throw new Error(order.error || 'Razorpay checkout is not available yet.');
       }
 
+      const razorpayOrderId = order.order_id || order.razorpay_order_id;
+      if (!razorpayOrderId) {
+        throw new Error('Razorpay order id is missing. Please retry.');
+      }
+
       const ready = await loadRazorpayScript();
       if (!ready) {
         throw new Error('Failed to load Razorpay checkout. Check your connection and retry.');
@@ -261,7 +266,7 @@ export default function CandidateWalletPage() {
       }) => {
         try {
           const verified = await verifyRazorpayPayment({
-            orderId: order.order_id || order.razorpay_order_id,
+            orderId: razorpayOrderId,
             razorpayOrderId: response.razorpay_order_id,
             razorpayPaymentId: response.razorpay_payment_id,
             razorpaySignature: response.razorpay_signature,

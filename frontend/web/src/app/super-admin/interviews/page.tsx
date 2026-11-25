@@ -32,11 +32,11 @@ import {
   Pill,
   RefreshButton,
   SearchInput,
-  Spinner,
   StatCard,
   StatSkeleton,
   TableSkeleton,
 } from '@/components/super-admin/ui';
+import { Skeleton } from '@/components/ui';
 import { useSuperAdmin } from '@/components/super-admin/SuperAdminShell';
 import { formatDateTime, formatNumber, saFetch, type InterviewItem } from '@/lib/super-admin';
 
@@ -488,8 +488,14 @@ export default function SuperAdminInterviewsPage() {
             </div>
 
             {detailLoading || !sessionDetail ? (
-              <div className="py-12 flex justify-center">
-                <Spinner label="Loading session telemetry..." />
+              <div className="mt-4 space-y-4" role="status" aria-busy="true" aria-label="Loading session telemetry">
+                <div className="grid grid-cols-2 gap-3 rounded-xl bg-surface-2 p-3">
+                  <Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-9 w-full" />
+                </div>
+                <Skeleton className="h-24 w-full rounded-xl" />
               </div>
             ) : (
               <div className="mt-4 space-y-4">

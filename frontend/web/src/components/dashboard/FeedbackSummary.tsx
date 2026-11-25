@@ -4,61 +4,79 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, AlertTriangle, Play } from 'lucide-react';
 import { Skeleton } from '@/components/ui';
-import { fetchCandidateInterviews, fetchSessionScorecard, type InterviewSession, type SessionScorecard } from '@/lib/api';
+import { fetchSessionScorecard, type InterviewSession, type SessionScorecard } from '@/lib/api';
+import { useCandidateWorkspace } from './CandidateWorkspaceProvider';
 
 /**
  * Flat feedback summary — strengths and growth as plain divided rows.
  * No card, no shadow; reads the latest completed session's scorecard.
+ * The interview list comes from the shared workspace load.
  */
 export const FeedbackSummary: React.FC = () => {
+  const { interviews, loading } = useCandidateWorkspace();
   const [scorecard, setScorecard] = useState<SessionScorecard | null>(null);
   const [session, setSession] = useState<InterviewSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    if (loading) return;
+
+    if (interviews === null) {
+      setFailed(true);
+      setSession(null);
+      setScorecard(null);
+      return;
+    }
+    setFailed(false);
+
+    const sessionList: any[] = Array.isArray(interviews)
+      ? interviews
+      : Array.isArray((interviews as any)?.completed)
+        ? (interviews as any).completed
+        : [];
+    const latest = sessionList
+      .filter((s: any) => s.status === 'completed' || s.completedAt)
+      .sort(
+        (a: any, b: any) =>
+          new Date(b.scheduled_at || b.completedAt || 0).getTime() -
+          new Date(a.scheduled_at || a.completedAt || 0).getTime()
+      )[0];
+
+    if (!latest) {
+      setSession(null);
+      setScorecard(null);
+      return;
+    }
+
     let cancelled = false;
-
-    (async () => {
-      const sessions = await fetchCandidateInterviews();
+    setDetailsLoading(true);
+    void (async () => {
+      const card = await fetchSessionScorecard(latest.id);
       if (cancelled) return;
-
-      const sessionList: any[] = Array.isArray(sessions)
-        ? sessions
-        : Array.isArray((sessions as any)?.completed)
-          ? (sessions as any).completed
-          : [];
-      const latest = sessionList
-        .filter((s: any) => s.status === 'completed' || s.completedAt)
-        .sort(
-          (a: any, b: any) =>
-            new Date(b.scheduled_at || b.completedAt || 0).getTime() -
-            new Date(a.scheduled_at || a.completedAt || 0).getTime()
-        )[0];
-
-      if (latest) {
-        const card = await fetchSessionScorecard(latest.id);
-        if (cancelled) return;
-        setSession(latest);
-        setScorecard(card);
-      }
-      setLoading(false);
+      setSession(latest);
+      setScorecard(card);
+      setDetailsLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [interviews, loading]);
 
   const strengths = scorecard?.strengths ?? [];
   const concerns = scorecard?.concerns ?? [];
-  const sessionDate = session ? new Date(session.scheduled_at).toLocaleDateString() : null;
-  const isEmpty = !loading && strengths.length === 0 && concerns.length === 0;
+  const sessionDate = session?.scheduled_at
+    ? new Date(session.scheduled_at).toLocaleDateString()
+    : null;
+  const showSkeleton = loading || detailsLoading;
+  const isEmpty = !showSkeleton && !failed && strengths.length === 0 && concerns.length === 0;
 
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <h2 className="kicker">Latest feedback</h2>
-        {session && (
+        {session && !showSkeleton && (
           <Link
             href={`/candidate/interview/${session.id}/report`}
             className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-ink-muted hover:text-accent-cyan transition-colors"
@@ -68,7 +86,7 @@ export const FeedbackSummary: React.FC = () => {
         )}
       </div>
 
-      {loading ? (
+      {showSkeleton ? (
         <div aria-hidden="true" className="border-t border-line pt-3 space-y-4">
           <Skeleton className="h-3 w-44" />
           <div className="space-y-2">
@@ -80,6 +98,12 @@ export const FeedbackSummary: React.FC = () => {
             <Skeleton className="h-2.5 w-24" />
             <Skeleton className="h-3.5 w-11/12" />
           </div>
+        </div>
+      ) : failed ? (
+        <div className="border-t border-line pt-3">
+          <p className="text-xs text-ink-muted leading-relaxed">
+            Feedback could not be loaded. Refresh the page to try again.
+          </p>
         </div>
       ) : (
         <div className="border-t border-line">

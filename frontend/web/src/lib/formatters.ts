@@ -33,6 +33,13 @@ export function formatDateTime(value: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString();
 }
 
+/** Date-only helper for list rows; kept separate from date+time display. */
+export function formatDate(value: string | null | undefined): string {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
+}
+
 /** Recommendation labels are shared by badges, tallies and summary cards. */
 export function formatRecommendation(value: string | null | undefined): string {
   if (!value) return 'Not available yet';

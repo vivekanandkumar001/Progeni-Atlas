@@ -4,7 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Lightbulb, Play } from 'lucide-react';
 import { Skeleton } from '@/components/ui';
-import { fetchCandidateInterviews, fetchSessionScorecard } from '@/lib/api';
+import { fetchSessionScorecard } from '@/lib/api';
+import { useCandidateWorkspace } from './CandidateWorkspaceProvider';
 
 interface AggregatedCompetency {
   name: string;
@@ -17,32 +18,48 @@ const BAR_COLORS = ['bg-cyan-400', 'bg-emerald-400', 'bg-indigo-400', 'bg-sky-40
 /**
  * Flat competency map — thin single-pixel bars, no boxes, no shadows.
  * Reads Scorecard.competencies from completed sessions and averages them.
+ * The interview list comes from the shared workspace load; only scorecards
+ * are fetched here, and `apiJson` dedupes them with FeedbackSummary.
  */
 export const CompetencyMap: React.FC = () => {
+  const { interviews, loading } = useCandidateWorkspace();
   const [competencies, setCompetencies] = useState<AggregatedCompetency[] | null>(null);
   const [scoredSessionCount, setScoredSessionCount] = useState(0);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    if (loading) return;
+
+    if (interviews === null) {
+      setFailed(true);
+      setCompetencies([]);
+      setScoredSessionCount(0);
+      return;
+    }
+    setFailed(false);
+
+    const sessionList: any[] = Array.isArray(interviews)
+      ? interviews
+      : Array.isArray((interviews as any)?.completed)
+        ? (interviews as any).completed
+        : [];
+    const completed = sessionList.filter(
+      (session: any) => session.status === 'completed' || session.completedAt
+    );
+
+    if (completed.length === 0) {
+      setScoredSessionCount(0);
+      setCompetencies([]);
+      return;
+    }
+
     let cancelled = false;
-
-    (async () => {
-      const sessions = await fetchCandidateInterviews();
-      if (cancelled) return;
-
-      const sessionList: any[] = Array.isArray(sessions)
-        ? sessions
-        : Array.isArray((sessions as any)?.completed)
-          ? (sessions as any).completed
-          : [];
-      const completed = sessionList.filter((session: any) => session.status === 'completed' || session.completedAt);
-
-      if (completed.length === 0) {
-        setScoredSessionCount(0);
-        setCompetencies([]);
-        return;
-      }
-
-      const scorecards = await Promise.all(completed.slice(0, 5).map((s: any) => fetchSessionScorecard(s.id)));
+    setDetailsLoading(true);
+    void (async () => {
+      const scorecards = await Promise.all(
+        completed.slice(0, 5).map((s: any) => fetchSessionScorecard(s.id))
+      );
       if (cancelled) return;
 
       const totals = new Map<string, { sum: number; count: number }>();
@@ -74,28 +91,36 @@ export const CompetencyMap: React.FC = () => {
         .slice(0, 5);
 
       setCompetencies(aggregated);
+      setDetailsLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [interviews, loading]);
 
   const top = useMemo(() => competencies?.[0], [competencies]);
   const hasData = (competencies?.length ?? 0) > 0;
+  const showSkeleton = loading || detailsLoading;
 
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <h2 className="kicker">Competency map</h2>
-        <span className="text-[11px] text-ink-faint font-mono">
-          {scoredSessionCount > 0
-            ? `${scoredSessionCount} scored session${scoredSessionCount === 1 ? '' : 's'}`
-            : 'No scored sessions'}
-        </span>
+        {showSkeleton ? (
+          <Skeleton className="h-3 w-28" />
+        ) : (
+          <span className="text-[11px] text-ink-faint font-mono">
+            {failed
+              ? 'Unavailable'
+              : scoredSessionCount > 0
+                ? `${scoredSessionCount} scored session${scoredSessionCount === 1 ? '' : 's'}`
+                : 'No scored sessions'}
+          </span>
+        )}
       </div>
 
-      {competencies === null ? (
+      {showSkeleton ? (
         <div aria-hidden="true" className="divide-y divide-line border-t border-line">
           {Array.from({ length: 4 }).map((_, idx) => (
             <div key={idx} className="py-3 space-y-2">
@@ -106,6 +131,12 @@ export const CompetencyMap: React.FC = () => {
               <Skeleton className="h-[3px] w-full rounded-full" />
             </div>
           ))}
+        </div>
+      ) : failed ? (
+        <div className="border-t border-line pt-5">
+          <p className="text-xs text-ink-muted leading-relaxed">
+            Competency scores could not be loaded. Refresh the page to try again.
+          </p>
         </div>
       ) : !hasData ? (
         <div className="border-t border-line pt-5">
@@ -122,7 +153,7 @@ export const CompetencyMap: React.FC = () => {
         </div>
       ) : (
         <ul className="divide-y divide-line border-t border-line">
-          {competencies.map((item, idx) => (
+          {(competencies ?? []).map((item, idx) => (
             <li key={item.name} className="py-3">
               <div className="flex items-center justify-between text-xs gap-3 mb-1.5">
                 <span className="font-semibold text-ink truncate">{item.name}</span>
@@ -139,7 +170,7 @@ export const CompetencyMap: React.FC = () => {
         </ul>
       )}
 
-      {top && (
+      {top && !showSkeleton && (
         <p className="mt-4 flex items-start gap-2 text-[11px] text-ink-muted leading-normal border-t border-line pt-3">
           <Lightbulb className="w-3.5 h-3.5 text-accent-amber shrink-0 mt-0.5" />
           <span>

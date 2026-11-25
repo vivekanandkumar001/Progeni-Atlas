@@ -4,14 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Award, Zap, Lock, CheckCircle2, X, Play, Flame } from 'lucide-react';
 import { Skeleton } from '@/components/ui';
-import {
-  candidateDemoQuota,
-  fetchCandidateDashboard,
-  fetchCandidateProfile,
-  type CandidateDashboard,
-  type CandidateProfile,
-} from '@/lib/api';
-import { LOADING_RESUME_STATUS } from '@/constants/ui_strings';
+import { candidateDemoQuota } from '@/lib/api';
+import { useCandidateWorkspace } from './CandidateWorkspaceProvider';
 
 const MILESTONES = [
   { key: 'resume', label: 'Resume' },
@@ -23,32 +17,15 @@ const MILESTONES = [
 
 /**
  * Flat hero strip. No border, no card — dense type, inline meta,
- * real candidate progress track.
+ * real candidate progress track. Data comes from the shared workspace load.
  */
 export const HeroStrip: React.FC = () => {
-  const [dashboard, setDashboard] = useState<CandidateDashboard | null>(null);
-  const [profile, setProfile] = useState<CandidateProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { dashboard, profile, loading } = useCandidateWorkspace();
   const [justCompleted, setJustCompleted] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [summary, record] = await Promise.all([fetchCandidateDashboard(), fetchCandidateProfile()]);
-      if (cancelled) return;
-      setDashboard(summary);
-      setProfile(record);
-      setLoading(false);
-    })();
-
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('interview_completed') === 'true') setJustCompleted(true);
-    }
-
-    return () => {
-      cancelled = true;
-    };
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('interview_completed') === 'true') setJustCompleted(true);
   }, []);
 
   const firstName =
@@ -126,71 +103,86 @@ export const HeroStrip: React.FC = () => {
             Two tracks, one goal. Close the gap one interview at a time — and make every score count.
           </p>
 
-          {/* Prep milestone track — flat stepper */}
-          <div className="mt-4 flex flex-wrap items-center gap-1.5 text-[11px]">
-            {MILESTONES.map((m, i) => {
-              const done =
-                (m.key === 'resume' && hasResume) ||
-                (m.key === 'skills' && skillCount > 0) ||
-                (m.key === 'profile' && hasProfileDetails) ||
-                (m.key === 'demo' && hasDemoCompleted) ||
-                (m.key === 'scored' && hasScoredCompleted);
-              return (
-                <React.Fragment key={m.key}>
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold border transition-colors ${
-                      done ? 'bg-emerald-500/10 text-accent-emerald border-emerald-500/30' : 'bg-surface text-ink-muted border-line-strong'
-                    }`}
-                  >
-                    {done && <CheckCircle2 className="w-3 h-3" />}
-                    {m.label}
-                  </span>
-                  {i < MILESTONES.length - 1 && <span className="text-ink-faint">/</span>}
-                </React.Fragment>
-              );
-            })}
+          {/* Prep milestone track — flat stepper. Never show unchecked chips as
+              "not done" until the underlying data has actually loaded. */}
+          <div className="mt-4 flex flex-wrap items-center gap-1.5 text-[11px]" aria-busy={loading}>
+            {loading
+              ? MILESTONES.map((m) => (
+                  <Skeleton key={m.key} className="h-6 w-20 rounded-full" />
+                ))
+              : MILESTONES.map((m, i) => {
+                  const done =
+                    (m.key === 'resume' && hasResume) ||
+                    (m.key === 'skills' && skillCount > 0) ||
+                    (m.key === 'profile' && hasProfileDetails) ||
+                    (m.key === 'demo' && hasDemoCompleted) ||
+                    (m.key === 'scored' && hasScoredCompleted);
+                  return (
+                    <React.Fragment key={m.key}>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold border transition-colors ${
+                          done ? 'bg-emerald-500/10 text-accent-emerald border-emerald-500/30' : 'bg-surface text-ink-muted border-line-strong'
+                        }`}
+                      >
+                        {done && <CheckCircle2 className="w-3 h-3" />}
+                        {m.label}
+                      </span>
+                      {i < MILESTONES.length - 1 && <span className="text-ink-faint">/</span>}
+                    </React.Fragment>
+                  );
+                })}
           </div>
         </div>
 
         <div className="flex flex-col items-start lg:items-end gap-3 shrink-0">
-          {demoTotal > 0 && (
+          {!loading && demoTotal > 0 && (
             <span className="text-[11px] font-mono text-accent-cyan flex items-center gap-1.5">
               <Flame className="w-3.5 h-3.5" />
               {demosLeft} of {demoTotal} free demos left
             </span>
           )}
-          <Link
-            href="/candidate/practice"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-xs font-bold text-on-brand btn-primary-gradient transition-all cursor-pointer whitespace-nowrap shadow-[0_10px_28px_-10px_var(--brand-glow)]"
-          >
-            <Play className="w-3.5 h-3.5 fill-current" />
-            {dashboard === null
-              ? 'Choose an interview'
-              : demosLeft > 0
-                ? 'Start free demo interview'
-                : 'Start practice interview'}
-          </Link>
+          {loading ? (
+            <Skeleton className="h-11 w-44 rounded-lg" />
+          ) : (
+            <Link
+              href="/candidate/practice"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-xs font-bold text-on-brand btn-primary-gradient transition-all cursor-pointer whitespace-nowrap shadow-[0_10px_28px_-10px_var(--brand-glow)]"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              {dashboard === null
+                ? 'Choose an interview'
+                : demosLeft > 0
+                  ? 'Start free demo interview'
+                  : 'Start practice interview'}
+            </Link>
+          )}
           <div className="flex items-center gap-3 text-[11px] text-ink-faint">
-            <span className="flex items-center gap-1.5">
-              <Award className="w-3.5 h-3.5 text-accent-emerald" />
-              {loading ? LOADING_RESUME_STATUS : resumeLabel}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-accent-indigo" />
-              {dashboard === null ? '…' : `${skillCount} skills`}
-            </span>
-            <span className="flex items-center gap-1.5">
-              {hasReadinessScore ? (
-                <Award className="w-3.5 h-3.5 text-accent-emerald" />
-              ) : (
-                <Lock className="w-3.5 h-3.5" />
-              )}
-              {loading
-                ? 'Readiness calculating…'
-                : hasReadinessScore
-                  ? `Readiness ${readinessScore}`
-                  : 'Readiness unavailable'}
-            </span>
+            {loading ? (
+              <>
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-32" />
+              </>
+            ) : (
+              <>
+                <span className="flex items-center gap-1.5">
+                  <Award className="w-3.5 h-3.5 text-accent-emerald" />
+                  {resumeLabel}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-accent-indigo" />
+                  {dashboard === null ? '—' : `${skillCount} skills`}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  {hasReadinessScore ? (
+                    <Award className="w-3.5 h-3.5 text-accent-emerald" />
+                  ) : (
+                    <Lock className="w-3.5 h-3.5" />
+                  )}
+                  {hasReadinessScore ? `Readiness ${readinessScore}` : 'Readiness unavailable'}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>

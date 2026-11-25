@@ -1,5 +1,6 @@
 import { Check, PlusCircle } from 'lucide-react';
-import { Card, Pill, Spinner } from '@/components/super-admin/ui';
+import { Card, Pill } from '@/components/super-admin/ui';
+import { Skeleton } from '@/components/ui';
 import {
   formatCurrencyUsd,
   formatDateTime,
@@ -57,11 +58,15 @@ export function InvoicesTab({
             </thead>
             <tbody className="divide-y divide-line/40">
               {loadingInvoices ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center">
-                    <Spinner />
-                  </td>
-                </tr>
+                Array.from({ length: 5 }).map((_, rowIdx) => (
+                  <tr key={rowIdx}>
+                    {Array.from({ length: 7 }).map((__, colIdx) => (
+                      <td key={colIdx} className="py-3 pr-2">
+                        <Skeleton className="h-4 w-full" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : invoices.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-ink-muted">

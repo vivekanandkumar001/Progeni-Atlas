@@ -27,6 +27,7 @@ import {
   RefreshButton,
   StatCard,
 } from '@/components/super-admin/ui';
+import { Skeleton, SkeletonStatCards } from '@/components/ui';
 import { TimeSeriesChart } from '@/components/super-admin/charts/TimeSeriesChart';
 import { saFetch } from '@/lib/super-admin';
 
@@ -459,8 +460,16 @@ export default function SuperAdminCostInsightsPage() {
 
   if (loading && !data) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="Provider Spend & Unit Economics" description="Loading metered spend telemetry…" />
+      <div className="space-y-6" role="status" aria-busy="true" aria-label="Loading cost insights">
+        <PageHeader
+          title="Provider Spend & Unit Economics"
+          description="Every provider call, metered with provider-reported token usage and priced from the governed rate card."
+        />
+        <SkeletonStatCards count={4} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-64 w-full rounded-2xl" />
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </div>
       </div>
     );
   }

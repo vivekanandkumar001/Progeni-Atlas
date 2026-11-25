@@ -11,7 +11,8 @@ import {
 } from '@/lib/api';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DemoBadge } from '@/components/common/DemoBadge';
-import { Skeleton, SkeletonRows } from '@/components/ui';
+import { Skeleton, SkeletonRows, SkeletonTable } from '@/components/ui';
+import { formatDate, formatDateTime } from '@/lib/formatters';
 import {
   Video,
   Calendar,
@@ -276,7 +277,7 @@ export default function CandidateInterviewsPage() {
                         <p className="text-xs text-ink-muted font-mono flex items-center gap-2">
                           <Clock className="w-3.5 h-3.5 text-accent-cyan" />
                           <span>
-                            {new Date(session.scheduled_at).toLocaleString()}
+                            {formatDateTime(session.scheduled_at)}
                             {session.duration_minutes ? ` (${session.duration_minutes} min)` : ''}
                           </span>
                         </p>
@@ -314,10 +315,7 @@ export default function CandidateInterviewsPage() {
 
           <div className="rounded-2xl bg-surface border border-line overflow-hidden">
             {loading ? (
-              <div className="p-16 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
-                <p className="text-ink-muted text-sm">Fetching your interview sessions…</p>
-              </div>
+              <SkeletonTable rows={5} cols={5} />
             ) : completed.length === 0 ? (
               <div className="p-12 text-center space-y-3">
                 <Award className="w-8 h-8 text-ink-faint mx-auto" />
@@ -372,7 +370,7 @@ export default function CandidateInterviewsPage() {
 
                           <td className="py-4 px-4">
                             <span className="text-ink font-medium">
-                              {new Date(session.ended_at || session.scheduled_at).toLocaleDateString()}
+                              {formatDate(session.ended_at || session.scheduled_at)}
                             </span>
                             <p className="text-[11px] text-ink-muted font-mono">
                               {session.status.replace(/_/g, ' ').toUpperCase()}

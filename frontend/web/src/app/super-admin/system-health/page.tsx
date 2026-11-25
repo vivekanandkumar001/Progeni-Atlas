@@ -10,8 +10,8 @@ import {
   PageHeader,
   Pill,
   RefreshButton,
-  Spinner,
 } from '@/components/super-admin/ui';
+import { Skeleton, SkeletonStatCards } from '@/components/ui';
 import { formatDateTime, saFetch, type SystemHealth } from '@/lib/super-admin';
 
 export default function SuperAdminSystemHealthPage() {
@@ -49,9 +49,10 @@ export default function SuperAdminSystemHealthPage() {
       {error && <ErrorBanner message={error} />}
 
       {loading && !health ? (
-        <Card>
-          <Spinner label="Running dependency checks…" />
-        </Card>
+        <div className="space-y-4" role="status" aria-busy="true" aria-label="Loading system health">
+          <Skeleton className="h-20 w-full rounded-2xl" />
+          <SkeletonStatCards count={4} />
+        </div>
       ) : health ? (
         <>
           <Card className={overall === 'operational' ? 'border-emerald-400/20 bg-emerald-400/5' : 'border-amber-400/20 bg-amber-400/5'}>

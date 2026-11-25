@@ -23,6 +23,7 @@ import {
   type AptitudeQuestionPublic,
   type AptitudeAnswerRecord,
 } from '@/lib/api';
+import { Skeleton } from '@/components/ui';
 
 export default function AptitudeTestArenaPage() {
   const params = useParams();
@@ -274,9 +275,43 @@ export default function AptitudeTestArenaPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center space-y-4 text-ink">
-        <div className="w-10 h-10 border-4 border-accent-cyan border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-medium text-ink-muted">Loading Secure Assessment Arena…</p>
+      <div className="min-h-screen bg-canvas text-ink" role="status" aria-busy="true" aria-label="Loading assessment arena">
+        <div className="h-16 border-b border-line bg-surface px-4 sm:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-8 w-8 rounded-xl" />
+            <Skeleton className="h-4 w-44" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-8 w-24 rounded-xl" />
+            <Skeleton className="h-8 w-28 rounded-xl" />
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 rounded-2xl border border-line bg-surface p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-5 w-32 rounded-full" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+            </div>
+            <div className="space-y-2.5">
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-5/6" />
+              <Skeleton className="h-5 w-2/3" />
+            </div>
+            <div className="space-y-3 pt-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-xl" />
+              ))}
+            </div>
+          </div>
+          <div className="lg:col-span-4 rounded-2xl border border-line bg-surface p-5 space-y-4">
+            <Skeleton className="h-4 w-32" />
+            <div className="grid grid-cols-5 gap-2">
+              {Array.from({ length: 15 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

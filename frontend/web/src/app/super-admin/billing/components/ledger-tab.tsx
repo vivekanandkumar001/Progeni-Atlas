@@ -1,5 +1,6 @@
 import { Download } from 'lucide-react';
-import { Card, Pill, Spinner } from '@/components/super-admin/ui';
+import { Card, Pill } from '@/components/super-admin/ui';
+import { Skeleton } from '@/components/ui';
 import {
   formatCurrencyUsd,
   formatDateTime,
@@ -122,11 +123,15 @@ export function LedgerTab({
             </thead>
             <tbody className="divide-y divide-line/40 font-mono">
               {loadingLedger ? (
-                <tr>
-                  <td colSpan={10} className="py-8 text-center">
-                    <Spinner />
-                  </td>
-                </tr>
+                Array.from({ length: 5 }).map((_, rowIdx) => (
+                  <tr key={rowIdx}>
+                    {Array.from({ length: 10 }).map((__, colIdx) => (
+                      <td key={colIdx} className="py-3 pr-2">
+                        <Skeleton className="h-4 w-full" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : ledgerEntries.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-8 text-center text-ink-muted font-sans">

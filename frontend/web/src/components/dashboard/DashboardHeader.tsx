@@ -15,6 +15,7 @@ import {
   Gauge,
 } from 'lucide-react';
 import { AppHeader } from '@/components/dashboard/AppHeader';
+import { Skeleton } from '@/components/ui';
 import { formatAbsoluteDateTime } from '@/lib/dateTime';
 import {
   fetchCandidateNotifications,
@@ -46,10 +47,12 @@ export const DashboardHeader: React.FC = () => {
   const router = useRouter();
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [notifications, setNotifications] = useState<CandidateNotification[] | null>(null);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   const loadHeaderData = useCallback(() => {
     void (async () => {
+      setNotificationsLoading(true);
       try {
         const [record, items, walletRes] = await Promise.all([
           fetchCandidateProfile(),
@@ -58,6 +61,7 @@ export const DashboardHeader: React.FC = () => {
         ]);
         setProfile(record);
         setNotifications(items ?? []);
+        setNotificationsLoading(false);
         if (walletRes?.success && walletRes.wallet) {
           // Ledger remnants are not spendable credits. Prefer the API's
           // billable whole-credit balance, as the wallet page does.
@@ -65,7 +69,9 @@ export const DashboardHeader: React.FC = () => {
           const raw = Number.isFinite(whole) ? whole : walletRes.wallet.availableCredits;
           setWalletBalance(Math.max(0, Math.floor(Number(raw ?? 0))));
         }
-      } catch { }
+      } catch {
+        setNotificationsLoading(false);
+      }
     })();
   }, []);
 
@@ -154,7 +160,19 @@ export const DashboardHeader: React.FC = () => {
             </div>
           )}
 
-          {notifications === null ? (
+          {notificationsLoading ? (
+            <div className="space-y-2" role="status" aria-busy="true" aria-label="Loading notifications">
+              <div className="rounded-xl border border-line bg-surface-2 p-3">
+                <Skeleton className="h-3 w-3/5" />
+                <Skeleton className="mt-2 h-2.5 w-4/5" />
+              </div>
+              <div className="rounded-xl border border-line bg-surface-2 p-3">
+                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="mt-2 h-2.5 w-3/4" />
+              </div>
+              <span className="sr-only">Loading notifications…</span>
+            </div>
+          ) : notifications === null ? (
             <div className="rounded-xl border border-line bg-surface-2 p-3 text-xs text-ink-muted">
               Notifications could not be loaded.
             </div>
@@ -226,9 +244,6 @@ export const DashboardHeader: React.FC = () => {
             <Sparkles className="w-4 h-4 text-[#f04124]" />
             <span>Practice Drill Lab</span>
           </div>
-          <span className="bg-[#f04124] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-            1 ACTIVE
-          </span>
         </Link>
       )}
     />

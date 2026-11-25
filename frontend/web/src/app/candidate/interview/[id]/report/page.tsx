@@ -17,7 +17,8 @@ import { ReportHeaderToolbar } from '@/components/report/ReportHeaderToolbar';
 import { StrengthsAndGrowthCards } from '@/components/report/StrengthsAndGrowthCards';
 import { TurnByTurnAccordion } from '@/components/report/TurnByTurnAccordion';
 import { PDFDossierTemplate } from '@/components/report/PDFDossierTemplate';
-import { Loader2, AlertTriangle, FileText, ShieldCheck, RefreshCw } from 'lucide-react';
+import { AlertTriangle, FileText, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Skeleton, SkeletonStatCards } from '@/components/ui';
 import { formatInterviewDate } from '@/lib/dateTime';
 import { buildReportReference } from '@/lib/reportReference';
 
@@ -157,9 +158,24 @@ export default function CandidateEvaluationReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-canvas text-ink font-sans flex items-center justify-center gap-2 text-sm text-ink-muted">
-        <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-        Loading your evaluation report…
+      <div className="min-h-screen bg-canvas text-ink font-sans pb-16" role="status" aria-busy="true" aria-label="Loading evaluation report">
+        <div className="h-16 border-b border-line bg-surface px-4 sm:px-6 flex items-center justify-between">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-9 w-32 rounded-xl" />
+        </div>
+        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+          <div className="rounded-2xl border border-line bg-surface p-6 space-y-4">
+            <Skeleton className="h-6 w-56" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-4/5" />
+          </div>
+          <SkeletonStatCards count={4} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Skeleton className="h-48 w-full rounded-2xl" />
+            <Skeleton className="h-48 w-full rounded-2xl" />
+          </div>
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </main>
       </div>
     );
   }

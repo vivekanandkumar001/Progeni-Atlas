@@ -11,6 +11,7 @@ import {
   type CandidateSkill,
 } from '@/lib/api';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { Skeleton } from '@/components/ui';
 import {
   GraduationCap,
   Award,
@@ -122,6 +123,7 @@ export default function CandidateSkillsPage() {
   const [profileSkills, setProfileSkills] = useState<CandidateSkill[]>([]);
   const [dashboardReadiness, setDashboardReadiness] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     async function fetchSkills() {
@@ -133,6 +135,7 @@ export default function CandidateSkillsPage() {
           fetchCandidateDashboard(),
         ]);
         setInsights(insightData);
+        setLoadError(insightData === null || rawSkills === null || dashboard === null);
         setDashboardReadiness(dashboard?.candidate?.readinessScore ?? null);
         const resolvedSkills =
           (insightData?.skills && insightData.skills.length > 0)
@@ -143,6 +146,7 @@ export default function CandidateSkillsPage() {
         setProfileSkills(resolvedSkills);
       } catch (err) {
         console.error('Failed to fetch candidate skills data', err);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -170,13 +174,23 @@ export default function CandidateSkillsPage() {
   // Never substitute a locally derived skill score, which produced a second,
   // conflicting readiness value for the same candidate.
   const readinessScore = dashboardReadiness;
-  const readinessTier = dashboardReadiness !== null ? 'Readiness score' : 'Not evaluated';
+  const readinessTier = loadError
+    ? 'Unavailable'
+    : dashboardReadiness !== null
+      ? 'Readiness score'
+      : 'Not evaluated';
 
   return (
     <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
       <DashboardHeader />
 
       <main className="flex-grow max-w-7xl xl:max-w-screen-2xl w-full mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-8">
+
+        {loadError && (
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-accent-amber text-sm">
+            Skill data could not be loaded. Refresh the page to try again.
+          </div>
+        )}
 
         {/* ============ HERO ============ */}
         <section className="relative overflow-hidden rounded-2xl bg-surface border border-line p-6 sm:p-7">
@@ -227,9 +241,13 @@ export default function CandidateSkillsPage() {
                 <p className="text-lg font-extrabold text-ink tabular-nums">
                   {loading ? '—' : (readinessScore ?? '—')}
                 </p>
-                <p className="text-[10px] font-mono text-ink-muted">
-                  {loading ? 'Loading…' : readinessTier}
-                </p>
+                <div className="text-[10px] font-mono text-ink-muted">
+                  {loading ? (
+                    <Skeleton className="h-3 w-16 rounded mt-1" />
+                  ) : (
+                    readinessTier
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -262,9 +280,17 @@ export default function CandidateSkillsPage() {
           </div>
 
           {loading ? (
-            <div className="p-8 text-center space-y-2">
-              <RefreshCw className="w-6 h-6 text-accent-cyan animate-spin mx-auto" />
-              <p className="text-ink-muted text-xs">Loading your skills...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" role="status" aria-busy="true" aria-label="Loading resume skills">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="rounded-2xl bg-surface border border-line p-5 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-1.5 w-full rounded-full" />
+                </div>
+              ))}
             </div>
           ) : hasResumeSkills ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -326,6 +352,11 @@ export default function CandidateSkillsPage() {
                 );
               })}
             </div>
+          ) : loadError ? (
+            <div className="rounded-2xl bg-surface border border-line p-8 text-center space-y-3">
+              <p className="text-ink font-semibold text-sm">Skills unavailable</p>
+              <p className="text-ink-muted text-xs">We could not verify your skill data. Refresh to try again.</p>
+            </div>
           ) : (
             <div className="rounded-2xl bg-surface border border-line p-8 text-center space-y-3">
               <FileText className="w-8 h-8 text-ink-faint mx-auto" />
@@ -377,9 +408,23 @@ export default function CandidateSkillsPage() {
           </div>
 
           {loading ? (
-            <div className="p-12 text-center space-y-3">
-              <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
-              <p className="text-ink-muted text-sm">Fetching skill assessments...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" role="status" aria-busy="true" aria-label="Loading skill assessments">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <div key={idx} className="rounded-2xl bg-surface border border-line p-5 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-24" />
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between">
+                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-3 w-12" />
+                    </div>
+                    <Skeleton className="h-1.5 w-full rounded-full" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : hasAssessedSkills ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -26,8 +26,8 @@ import {
   PageHeader,
   Pill,
   RefreshButton,
-  Spinner,
 } from '@/components/super-admin/ui';
+import { SkeletonRows } from '@/components/ui';
 import { useSuperAdmin } from '@/components/super-admin/SuperAdminShell';
 import {
   formatDateTime,
@@ -654,7 +654,7 @@ export default function SuperAdminAiConfigPage() {
         />
         <div className="mt-4 space-y-3">
           {loading && !data ? (
-            <Spinner label="Loading provider registry…" />
+            <SkeletonRows rows={3} className="border-t-0" />
           ) : models.length === 0 ? (
             <EmptyState
               title="No models configured yet"

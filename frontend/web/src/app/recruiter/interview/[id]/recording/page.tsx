@@ -10,6 +10,7 @@ import {
   type InterviewRecordingResponse,
   type CandidateEvaluationReport,
 } from '@/lib/api';
+import { Skeleton, SkeletonStatCards } from '@/components/ui';
 import {
   Play,
   Pause,
@@ -300,9 +301,29 @@ export default function RecruiterRecordingViewPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-canvas text-ink flex flex-col items-center justify-center gap-3">
-        <RefreshCw className="w-8 h-8 text-accent-indigo animate-spin" />
-        <p className="text-sm font-mono text-ink-muted">Loading recorded interview and evaluation dossier…</p>
+      <div className="min-h-screen bg-canvas text-ink flex flex-col" role="status" aria-busy="true" aria-label="Loading interview recording">
+        <div className="h-16 border-b border-line bg-surface px-4 sm:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-9 rounded-xl" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          </div>
+          <Skeleton className="h-9 w-32 rounded-xl" />
+        </div>
+        <main className="max-w-7xl xl:max-w-screen-2xl w-full mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-6 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <Skeleton className="lg:col-span-8 aspect-video rounded-2xl" />
+            <div className="lg:col-span-4 rounded-2xl border border-line bg-surface p-5 space-y-4">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-16 w-full rounded-xl" />
+              <Skeleton className="h-16 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+            </div>
+          </div>
+          <SkeletonStatCards count={4} />
+        </main>
       </div>
     );
   }

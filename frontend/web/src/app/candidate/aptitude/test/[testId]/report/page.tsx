@@ -20,6 +20,7 @@ import {
   Sparkles,
   Share2 } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { Skeleton, SkeletonStatCards } from '@/components/ui';
 import {
   fetchAptitudeReport,
   logAptitudeEvent,
@@ -79,12 +80,20 @@ export default function AptitudeReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center space-y-4 text-ink">
-        <div className="w-12 h-12 border-4 border-accent-cyan border-t-transparent rounded-full animate-spin" />
-        <div className="text-center">
-          <p className="text-base font-semibold text-ink">Generating Cognitive Evaluation Scorecard…</p>
-          <p className="text-xs text-ink-faint mt-1">Aggregating 5-pillar performance, speed index &amp; disclosed interaction counters</p>
-        </div>
+      <div className="min-h-screen bg-canvas text-ink" role="status" aria-busy="true" aria-label="Loading aptitude scorecard">
+        <DashboardHeader />
+        <main className="max-w-7xl xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-6">
+          <div className="rounded-2xl border border-line bg-surface p-6 space-y-4">
+            <Skeleton className="h-5 w-40 rounded-full" />
+            <Skeleton className="h-8 w-80 max-w-full" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <SkeletonStatCards count={4} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Skeleton className="h-64 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
+          </div>
+        </main>
       </div>
     );
   }

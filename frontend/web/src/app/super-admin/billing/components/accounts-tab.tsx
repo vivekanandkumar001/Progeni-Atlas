@@ -2,7 +2,8 @@
 
 import { useMemo } from 'react';
 import { CheckCircle2, Eye, Gift, PlusCircle, RotateCcw, Sliders } from 'lucide-react';
-import { Card, Pill, SearchInput, Spinner } from '@/components/super-admin/ui';
+import { Card, Pill, SearchInput } from '@/components/super-admin/ui';
+import { Skeleton } from '@/components/ui';
 import {
   formatCurrencyUsd,
   type BillingAccount,
@@ -83,11 +84,15 @@ export function AccountsTab({
             </thead>
             <tbody className="divide-y divide-line/40">
               {loadingAccounts && accounts.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-8 text-center">
-                    <Spinner />
-                  </td>
-                </tr>
+                Array.from({ length: 5 }).map((_, rowIdx) => (
+                  <tr key={rowIdx}>
+                    {Array.from({ length: 9 }).map((__, colIdx) => (
+                      <td key={colIdx} className="py-3 pr-2">
+                        <Skeleton className="h-4 w-full" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : filteredAccounts.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-8 text-center text-ink-muted">

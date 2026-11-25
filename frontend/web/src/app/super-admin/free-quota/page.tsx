@@ -29,6 +29,7 @@ import {
   StatSkeleton,
   TableSkeleton,
 } from '@/components/super-admin/ui';
+import { Skeleton } from '@/components/ui';
 import { useSuperAdmin } from '@/components/super-admin/SuperAdminShell';
 import { formatNumber, saFetch, type PlatformUser } from '@/lib/super-admin';
 
@@ -1188,7 +1189,11 @@ export default function SuperAdminFreeQuotaPage() {
             </div>
 
             {userQuotaLoading ? (
-              <div className="py-8 text-center text-xs text-ink-muted">Loading user quota details...</div>
+              <div className="mt-4 space-y-4" role="status" aria-busy="true" aria-label="Loading user quota details">
+                <Skeleton className="h-10 w-full rounded-xl" />
+                <Skeleton className="h-10 w-full rounded-xl" />
+                <Skeleton className="h-20 w-full rounded-xl" />
+              </div>
             ) : (
               <form onSubmit={handleSaveUserOverride} className="mt-4 space-y-4">
                 {userQuota?.source && (

@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { BookOpen, CirclePlus, Pencil, RefreshCw, Save, Tags, Trash2 } from 'lucide-react';
-import { Card, CardHeader, ErrorBanner, PageHeader, Spinner } from '@/components/super-admin/ui';
+import { Card, CardHeader, ErrorBanner, PageHeader } from '@/components/super-admin/ui';
+import { SkeletonRows } from '@/components/ui';
 import { useSuperAdmin } from '@/components/super-admin/SuperAdminShell';
 import { saFetch } from '@/lib/super-admin';
 import { invalidateApiCache } from '@/lib/api';
@@ -179,7 +180,11 @@ export default function SkillPracticeCatalogPage() {
             action={<span className="rounded-full border border-line px-2.5 py-1 text-[10px] font-bold text-ink-muted">{kind === 'skills' ? skills.filter((x) => x.active).length : drills.filter((x) => x.active).length} active</span>}
           />
 
-          {loading ? <div className="flex justify-center py-12"><Spinner /></div> : (
+          {loading ? (
+            <div className="mt-4" role="status" aria-busy="true" aria-label="Loading catalog items">
+              <SkeletonRows rows={5} className="border-t-0" />
+            </div>
+          ) : (
             <div className="mt-4 space-y-2">
               {kind === 'skills' ? skills.map((skill) => (
                 <div key={skill.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-inset/40 p-3">

@@ -9,9 +9,9 @@ import {
   PageHeader,
   Pill,
   RefreshButton,
-  Spinner,
   VerdictPill,
 } from '@/components/super-admin/ui';
+import { Skeleton, SkeletonTable } from '@/components/ui';
 import { saFetch, type PermissionPayload, type Verdict } from '@/lib/super-admin';
 
 /**
@@ -93,9 +93,10 @@ export default function SuperAdminRolesPage() {
       {error && <ErrorBanner message={error} />}
 
       {loading && !data ? (
-        <Card>
-          <Spinner label="Loading permission matrix…" />
-        </Card>
+        <div className="space-y-4" role="status" aria-busy="true" aria-label="Loading permission matrix">
+          <Skeleton className="h-28 w-full rounded-2xl" />
+          <SkeletonTable rows={6} cols={5} />
+        </div>
       ) : data ? (
         <>
           {/* Principles */}

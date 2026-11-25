@@ -18,6 +18,7 @@ import {
   type RecruiterLiveTokenResponse,
 } from '@/lib/api';
 import { AIAvatarViewport, type AIState } from '@/components/interview/AIAvatarViewport';
+import { Skeleton } from '@/components/ui';
 import {
   User,
   Volume2,
@@ -397,9 +398,26 @@ export default function RecruiterLiveMonitorPage() {
   // Loading Skeleton Render
   if (loading) {
     return (
-      <div className="min-h-screen bg-canvas text-ink flex flex-col items-center justify-center gap-3">
-        <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin" />
-        <p className="text-sm font-mono text-ink-muted">Establishing secure LiveKit monitoring transport...</p>
+      <div className="min-h-screen bg-canvas text-ink flex flex-col" role="status" aria-busy="true" aria-label="Loading live monitoring console">
+        <div className="h-16 border-b border-line bg-surface px-4 sm:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-9 rounded-xl" />
+            <Skeleton className="h-5 w-48" />
+          </div>
+          <Skeleton className="h-8 w-28 rounded-full" />
+        </div>
+        <div className="flex-1 p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Skeleton className="h-72 md:h-full min-h-[280px] rounded-2xl" />
+            <Skeleton className="h-72 md:h-full min-h-[280px] rounded-2xl" />
+          </div>
+          <div className="lg:col-span-4 rounded-2xl border border-line bg-surface p-5 space-y-4">
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }

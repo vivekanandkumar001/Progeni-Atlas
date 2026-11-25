@@ -998,7 +998,7 @@ def get_candidate_aptitude_history():
             return jsonify({"attempts": []}), 200
 
         # Always scoped to the caller — never leak other candidates' test history.
-        query = {"$or": [{"candidateId": candidate_id}, {"candidateId": str(candidate_id)}]}
+        query = {"candidateId": candidate_id}
 
         cursor = db.aptitude_sessions.find(query).sort("startedAt", -1).limit(20)
         attempts = []

@@ -9,6 +9,7 @@ import {
   Flag,
   Globe,
   Languages,
+  Loader2,
   Lock,
   Mail,
   Radio,
@@ -28,8 +29,8 @@ import {
   PageHeader,
   Pill,
   RefreshButton,
-  Spinner,
 } from '@/components/super-admin/ui';
+import { SkeletonRows } from '@/components/ui';
 import { useSuperAdmin } from '@/components/super-admin/SuperAdminShell';
 import { formatDateTime, saFetch, type SystemHealth } from '@/lib/super-admin';
 
@@ -356,7 +357,9 @@ export default function SuperAdminSettingsPage() {
         <Card>
           <CardHeader title="Platform posture" subtitle="Live dependency snapshot" icon={Timer} />
           {loading && !health ? (
-            <Spinner />
+            <div className="mt-4" role="status" aria-busy="true" aria-label="Loading platform posture">
+              <SkeletonRows rows={3} className="border-t-0" />
+            </div>
           ) : (
             <div className="mt-4 space-y-2.5 text-xs text-ink-muted">
               <div className="flex items-center justify-between">
@@ -791,7 +794,7 @@ export default function SuperAdminSettingsPage() {
                 disabled={saving || auditReason.trim().length < 10}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/20 px-4 py-2 text-xs font-bold text-accent-cyan hover:bg-cyan-500/30 disabled:opacity-50 transition"
               >
-                {saving ? <Spinner /> : <Check className="h-3.5 w-3.5" />}
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                 Save & Apply (Audited)
               </button>
             </div>

@@ -17,5 +17,3 @@ export { FormLabel } from './FormLabel';
 export type { FormLabelProps } from './FormLabel';
 
 export { Skeleton, SkeletonRows, SkeletonStatCards, SkeletonTable } from './Skeleton';
-
-export { Skeleton, SkeletonRows, SkeletonStatCards, SkeletonTable } from './Skeleton';

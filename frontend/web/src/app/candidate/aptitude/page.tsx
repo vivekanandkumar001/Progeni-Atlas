@@ -42,6 +42,9 @@ export default function AptitudeHubPage() {
           fetchAptitudeTemplates(),
           fetchCandidateAptitudeHistory(),
         ]);
+        if (tmpls === null || hist === null) {
+          setLoadError('Assessment details could not be loaded. Reload the page to try again.');
+        }
         setTemplates(tmpls ?? []);
         setHistory(hist ?? []);
       } catch (err) {
@@ -162,6 +165,10 @@ export default function AptitudeHubPage() {
               {[0, 1, 2].map((item) => (
                 <div key={item} className="h-80 animate-pulse rounded-2xl border border-line bg-surface" />
               ))}
+            </div>
+          ) : loadError ? (
+            <div className="p-8 rounded-2xl bg-surface border border-line text-center text-sm text-ink-muted">
+              Assessment tracks are unavailable right now.
             </div>
           ) : templates.length === 0 ? (
             <div className="p-8 rounded-2xl bg-surface border border-line text-center text-sm text-ink-muted">

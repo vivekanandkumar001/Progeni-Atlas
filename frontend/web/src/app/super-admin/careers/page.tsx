@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { SkeletonRows } from '@/components/ui';
 import {
   Briefcase,
   Building2,
@@ -682,7 +683,9 @@ export default function SuperAdminCareersPage() {
               </div>
 
               {loadingApps ? (
-                <div className="py-8 text-center text-xs text-ink-muted">Loading applicants...</div>
+                <div className="py-2" role="status" aria-busy="true" aria-label="Loading applicants">
+                  <SkeletonRows rows={3} className="border-t-0" />
+                </div>
               ) : applications.length === 0 ? (
                 <div className="rounded-xl border border-line bg-surface-2/40 p-8 text-center">
                   <User className="h-8 w-8 text-ink-muted mx-auto mb-2 opacity-50" />

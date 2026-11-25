@@ -37,6 +37,7 @@ import {
   type AptitudeAttemptHistory
 } from '@/lib/api';
 import { uniqueBy } from '@/lib/collections';
+import { formatDate } from '@/lib/formatters';
 
 type ReportTab = 'interviews' | 'practice' | 'aptitude';
 
@@ -336,7 +337,7 @@ function CandidateReportsContent() {
                             <span>{session.companyName || session.company_name || 'Progeni Atlas Assessment'}</span>
                             <span>•</span>
                             <Clock className="w-3.5 h-3.5" />
-                            <span>{new Date(session.ended_at || session.scheduled_at).toLocaleDateString()}</span>
+                            <span>{formatDate(session.ended_at || session.scheduled_at)}</span>
                             {session.duration_minutes ? <span>({session.duration_minutes} mins)</span> : null}
                           </p>
                         </div>

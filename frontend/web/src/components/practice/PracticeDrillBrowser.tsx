@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { Skeleton } from '@/components/ui';
 
 import {
   CandidatePracticeStats,
@@ -327,9 +328,32 @@ export function PracticeDrillBrowser({ initialDrillId, initialSkill, embedded = 
           )}
 
           {isLoading && drills.length === 0 && (
-            <div className="flex items-center justify-center gap-3 py-16 text-sm text-ink-muted">
-              <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-              <span>Loading drills...</span>
+            <div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              role="status"
+              aria-busy="true"
+              aria-label="Loading practice drills"
+            >
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-2xl border border-line bg-surface p-5 space-y-4"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-2/3" />
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-line">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-8 w-24 rounded-xl" />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

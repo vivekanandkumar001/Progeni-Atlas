@@ -1031,12 +1031,13 @@ def generate_dynamic_scorecard(session_id, session_doc=None, req=None):
             try:
                 from app.services import llm_service as _llm_filter
                 original_strengths = cached_sc.get("strengths") or []
-                cached_sc["strengths"] = _llm_filter.filter_scorecard_strengths(
-                    original_strengths,
-                    transcript=transcript,
-                    evaluations=evaluations,
-                    questions=session_doc.get("questions"),
-                )
+                if original_strengths:
+                    cached_sc["strengths"] = _llm_filter.filter_scorecard_strengths(
+                        original_strengths,
+                        transcript=transcript,
+                        evaluations=evaluations,
+                        questions=session_doc.get("questions"),
+                    )
             except Exception:
                 pass
             cached_sc["strengths"] = _drop_no_answer_evidence(
@@ -1464,10 +1465,12 @@ def get_interview_session_questions(session_id):
 def get_interview_session_scorecard(session_id):
     """Fetch dynamic evaluation scorecard and competency pillars for a completed session."""
     try:
-        db = get_mongo_db()
-        session_doc = None
-        if db is not None:
-            session_doc = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
+        # @require_session_access already loaded and ownership-checked this doc.
+        session_doc = getattr(g, "session_document", None)
+        if session_doc is None:
+            db = get_mongo_db()
+            if db is not None:
+                session_doc = db.interview_sessions.find_one({"$or": [{"id": session_id}, {"_id": session_id}, {"session_id": session_id}]})
 
         sc = generate_dynamic_scorecard(session_id, session_doc, request)
         if not _caller_is_internal():
