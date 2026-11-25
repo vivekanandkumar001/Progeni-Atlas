@@ -499,7 +499,10 @@ def get_recruiter_dashboard():
         if org_id:
             sess_or_conditions.append({"org_id": org_id})
 
-        sessions_cursor = list(db.interview_sessions.find({"$or": sess_or_conditions}).sort("created_at", -1).limit(100))
+        sessions_cursor = list(db.interview_sessions.find(
+            {"$or": sess_or_conditions},
+            {"questions": 0, "history": 0, "proctoring_events": 0, "raw_transcript": 0},
+        ).sort("created_at", -1).limit(100))
         candidates_list = []
         for s in sessions_cursor:
             raw_score = s.get("total_score")
@@ -575,10 +578,10 @@ def get_recruiter_dashboard():
                 or_filters.append({"candidateId": {"$in": cand_ids}})
 
             if or_filters:
-                apt_cursor = list(db.aptitude_sessions.find({
-                    "$or": or_filters,
-                    "status": "completed"
-                }).sort("completedAt", -1))
+                apt_cursor = list(db.aptitude_sessions.find(
+                    {"$or": or_filters, "status": "completed"},
+                    {"questions": 0, "answers": 0, "proctoring_events": 0, "events": 0},
+                ).sort("completedAt", -1).limit(200))
 
                 for a in apt_cursor:
                     e = str(a.get("candidateEmail", "")).strip().lower()

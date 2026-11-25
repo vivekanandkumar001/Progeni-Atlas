@@ -105,7 +105,7 @@ export default function RecruiterDashboardPage() {
         />
 
         {/* TOP STATS OVERVIEW CARDS GRID */}
-        <StatsOverviewSection overview={overview} />
+        <StatsOverviewSection overview={overview} loading={loading} />
 
         {/* SEARCH, FILTER & TAB CONTROL BAR - CLEAN REARRANGED LAYOUT */}
         <DashboardControlBar

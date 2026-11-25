@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Video, Brain, Loader2 } from 'lucide-react';
+import { Video, Brain } from 'lucide-react';
+import { SkeletonRows } from '@/components/ui';
 import {
   fetchCandidateInterviews,
   fetchCandidateAptitudeHistory,
@@ -88,10 +89,7 @@ export const RecentActivity: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 py-6 text-xs text-ink-muted">
-          <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-          Loading your activity…
-        </div>
+        <SkeletonRows rows={4} />
       ) : items.length === 0 ? (
         <p className="py-6 text-xs text-ink-muted border-t border-line">
           Nothing yet — your first interview or aptitude attempt will show up here.

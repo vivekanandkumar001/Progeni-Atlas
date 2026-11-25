@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { RecruiterHeader } from '@/components/dashboard/RecruiterHeader';
+import { Skeleton, SkeletonStatCards } from '@/components/ui';
 import { useToast } from '@/lib/hooks/useToast';
 import {
   FileCheck,
@@ -499,6 +500,9 @@ export default function EvaluationRubricsPage() {
         {activeTab === 'rubrics' && (
           <div className="space-y-6">
             {/* METRICS STATS */}
+            {loading && rubrics.length === 0 ? (
+              <SkeletonStatCards count={4} />
+            ) : (
             <section className="grid grid-cols-1 sm:grid-cols-4 gap-5">
               <div className="rounded-2xl bg-surface border border-line p-5 space-y-1 backdrop-blur-md">
                 <span className="text-xs text-ink-muted">Active Rubrics Configured</span>
@@ -523,6 +527,7 @@ export default function EvaluationRubricsPage() {
                 </div>
               </div>
             </section>
+            )}
 
             {/* SEARCH & FILTERS BAR */}
             <section className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-surface p-4 rounded-2xl border border-line backdrop-blur-md">
@@ -552,9 +557,8 @@ export default function EvaluationRubricsPage() {
             {/* RUBRICS CARDS GRID */}
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {loading ? (
-                <div className="col-span-full p-16 text-center space-y-3">
-                  <RefreshCw className="w-8 h-8 text-accent-indigo animate-spin mx-auto" />
-                  <p className="text-ink-muted text-sm">Fetching evaluation rubrics from Python backend...</p>
+                <div className="col-span-full">
+                  <SkeletonStatCards count={6} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" />
                 </div>
               ) : filteredRubrics.length === 0 ? (
                 <div className="col-span-full p-12 rounded-2xl bg-surface border border-line text-center space-y-4 backdrop-blur-md">

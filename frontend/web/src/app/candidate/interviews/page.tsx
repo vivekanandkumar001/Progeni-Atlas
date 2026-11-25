@@ -11,6 +11,7 @@ import {
 } from '@/lib/api';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DemoBadge } from '@/components/common/DemoBadge';
+import { Skeleton, SkeletonRows } from '@/components/ui';
 import {
   Video,
   Calendar,
@@ -169,34 +170,36 @@ export default function CandidateInterviewsPage() {
         <section className="rounded-2xl border border-line bg-line grid grid-cols-2 sm:grid-cols-4 gap-px overflow-hidden">
           <div className="p-5 space-y-1 bg-surface">
             <span className="text-xs text-ink-muted">Upcoming Live Interviews</span>
-            <div className="text-2xl font-bold text-accent-cyan font-mono">
-              {loading ? '--' : upcoming.length}
-            </div>
+            {loading ? <Skeleton className="h-7 w-12 mt-1" /> : (
+              <div className="text-2xl font-bold text-accent-cyan font-mono">{upcoming.length}</div>
+            )}
           </div>
           <div className="p-5 space-y-1 bg-surface">
             <span className="text-xs text-ink-muted">Completed Sessions</span>
-            <div className="text-2xl font-bold text-ink font-mono">
-              {loading ? '--' : completed.length}
-            </div>
+            {loading ? <Skeleton className="h-7 w-12 mt-1" /> : (
+              <div className="text-2xl font-bold text-ink font-mono">{completed.length}</div>
+            )}
           </div>
           <div className="p-5 space-y-1 bg-surface">
             <span className="text-xs text-ink-muted">Highest Score Achieved</span>
-            <div className="text-2xl font-bold text-accent-emerald font-mono">
-              {loading ? '--' : highestScore === null ? 'N/A' : `${Math.round(highestScore)}%`}
-            </div>
+            {loading ? <Skeleton className="h-7 w-16 mt-1" /> : (
+              <div className="text-2xl font-bold text-accent-emerald font-mono">
+                {highestScore === null ? 'N/A' : `${Math.round(highestScore)}%`}
+              </div>
+            )}
             {!loading && highestScore === null && (
               <span className="text-[11px] text-ink-muted font-mono">No scored sessions yet</span>
             )}
           </div>
           <div className="p-5 space-y-1 bg-surface">
             <span className="text-xs text-ink-muted">Latest Hiring Recommendation</span>
-            <div className="text-lg font-bold text-accent-indigo leading-8">
-              {loading
-                ? '--'
-                : latestRecommendation
+            {loading ? <Skeleton className="h-7 w-28 mt-1" /> : (
+              <div className="text-lg font-bold text-accent-indigo leading-8">
+                {latestRecommendation
                   ? latestRecommendation.replace(/_/g, ' ')
                   : 'Not available yet'}
-            </div>
+              </div>
+            )}
             {!loading && Object.keys(recommendationTally).length > 0 && (
               <span className="text-[11px] text-ink-muted font-mono">
                 {Object.entries(recommendationTally)
@@ -217,10 +220,9 @@ export default function CandidateInterviewsPage() {
           </div>
 
           {loading ? (
-            <div className="p-16 text-center space-y-3 rounded-2xl bg-surface border border-line">
-              <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
-                <p className="text-ink-muted text-sm">Fetching your interview sessions…</p>
-              </div>
+            <div className="rounded-2xl bg-surface border border-line px-6 py-2">
+              <SkeletonRows rows={3} className="border-t-0" />
+            </div>
           ) : upcoming.length === 0 ? (
             <div className="p-12 text-center space-y-3 rounded-2xl bg-surface border border-line">
               <Calendar className="w-8 h-8 text-ink-faint mx-auto" />

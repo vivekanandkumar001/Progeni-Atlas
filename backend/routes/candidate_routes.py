@@ -86,7 +86,13 @@ def backfill_completed_session_notifications(db, user: dict | None) -> int:
     except Exception:
         return 0
 
-    inserted = 0
+    if not sessions:
+        return 0
+
+    # Batch-check existing notifications in a single DB query instead of N+1 find_one calls.
+    session_ids: list[str] = []
+    dedupe_keys: list[str] = []
+    session_meta: list[tuple[str, str, dict]] = []
     for session in sessions:
         session = session if isinstance(session, dict) else {}
         session_id = str(
@@ -95,18 +101,52 @@ def backfill_completed_session_notifications(db, user: dict | None) -> int:
         if not session_id:
             continue
         dedupe_key = f"interview_completed:{session_id}"
-        try:
-            existing = db.candidate_notifications.find_one({"$or": [
-                {"dedupe_key": dedupe_key},
-                {"_id": dedupe_key},
-                {"sessionId": session_id},
-                {"session_id": session_id},
-                {"payload.sessionId": session_id},
-            ]})
-            if existing:
+        session_ids.append(session_id)
+        dedupe_keys.append(dedupe_key)
+        session_meta.append((session_id, dedupe_key, session))
+
+    if not session_meta:
+        return 0
+
+    existing_keys: set[str] = set()
+    existing_session_ids: set[str] = set()
+    try:
+        existing_cursor = db.candidate_notifications.find(
+            {
+                "$or": [
+                    {"dedupe_key": {"$in": dedupe_keys}},
+                    {"_id": {"$in": dedupe_keys}},
+                    {"sessionId": {"$in": session_ids}},
+                    {"session_id": {"$in": session_ids}},
+                    {"payload.sessionId": {"$in": session_ids}},
+                ]
+            },
+            {"_id": 1, "dedupe_key": 1, "sessionId": 1, "session_id": 1, "payload.sessionId": 1},
+        )
+        for existing in existing_cursor:
+            if not isinstance(existing, dict):
                 continue
+            if existing.get("_id"):
+                existing_keys.add(str(existing["_id"]))
+            if existing.get("dedupe_key"):
+                existing_keys.add(str(existing["dedupe_key"]))
+            for sid_val in (
+                existing.get("sessionId"),
+                existing.get("session_id"),
+                (existing.get("payload") or {}).get("sessionId") if isinstance(existing.get("payload"), dict) else None,
+            ):
+                if sid_val:
+                    existing_session_ids.add(str(sid_val))
+    except Exception:
+        return 0
+
+    inserted = 0
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for session_id, dedupe_key, session in session_meta:
+        if dedupe_key in existing_keys or session_id in existing_session_ids:
+            continue
+        try:
             job_title = str(session.get("job_title") or session.get("role_title") or "Technical Assessment")
-            now_iso = datetime.now(timezone.utc).isoformat()
             doc = {
                 "_id": dedupe_key,
                 "id": str(uuid.uuid4()),
@@ -435,25 +475,24 @@ def get_candidate_dashboard_data():
         owner_filter = _candidate_owner_filter(user_id, user_email)
         sessions: list[dict] = []
         if db is not None and owner_filter:
-            sessions = list(db.interview_sessions.find(owner_filter).sort("created_at", -1).limit(40))
+            sessions = list(db.interview_sessions.find(
+                owner_filter,
+                {"questions": 0, "proctoring_events": 0, "raw_transcript": 0, "code_snippets": 0, "submitted_code": 0},
+            ).sort("created_at", -1).limit(40))
 
         terminal_statuses = {"completed", "evaluated", "expired", "cancelled", "canceled", "terminated", "closed", "finished"}
         upcoming = None
-        for session in sessions:
-            if str(session.get("status") or "").strip().lower() in terminal_statuses:
-                continue
-            upcoming = _candidate_session_item(session, skills, completed=False)
-            break
-
         recent_interviews = []
+        # One pass over the same 40 sessions: first non-terminal for upcoming,
+        # first five publishable completed/evaluated for recents.
         for session in sessions:
-            if str(session.get("status") or "").strip().lower() not in ("completed", "evaluated"):
-                continue
-            item = _candidate_session_item(session, skills, completed=True)
-            if item:
-                recent_interviews.append(item)
-            if len(recent_interviews) >= 5:
-                break
+            status = str(session.get("status") or "").strip().lower()
+            if upcoming is None and status not in terminal_statuses:
+                upcoming = _candidate_session_item(session, skills, completed=False)
+            if status in ("completed", "evaluated") and len(recent_interviews) < 5:
+                item = _candidate_session_item(session, skills, completed=True)
+                if item:
+                    recent_interviews.append(item)
 
         # Readiness comes only from genuine evidence: scored non-demo interviews
         # first, then completed practice drills. No inferred 88/100 baseline.
@@ -1262,7 +1301,10 @@ def get_candidate_interviews():
 
         owner_filter = _candidate_owner_filter(user_id, user_email)
         if db is not None and owner_filter:
-            cursor = db.interview_sessions.find(owner_filter).sort("created_at", -1).limit(40)
+            cursor = db.interview_sessions.find(
+                owner_filter,
+                {"questions": 0, "proctoring_events": 0, "raw_transcript": 0, "code_snippets": 0, "submitted_code": 0},
+            ).sort("created_at", -1).limit(40)
             terminal_statuses = {"completed", "evaluated", "expired", "cancelled", "canceled", "terminated", "closed", "finished"}
             for s in cursor:
                 status = str(s.get("status") or "scheduled").strip().lower()

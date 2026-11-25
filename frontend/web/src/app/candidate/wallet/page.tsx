@@ -4,6 +4,7 @@ import { useSearchParams, usePathname, useRouter } from 'next/navigation';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { Skeleton, SkeletonRows } from '@/components/ui';
 import { apiJson } from '@/lib/api';
 import {
   Wallet,
@@ -484,12 +485,18 @@ export default function CandidateWalletPage() {
               </div>
             </div>
             <div className="mt-3 flex items-baseline gap-1.5">
-              <span className="text-3xl font-black text-ink">
-                {loading ? '—' : formatInrFromCredits(availableBal)}
-              </span>
-              <span className="text-sm font-bold text-accent-cyan">
-                ({loading ? '—' : formatCredits(availableBal)})
-              </span>
+              {loading ? (
+                <Skeleton className="h-9 w-36" />
+              ) : (
+                <>
+                  <span className="text-3xl font-black text-ink">
+                    {formatInrFromCredits(availableBal)}
+                  </span>
+                  <span className="text-sm font-bold text-accent-cyan">
+                    ({formatCredits(availableBal)})
+                  </span>
+                </>
+              )}
             </div>
             <div className="mt-3 flex items-center justify-between text-xs">
               <span className="text-ink-muted">₹1.00 = 1 credit · bonus packs may add extra credits</span>
@@ -511,10 +518,16 @@ export default function CandidateWalletPage() {
               </div>
             </div>
             <div className="mt-3 flex items-baseline gap-1.5">
-              <span className="text-3xl font-black text-accent-emerald">
-                {loading ? '—' : `+${formatInrFromCredits(totalCredited)}`}
-              </span>
-              <span className="text-xs font-semibold text-ink-muted">credited</span>
+              {loading ? (
+                <Skeleton className="h-9 w-32" />
+              ) : (
+                <>
+                  <span className="text-3xl font-black text-accent-emerald">
+                    +{formatInrFromCredits(totalCredited)}
+                  </span>
+                  <span className="text-xs font-semibold text-ink-muted">credited</span>
+                </>
+              )}
             </div>
             <p className="mt-3 text-xs text-ink-muted">
               Total credits added to your wallet from all recorded sources.
@@ -530,12 +543,18 @@ export default function CandidateWalletPage() {
               </div>
             </div>
             <div className="mt-3 flex items-baseline gap-1.5">
-              <span className="text-3xl font-black text-accent-rose">
-                {loading ? '—' : `-${formatInrFromCredits(totalDebited)}`}
-              </span>
-              <span className="text-xs font-semibold text-ink-muted">
-                ({loading ? '—' : formatCredits(totalDebited)})
-              </span>
+              {loading ? (
+                <Skeleton className="h-9 w-32" />
+              ) : (
+                <>
+                  <span className="text-3xl font-black text-accent-rose">
+                    -{formatInrFromCredits(totalDebited)}
+                  </span>
+                  <span className="text-xs font-semibold text-ink-muted">
+                    ({formatCredits(totalDebited)})
+                  </span>
+                </>
+              )}
             </div>
             <p className="mt-3 text-xs text-ink-muted">
               Deducted across completed practice & technical screenings.
@@ -678,7 +697,9 @@ export default function CandidateWalletPage() {
 
           {/* Transactions List (Paytm Passbook Style) */}
           <div className="space-y-3">
-            {filteredTransactions.length === 0 ? (
+            {loading ? (
+              <SkeletonRows rows={5} className="border-t-0" />
+            ) : filteredTransactions.length === 0 ? (
               <div className="p-12 text-center border border-dashed border-line rounded-2xl bg-canvas">
                 <Receipt className="h-8 w-8 text-ink-muted mx-auto mb-2 opacity-50" />
                 <p className="text-sm font-semibold text-ink">No transactions found</p>

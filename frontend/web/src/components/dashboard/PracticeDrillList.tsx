@@ -1,8 +1,9 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Play, Loader2, AlertTriangle } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { Play, AlertTriangle } from 'lucide-react';
+import { apiJson } from '@/lib/api';
+import { SkeletonRows } from '@/components/ui';
 import type { PracticeDrillItem } from '@/types/practice';
 
 interface DrillsResponse {
@@ -23,22 +24,14 @@ export const PracticeDrillList: React.FC = () => {
     let cancelled = false;
 
     (async () => {
-      try {
-        const res = await apiFetch('/api/v1/practice/drills');
-        const data = (await res.json().catch(() => null)) as DrillsResponse | null;
-        if (cancelled) return;
-        if (!res.ok) {
-          setError(data?.error || `Could not load drills (HTTP ${res.status}).`);
-          setDrills([]);
-          return;
-        }
-        setDrills(data?.drills ?? []);
-      } catch {
-        if (!cancelled) {
-          setError('Could not reach the drills service.');
-          setDrills([]);
-        }
+      const data = await apiJson<DrillsResponse>('/api/v1/practice/drills');
+      if (cancelled) return;
+      if (!data) {
+        setError('Could not load drills right now.');
+        setDrills([]);
+        return;
       }
+      setDrills(data.drills ?? []);
     })();
 
     return () => {
@@ -65,10 +58,7 @@ export const PracticeDrillList: React.FC = () => {
       </div>
 
       {drills === null ? (
-        <div className="flex items-center gap-2 py-6 text-xs text-ink-muted border-t border-line">
-          <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-          Loading drills…
-        </div>
+        <SkeletonRows rows={4} />
       ) : error ? (
         <div className="flex items-start gap-2 py-5 text-xs text-ink-muted border-t border-line">
           <AlertTriangle className="w-4 h-4 text-accent-amber shrink-0 mt-0.5" />

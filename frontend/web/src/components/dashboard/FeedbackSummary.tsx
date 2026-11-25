@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, AlertTriangle, Loader2, Play } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Play } from 'lucide-react';
+import { Skeleton } from '@/components/ui';
 import { fetchCandidateInterviews, fetchSessionScorecard, type InterviewSession, type SessionScorecard } from '@/lib/api';
 
 /**
@@ -68,9 +69,17 @@ export const FeedbackSummary: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 py-6 text-xs text-ink-muted border-t border-line">
-          <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-          Loading your latest evaluation…
+        <div aria-hidden="true" className="border-t border-line pt-3 space-y-4">
+          <Skeleton className="h-3 w-44" />
+          <div className="space-y-2">
+            <Skeleton className="h-2.5 w-20" />
+            <Skeleton className="h-3.5 w-full" />
+            <Skeleton className="h-3.5 w-5/6" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-2.5 w-24" />
+            <Skeleton className="h-3.5 w-11/12" />
+          </div>
         </div>
       ) : (
         <div className="border-t border-line">

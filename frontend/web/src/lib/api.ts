@@ -678,7 +678,16 @@ function getTtlForPath(path: string): number {
     path.includes('/candidate/skills') ||
     path.includes('/candidate/skill-insights') ||
     path.includes('/candidate/notifications') ||
+    path.includes('/candidate/aptitude/history') ||
+    path.includes('/candidate/practice/history') ||
+    path.includes('/aptitude/templates') ||
+    path.includes('/aptitude/sessions/') ||
     path.includes('/practice/drills') ||
+    path.includes('/recruiter/dashboard') ||
+    path.includes('/recruiter/dossiers') ||
+    path.includes('/recruiter/rubrics') ||
+    path.includes('/recruiter/integrations') ||
+    path.includes('/recruiter/profile') ||
     path.includes('/scorecard') ||
     path.includes('/questions')
   ) {
@@ -737,12 +746,21 @@ export async function apiJson<T>(
       invalidateApiCache('/candidate/profile');
       invalidateApiCache('/candidate/resume');
       invalidateApiCache('/candidate/dashboard');
+      invalidateApiCache('/recruiter/profile');
     } else if (path.includes('/practice') || path.includes('/interview') || path.includes('/invitations')) {
       invalidateApiCache('/candidate/dashboard');
       invalidateApiCache('/candidate/interviews');
       invalidateApiCache('/candidate/skills');
       invalidateApiCache('/candidate/invitations');
       invalidateApiCache('/scorecard');
+      invalidateApiCache('/recruiter/dashboard');
+      invalidateApiCache('/recruiter/dossiers');
+    } else if (path.includes('/aptitude')) {
+      invalidateApiCache('/candidate/aptitude/history');
+      invalidateApiCache('/candidate/dashboard');
+      invalidateApiCache('/aptitude');
+    } else if (path.includes('/recruiter')) {
+      invalidateApiCache('/recruiter/');
     }
   }
 
@@ -851,7 +869,8 @@ export async function fetchCandidateSkills(options: { skipCache?: boolean } = {}
   if (Array.isArray(data)) return data;
   if (data && Array.isArray(data.skills)) return data.skills;
   if (data && Array.isArray(data.competencies)) return data.competencies;
-  return [];
+  // A failed request must never be presented as "zero skills".
+  return null;
 }
 
 export function fetchCandidateResumes(): Promise<CandidateResume[] | null> {
@@ -889,18 +908,7 @@ export async function fetchCandidateInterviews(): Promise<InterviewSession[] | n
 
 export async function fetchCandidatePracticeHistory(): Promise<PracticeHistoryData | null> {
   const data = await apiJson<any>('/api/candidate/practice/history');
-  if (!data || !data.success) {
-    return {
-      attempts: [],
-      practice_interviews: [],
-      stats: {
-        totalDrillsCompleted: 0,
-        totalPracticeMinutes: 0,
-        averageScore: 0,
-        readinessPercentage: 0,
-      },
-    };
-  }
+  if (!data || data.success === false) return null;
   return {
     attempts: Array.isArray(data.attempts) ? data.attempts : [],
     practice_interviews: Array.isArray(data.practice_interviews) ? data.practice_interviews : [],
@@ -1731,15 +1739,10 @@ export interface AptitudeAttemptHistory {
   deltaVsPrevious?: number | null;
 }
 
-export async function fetchAptitudeTemplates(): Promise<AptitudeTemplate[]> {
-  try {
-    const res = await apiFetch('/api/aptitude/templates');
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data.templates) ? data.templates : [];
-  } catch {
-    return [];
-  }
+export async function fetchAptitudeTemplates(): Promise<AptitudeTemplate[] | null> {
+  const data = await apiJson<{ templates?: AptitudeTemplate[] }>('/api/aptitude/templates');
+  if (!data) return null;
+  return Array.isArray(data.templates) ? data.templates : [];
 }
 
 export async function startAptitudeSession(templateId: string): Promise<AptitudeSessionData | null> {
@@ -1836,22 +1839,11 @@ export async function logAptitudeEvent(name: 'report_view' | 'retake_click' | 's
 
 export async function fetchAptitudeReport(sessionId: string): Promise<AptitudeReportResponse | null> {
   if (!sessionId) return null;
-  try {
-    const res = await apiFetch(`/api/aptitude/sessions/${sessionId}/report`);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
+  return apiJson<AptitudeReportResponse>(`/api/aptitude/sessions/${sessionId}/report`);
 }
 
-export async function fetchCandidateAptitudeHistory(): Promise<AptitudeAttemptHistory[]> {
-  try {
-    const res = await apiFetch('/api/candidate/aptitude/history');
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data.attempts) ? data.attempts : [];
-  } catch {
-    return [];
-  }
+export async function fetchCandidateAptitudeHistory(): Promise<AptitudeAttemptHistory[] | null> {
+  const data = await apiJson<{ attempts?: AptitudeAttemptHistory[] }>('/api/candidate/aptitude/history');
+  if (!data) return null;
+  return Array.isArray(data.attempts) ? data.attempts : [];
 }

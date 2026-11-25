@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Video, Brain, Calendar, Clock, Loader2 } from 'lucide-react';
+import { Video, Brain, Calendar, Clock } from 'lucide-react';
+import { Skeleton } from '@/components/ui';
 import {
   fetchCandidateDashboard,
   fetchCandidateInvitations,
@@ -83,9 +84,10 @@ export const QuickStartColumns: React.FC = () => {
         </div>
 
         {interviewLoading ? (
-          <div className="flex items-center gap-2 text-xs text-ink-muted py-4">
-            <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-            Loading your interview schedule…
+          <div aria-hidden="true" className="space-y-2.5 pt-1">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-3.5 w-56" />
+            <Skeleton className="h-9 w-40 rounded-lg mt-1" />
           </div>
         ) : nextInterview ? (
           <div className="space-y-2">
@@ -129,9 +131,10 @@ export const QuickStartColumns: React.FC = () => {
         </div>
 
         {aptitudeLoading ? (
-          <div className="flex items-center gap-2 text-xs text-ink-muted py-4">
-            <Loader2 className="w-4 h-4 animate-spin text-accent-violet" />
-            Loading your attempts…
+          <div aria-hidden="true" className="space-y-2.5 pt-1">
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-3.5 w-60" />
+            <Skeleton className="h-9 w-44 rounded-lg mt-1" />
           </div>
         ) : aptAttempts.length > 0 ? (
           <div className="space-y-2">

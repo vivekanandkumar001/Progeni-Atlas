@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { RecruiterHeader } from '@/components/dashboard/RecruiterHeader';
+import { Skeleton } from '@/components/ui';
 import { useToast } from '@/lib/hooks/useToast';
 import { apiFetch } from '@/lib/api';
 import {
@@ -534,6 +535,16 @@ export default function ATSIntegrationsPage() {
           </div>
 
           {/* Recruiter KPI Ribbon */}
+          {loading ? (
+            <div aria-hidden="true" className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-line">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="p-3.5 rounded-2xl bg-surface-2 space-y-2">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-7 w-16" />
+                </div>
+              ))}
+            </div>
+          ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-line">
             <div className="p-3.5 rounded-2xl bg-surface-2">
               <span className="text-[11px] font-semibold text-ink-muted uppercase block">Connected Tools</span>
@@ -568,6 +579,7 @@ export default function ATSIntegrationsPage() {
               </div>
             </div>
           </div>
+          )}
         </section>
 
         {/* Navigation Tabs */}

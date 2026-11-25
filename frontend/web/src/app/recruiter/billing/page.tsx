@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { RecruiterHeader } from '@/components/dashboard/RecruiterHeader';
+import { SkeletonStatCards, SkeletonTable } from '@/components/ui';
 import { apiFetch } from '@/lib/api';
 import {
  Wallet,
@@ -252,6 +253,9 @@ export default function RecruiterBillingPage() {
         )}
 
         {/* Balance Overview Cards */}
+        {loading && !wallet ? (
+          <SkeletonStatCards count={4} />
+        ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Card 1: Available Balance */}
           <div className="p-5 rounded-xl border border-line bg-surface shadow-xs flex flex-col justify-between">
@@ -338,6 +342,7 @@ export default function RecruiterBillingPage() {
             </p>
           </div>
         </div>
+        )}
 
         {/* Clean Process Strip: How Duration-Based Billing Works */}
         <div className="rounded-xl border border-line bg-surface p-6 shadow-xs">
@@ -398,7 +403,13 @@ export default function RecruiterBillingPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {transactions.length === 0 ? (
+                {loading && transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-0">
+                      <SkeletonTable rows={4} cols={6} />
+                    </td>
+                  </tr>
+                ) : transactions.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-ink-faint text-xs">
                       No billing transactions recorded yet.

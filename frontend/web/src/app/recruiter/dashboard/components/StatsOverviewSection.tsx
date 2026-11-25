@@ -1,7 +1,18 @@
 import { Award, Briefcase, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { SkeletonStatCards } from '@/components/ui';
 import type { OverviewStats } from '../dashboard-types';
 
-export function StatsOverviewSection({ overview }: { overview: OverviewStats }) {
+export function StatsOverviewSection({
+  overview,
+  loading = false,
+}: {
+  overview: OverviewStats;
+  loading?: boolean;
+}) {
+  if (loading && overview.totalCandidates === 0 && overview.activePositions === 0) {
+    return <SkeletonStatCards count={4} />;
+  }
+
   return (
     <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* STAT CARD 1 */}

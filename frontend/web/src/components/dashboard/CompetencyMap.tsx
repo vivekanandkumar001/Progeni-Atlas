@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Lightbulb, Loader2, Play } from 'lucide-react';
+import { Lightbulb, Play } from 'lucide-react';
+import { Skeleton } from '@/components/ui';
 import { fetchCandidateInterviews, fetchSessionScorecard } from '@/lib/api';
 
 interface AggregatedCompetency {
@@ -95,9 +96,16 @@ export const CompetencyMap: React.FC = () => {
       </div>
 
       {competencies === null ? (
-        <div className="flex items-center gap-2 py-6 text-xs text-ink-muted border-t border-line">
-          <Loader2 className="w-4 h-4 animate-spin text-accent-cyan" />
-          Loading competency scores…
+        <div aria-hidden="true" className="divide-y divide-line border-t border-line">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="py-3 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-3.5 w-36" />
+                <Skeleton className="h-3.5 w-12" />
+              </div>
+              <Skeleton className="h-[3px] w-full rounded-full" />
+            </div>
+          ))}
         </div>
       ) : !hasData ? (
         <div className="border-t border-line pt-5">

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Skeleton } from '@/components/ui';
 import {
   fetchCandidateDashboard,
   fetchCandidateInterviews,
@@ -46,27 +47,31 @@ export const SnapshotStrip: React.FC = () => {
   const hasReadinessScore = typeof readinessScore === 'number' && Number.isFinite(readinessScore);
 
   const stats = [
-    { label: 'Interviews done', value: interviews === null ? '…' : interviewsDone, sub: 'Total scored sessions' },
-    { label: 'Aptitude attempts', value: apt === null ? '…' : aptCompleted.length, sub: '5-pillar assessments' },
+    { label: 'Interviews done', loading: interviews === null, value: interviewsDone, sub: 'Total scored sessions' },
+    { label: 'Aptitude attempts', loading: apt === null, value: aptCompleted.length, sub: '5-pillar assessments' },
     {
       label: 'Best aptitude',
-      value: apt === null ? '…' : aptBest != null ? `${aptBest}%` : '—',
-      sub: apt === null ? 'Loading attempts…' : aptBest != null ? 'vs 60% benchmark' : 'No completed attempts yet',
+      loading: apt === null,
+      value: aptBest != null ? `${aptBest}%` : '—',
+      sub: aptBest != null ? 'vs 60% benchmark' : 'No completed attempts yet',
     },
     {
       label: 'Avg APT accuracy',
-      value: apt === null ? '…' : aptAvg != null ? `${aptAvg}%` : '—',
-      sub: apt === null ? 'Loading attempts…' : aptAvg != null ? 'Correct / attempted' : 'No completed attempts yet',
+      loading: apt === null,
+      value: aptAvg != null ? `${aptAvg}%` : '—',
+      sub: aptAvg != null ? 'Correct / attempted' : 'No completed attempts yet',
     },
     {
       label: 'Skills on file',
-      value: dashboard === null ? '…' : skillCount,
-      sub: dashboard === null ? 'Loading resume…' : dashboard.has_resume ? 'Resume parsed' : 'No resume on file',
+      loading: dashboard === null,
+      value: skillCount,
+      sub: dashboard?.has_resume ? 'Resume parsed' : 'No resume on file',
     },
     {
       label: 'Readiness score',
-      value: dashboard === null ? '…' : hasReadinessScore ? `${readinessScore}` : '—',
-      sub: dashboard === null ? 'Loading readiness…' : hasReadinessScore ? 'Score of record' : 'Not available yet',
+      loading: dashboard === null,
+      value: hasReadinessScore ? `${readinessScore}` : '—',
+      sub: hasReadinessScore ? 'Score of record' : 'Not available yet',
     },
   ];
 
@@ -75,8 +80,17 @@ export const SnapshotStrip: React.FC = () => {
       {stats.map((stat) => (
         <div key={stat.label} className="px-4 sm:px-5 py-4 min-w-0">
           <p className="kicker truncate">{stat.label}</p>
-          <p className="mt-1.5 kpi-value">{stat.value}</p>
-          <p className="mt-1.5 text-[10px] text-ink-faint leading-tight truncate">{stat.sub}</p>
+          {stat.loading ? (
+            <>
+              <Skeleton className="mt-2 h-7 w-14" />
+              <Skeleton className="mt-2 h-2.5 w-24" />
+            </>
+          ) : (
+            <>
+              <p className="mt-1.5 kpi-value">{stat.value}</p>
+              <p className="mt-1.5 text-[10px] text-ink-faint leading-tight truncate">{stat.sub}</p>
+            </>
+          )}
         </div>
       ))}
     </div>

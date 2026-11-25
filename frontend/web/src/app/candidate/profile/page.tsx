@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { Skeleton, SkeletonStatCards } from '@/components/ui';
 import { useCandidateProfileData } from '@/lib/hooks/useCandidateProfileData';
 import { useWebRTCDiagnostics } from '@/lib/hooks/useWebRTCDiagnostics';
 import {
@@ -78,40 +79,49 @@ export default function CandidateProfilePage() {
 
       {/* Main Container */}
       <main className="flex-grow max-w-7xl xl:max-w-screen-2xl w-full mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-8">
-        {loading && (
-          <div className="rounded-2xl bg-surface border border-line p-4 text-sm text-ink-muted flex items-center gap-2">
-            <RefreshCw className="w-4 h-4 animate-spin text-accent-cyan" />
-            Loading your profile...
-          </div>
-        )}
-
         {loadError && (
           <div className="rounded-2xl bg-surface border border-rose-500/30 p-4 text-sm text-accent-rose">
             {loadError}
           </div>
         )}
 
-        {!loading && profile.isDemoProfile && (
-          <div className="rounded-2xl bg-surface border border-accent-amber/35 p-4 text-sm text-ink flex items-start gap-3">
-            <AlertCircle className="w-4 h-4 shrink-0 text-accent-amber mt-0.5" />
-            <div>
-              <p className="font-bold text-accent-amber">Demo profile</p>
-              <p className="text-xs text-ink-muted mt-0.5">
-                Seeded biography and social links are hidden because they are not your details. Replace them with your own information before using this profile in an assessment.
-              </p>
+        {loading ? (
+          <div aria-hidden="true" className="space-y-8">
+            <div className="rounded-2xl border border-line bg-surface p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-16 w-16 rounded-2xl shrink-0" />
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-3.5 w-64" />
+                </div>
+              </div>
+              <Skeleton className="h-10 w-36 rounded-xl shrink-0" />
             </div>
+            <SkeletonStatCards count={2} className="grid grid-cols-1 lg:grid-cols-3 gap-8" />
           </div>
-        )}
+        ) : (
+          <>
+            {profile.isDemoProfile && (
+              <div className="rounded-2xl bg-surface border border-accent-amber/35 p-4 text-sm text-ink flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 shrink-0 text-accent-amber mt-0.5" />
+                <div>
+                  <p className="font-bold text-accent-amber">Demo profile</p>
+                  <p className="text-xs text-ink-muted mt-0.5">
+                    Seeded biography and social links are hidden because they are not your details. Replace them with your own information before using this profile in an assessment.
+                  </p>
+                </div>
+              </div>
+            )}
 
-        {/* Hero Branding & Profile Banner */}
-        <ProfileHeroBanner
-          profile={profile}
-          loading={loading}
-          emailVerified={emailVerified}
-          loadError={loadError}
-          saving={saving}
-          onSave={handleSaveProfile}
-        />
+            {/* Hero Branding & Profile Banner */}
+            <ProfileHeroBanner
+              profile={profile}
+              loading={loading}
+              emailVerified={emailVerified}
+              loadError={loadError}
+              saving={saving}
+              onSave={handleSaveProfile}
+            />
 
         {/* 2-Column Grid System */}
         <form onSubmit={handleSaveProfile} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -159,6 +169,8 @@ export default function CandidateProfilePage() {
             />
           </div>
         </form>
+          </>
+        )}
       </main>
     </div>
   );

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DemoBadge } from '@/components/common/DemoBadge';
+import { Skeleton, SkeletonRows } from '@/components/ui';
 import {
   fetchCandidateInterviews,
   fetchCandidatePracticeHistory,
@@ -184,7 +185,7 @@ function CandidateReportsContent() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-ink-muted uppercase">Total Reports</p>
-                <p className="text-lg font-bold text-ink">{loading ? '—' : totalReportsCount}</p>
+                {loading ? <Skeleton className="h-6 w-12 mt-1" /> : <p className="text-lg font-bold text-ink">{totalReportsCount}</p>}
               </div>
             </div>
 
@@ -194,9 +195,13 @@ function CandidateReportsContent() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-ink-muted uppercase">Avg Evaluation</p>
-                <p className="text-lg font-bold text-ink">
-                  {loading ? '—' : avgInterviewScore !== null ? `${avgInterviewScore}%` : 'N/A'}
-                </p>
+                {loading ? (
+                  <Skeleton className="h-6 w-14 mt-1" />
+                ) : (
+                  <p className="text-lg font-bold text-ink">
+                    {avgInterviewScore !== null ? `${avgInterviewScore}%` : 'N/A'}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -258,9 +263,8 @@ function CandidateReportsContent() {
         {activeTab === 'interviews' && (
           <div className="space-y-4">
             {loading ? (
-              <div className="rounded-2xl border border-line bg-surface p-16 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
-                <p className="text-sm text-ink-muted">Loading interview evaluation dossiers...</p>
+              <div className="rounded-2xl border border-line bg-surface px-6 py-2">
+                <SkeletonRows rows={4} className="border-t-0" />
               </div>
             ) : completedInterviews.length === 0 ? (
               <div className="rounded-2xl border border-line bg-surface p-12 text-center space-y-4">
@@ -383,9 +387,8 @@ function CandidateReportsContent() {
             </div>
 
             {loading ? (
-              <div className="rounded-2xl border border-line bg-surface p-16 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
-                <p className="text-sm text-ink-muted">Loading practice evaluations...</p>
+              <div className="rounded-2xl border border-line bg-surface px-6 py-2">
+                <SkeletonRows rows={4} className="border-t-0" />
               </div>
             ) : drillAttempts.length === 0 && practiceInterviews.length === 0 ? (
               <div className="rounded-2xl border border-line bg-surface p-12 text-center space-y-4">
@@ -508,9 +511,8 @@ function CandidateReportsContent() {
         {activeTab === 'aptitude' && (
           <div className="space-y-4">
             {loading ? (
-              <div className="rounded-2xl border border-line bg-surface p-16 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-accent-cyan animate-spin mx-auto" />
-                <p className="text-sm text-ink-muted">Loading cognitive aptitude reports...</p>
+              <div className="rounded-2xl border border-line bg-surface px-6 py-2">
+                <SkeletonRows rows={4} className="border-t-0" />
               </div>
             ) : uniqueAptitudeAttempts.length === 0 ? (
               <div className="rounded-2xl border border-line bg-surface p-12 text-center space-y-4">

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Dispatch, SetStateAction } from 'react';
-import { ArrowUpDown, Clock, Eye, Pencil, Radio, RefreshCw, Search, UserPlus, Users, Video } from 'lucide-react';
+import { ArrowUpDown, Clock, Eye, Pencil, Radio, Search, UserPlus, Users, Video } from 'lucide-react';
+import { SkeletonTable } from '@/components/ui';
 import { formatInterviewDateTime, getStudentStatus, isPastUnconducted } from '@/lib/recruiter-dashboard';
 import type { CandidateDossier, DashboardSortField, StudentStatus } from '../dashboard-types';
 import { RecommendationBadge } from './RecommendationBadge';
@@ -29,10 +30,7 @@ export function CandidateDossiersSection({
  return (
  <section id="dossiers"className="card-panel overflow-hidden">
  {loading ? (
- <div className="p-16 text-center space-y-3">
- <RefreshCw className="w-8 h-8 text-accent-indigo animate-spin mx-auto"/>
- <p className="text-ink-muted text-sm">Loading candidate evaluation dossiers...</p>
- </div>
+ <SkeletonTable rows={6} cols={6} />
  ) : filteredCandidates.length === 0 ? (
   totalCandidatesCount === 0 ? (
     <div className="p-16 text-center space-y-4">

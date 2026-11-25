@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Award, Zap, Lock, CheckCircle2, X, Play, Flame } from 'lucide-react';
+import { Skeleton } from '@/components/ui';
 import {
   candidateDemoQuota,
   fetchCandidateDashboard,
@@ -112,15 +113,15 @@ export const HeroStrip: React.FC = () => {
         <div className="min-w-0">
           <p className="text-[11px] font-mono font-semibold text-ink-faint uppercase tracking-[0.16em] flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-accent-cyan" />
-            {loading ? 'Candidate Workspace' : eyebrowLabel}
+            {loading ? <Skeleton className="h-3 w-36 inline-block" /> : eyebrowLabel}
           </p>
-          <h1 className="mt-1.5 text-2xl sm:text-[26px] font-bold text-ink tracking-tight leading-tight">
-            {loading
-              ? 'Loading your dashboard…'
-              : firstName
-                ? `Welcome back, ${firstName}`
-                : 'Welcome back'}
-          </h1>
+          {loading ? (
+            <Skeleton className="mt-2 h-8 w-64" />
+          ) : (
+            <h1 className="mt-1.5 text-2xl sm:text-[26px] font-bold text-ink tracking-tight leading-tight">
+              {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
+            </h1>
+          )}
           <p className="mt-1.5 text-sm text-ink-muted max-w-lg leading-relaxed">
             Two tracks, one goal. Close the gap one interview at a time — and make every score count.
           </p>

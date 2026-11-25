@@ -15,3 +15,7 @@ export type { BadgeProps, BadgeVariant, BadgeSize, BadgeShape } from './Badge';
 
 export { FormLabel } from './FormLabel';
 export type { FormLabelProps } from './FormLabel';
+
+export { Skeleton, SkeletonRows, SkeletonStatCards, SkeletonTable } from './Skeleton';
+
+export { Skeleton, SkeletonRows, SkeletonStatCards, SkeletonTable } from './Skeleton';

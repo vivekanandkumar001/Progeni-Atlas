@@ -307,7 +307,7 @@ CANONICAL_PACKAGES = [
 # ---------------------------------------------------------------------------
 # Bump whenever the index set changes; stored in the _meta collection so the
 # check is a single document read on subsequent boots.
-_SCHEMA_VERSION = 4
+_SCHEMA_VERSION = 6
 
 def _safe_index(collection, keys, **kwargs):
     try:
@@ -334,6 +334,8 @@ def ensure_indexes(db):
     _safe_index(db.interview_sessions, "candidate_email")
     _safe_index(db.interview_sessions, "recruiter_id")
     _safe_index(db.interview_sessions, "recruiter_email")
+    _safe_index(db.interview_sessions, [("userId", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)])
+    _safe_index(db.interview_sessions, [("user_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)])
     # interview_invitations
     _safe_index(db.interview_invitations, "id", unique=True, sparse=True)
     _safe_index(db.interview_invitations, "session_id")
@@ -343,6 +345,15 @@ def ensure_indexes(db):
     _safe_index(db.candidate_notifications, "candidate_id")
     _safe_index(db.candidate_notifications, "candidate_email")
     _safe_index(db.candidate_notifications, "created_at")
+    # Sparse + unique keeps retry dedupe without indexing documents missing a key.
+    _safe_index(db.candidate_notifications, "dedupe_key", unique=True, sparse=True)
+    _safe_index(db.candidate_notifications, [("candidate_id", pymongo.ASCENDING), ("is_read", pymongo.ASCENDING)])
+    _safe_index(db.candidate_notifications, [("candidate_email", pymongo.ASCENDING), ("is_read", pymongo.ASCENDING)])
+    _safe_index(db.candidate_notifications, [("candidate_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)])
+    _safe_index(db.candidate_notifications, [("candidate_email", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)])
+    _safe_index(db.candidate_notifications, [
+        ("candidate_id", pymongo.ASCENDING), ("is_read", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING),
+    ])
     # recruiter_notifications
     _safe_index(db.recruiter_notifications, "recruiter_id")
     _safe_index(db.recruiter_notifications, "recruiter_email")
@@ -374,6 +385,12 @@ def ensure_indexes(db):
     _safe_index(db.aptitude_sessions, "candidateId")
     _safe_index(db.aptitude_sessions, "candidateEmail")
     _safe_index(db.aptitude_sessions, [("candidateId", pymongo.ASCENDING), ("startedAt", pymongo.DESCENDING)])
+    _safe_index(db.aptitude_sessions, [("candidateId", pymongo.ASCENDING), ("status", pymongo.ASCENDING), ("completedAt", pymongo.DESCENDING)])
+    _safe_index(db.aptitude_sessions, [("candidateEmail", pymongo.ASCENDING), ("status", pymongo.ASCENDING), ("completedAt", pymongo.DESCENDING)])
+    _safe_index(db.aptitude_sessions, [("templateId", pymongo.ASCENDING), ("status", pymongo.ASCENDING), ("completedAt", pymongo.DESCENDING)])
+    _safe_index(db.aptitude_sessions, [("templateId", pymongo.ASCENDING), ("scorecard.overallScore", pymongo.ASCENDING)])
+    _safe_index(db.interview_sessions, [("candidate_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)])
+    _safe_index(db.interview_sessions, [("candidate_email", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)])
     # demo_allowances.user_id already has a unique index in production — reuse it
     _safe_index(db.demo_allowances, "org_id")
     _safe_index(db.billing_accounts, "orgId")
@@ -394,6 +411,7 @@ def ensure_indexes(db):
     _safe_index(db.webhook_dispatch_logs, [("org_id", pymongo.ASCENDING), ("timestamp", pymongo.DESCENDING)])
     _safe_index(db.hardware_diagnostics, "sessionId")
     _safe_index(db.lobby_checks, "sessionId")
+    _safe_index(db.proctoring_events, [("session_id", pymongo.ASCENDING), ("timestamp", pymongo.ASCENDING)])
 
     from datetime import datetime, timezone
     try:
