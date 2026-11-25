@@ -20,7 +20,7 @@ export default function CandidatePracticePage() {
       <DashboardHeader />
 
       {/* Main Container */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      <main className="flex-1 w-full max-w-7xl xl:max-w-screen-2xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 2xl:px-10">
         <Suspense fallback={<div className="p-12 text-center text-xs text-ink-muted">Loading Practice Suite...</div>}>
           <PracticeLabClient />
         </Suspense>

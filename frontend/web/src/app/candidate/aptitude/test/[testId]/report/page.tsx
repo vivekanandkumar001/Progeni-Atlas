@@ -153,7 +153,7 @@ export default function AptitudeReportPage() {
     <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans selection:bg-accent-cyan/20">
       <DashboardHeader />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 max-w-7xl xl:max-w-screen-2xl w-full mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-8">
         {/* Navigation Breadcrumb & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line/80 pb-5">
           <div className="space-y-1">

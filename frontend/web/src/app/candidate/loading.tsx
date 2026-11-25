@@ -1,7 +1,7 @@
 export default function CandidateSectionLoading() {
   return (
     <main
-      className="mx-auto w-full max-w-7xl flex-1 animate-pulse space-y-6 p-4 sm:p-6 lg:p-8"
+      className="mx-auto w-full max-w-7xl xl:max-w-screen-2xl flex-1 animate-pulse space-y-6 px-4 py-8 sm:px-6 lg:px-8 2xl:px-10"
       role="status"
       aria-label="Loading candidate dashboard"
     >

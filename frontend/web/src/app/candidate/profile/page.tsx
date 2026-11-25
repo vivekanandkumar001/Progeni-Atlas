@@ -77,7 +77,7 @@ export default function CandidateProfilePage() {
       )}
 
       {/* Main Container */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-grow max-w-7xl xl:max-w-screen-2xl w-full mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-8">
         {loading && (
           <div className="rounded-2xl bg-surface border border-line p-4 text-sm text-ink-muted flex items-center gap-2">
             <RefreshCw className="w-4 h-4 animate-spin text-accent-cyan" />

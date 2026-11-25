@@ -22,7 +22,7 @@ export default function CandidateHomePage() {
     <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans overflow-x-clip selection:bg-cyan-500/30 selection:text-accent-cyan">
       <DashboardHeader />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <main className="flex-1 w-full max-w-7xl xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 pb-12">
         {/* Hero — dense, flat, no card */}
         <section id="overview" className="pt-5 pb-5 border-b border-line">
           <HeroStrip />

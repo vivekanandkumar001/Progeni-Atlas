@@ -169,7 +169,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-line/80 bg-header backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-3 sm:gap-3 sm:px-5 lg:gap-4 lg:px-8 2xl:max-w-[1448px]">
+      <div className="mx-auto flex h-16 max-w-7xl xl:max-w-screen-2xl items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:gap-4 lg:px-8 2xl:px-10">
 
         {/* ================= LEFT: LOGO + PRIMARY NAV ================= */}
         <BrandLogo href={brandHref} badge={brandBadge} hideTextOnMobile />
@@ -423,7 +423,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           id="mobile-nav-drawer"
           className="border-t border-line bg-header backdrop-blur-xl animate-fadeIn xl:hidden"
         >
-          <div className="mx-auto max-h-[calc(100vh-4rem)] max-w-7xl space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
+          <div className="mx-auto max-h-[calc(100vh-4rem)] max-w-7xl xl:max-w-screen-2xl space-y-4 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 2xl:px-10">
             {/* Profile card */}
             <Link
               href={profileHref}

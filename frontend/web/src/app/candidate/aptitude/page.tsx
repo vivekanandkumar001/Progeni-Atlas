@@ -91,7 +91,7 @@ export default function AptitudeHubPage() {
       {/* Top Fixed Header Shell */}
       <DashboardHeader />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+      <main className="flex-1 w-full max-w-7xl xl:max-w-screen-2xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 2xl:px-10 space-y-8">
         {/* HERO BANNER */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-accent-cyan/5 via-surface to-accent-indigo/5 border border-line p-6 sm:p-8">
           <div className="relative z-10 max-w-3xl space-y-4">

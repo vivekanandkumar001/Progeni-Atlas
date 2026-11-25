@@ -135,7 +135,7 @@ export default function CandidateInterviewsPage() {
     <div className="min-h-screen bg-canvas text-ink flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
       <DashboardHeader />
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-grow max-w-7xl xl:max-w-screen-2xl w-full mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-8">
 
         {/* HERO HEADER */}
         <section className="rounded-2xl bg-gradient-to-r from-accent-cyan/5 via-surface to-accent-indigo/5 border border-line p-6 sm:p-8">
