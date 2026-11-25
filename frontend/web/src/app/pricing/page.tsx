@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { Skeleton } from '@/components/ui';
+import { apiJson } from '@/lib/api';
 import {
   Check,
   CreditCard,
@@ -29,297 +31,137 @@ interface PlanCard {
   notIncluded?: string[];
 }
 
-const DEFAULT_CANDIDATE_PLANS: PlanCard[] = [
-  {
-    name: 'Free Starter',
-    badge: 'INSTANT TRIAL',
-    price: '₹0',
-    priceNum: 0,
-    credits: '1 Mock Trial',
-    period: 'Free registration trial',
-    description: 'Ideal for trying out the AI interviewer with full video, audio and code execution.',
-    popular: false,
-    buttonText: 'Start Free Mock',
-    buttonHref: '/register',
-    features: [
-      '1 Full AI Technical Mock Interview',
-      'Live Spoken Dialogue & Adaptive Follow-ups',
-      'Browser Code Execution (Python, C++, JS)',
-      'Instant Scorecard & Competency Report',
-      'No Credit Card Required',
-    ],
-    notIncluded: [
-      'Resume Defense Round',
-      'Company Specific Question Banks',
-    ],
-  },
-  {
-    name: 'Warm-up Pack',
-    badge: 'FOR QUICK PRACTICE',
-    price: '₹49',
-    priceNum: 49,
-    credits: '50 Credits',
-    period: 'one-time pack',
-    description: 'Quick pre-interview brush-up right before your actual technical round.',
-    popular: false,
-    buttonText: 'Buy Pack (₹49)',
-    buttonHref: '/candidate/wallet?pack=pack_49',
-    features: [
-      '50 AI Credits (100 mins practice)',
-      '3 Full In-Depth DSA or Behavioral Rounds',
-      'Turn-by-Turn Audio Transcripts',
-      'Code Efficiency & Complexity Analysis',
-      'Actionable Improvement Guidance',
-    ],
-    notIncluded: [
-      'Company Specific Question Banks',
-    ],
-  },
-  {
-    name: 'Placement Ready',
-    badge: 'CAMPUS FAVORITE',
-    price: '₹99',
-    priceNum: 99,
-    credits: '100 Credits',
-    period: 'one-time pack (Save 30%)',
-    description: 'Most chosen by engineering students preparing for placements and product companies.',
-    popular: true,
-    buttonText: 'Get 100 Credits (₹99)',
-    buttonHref: '/candidate/wallet?pack=pack_99',
-    features: [
-      '100 AI Credits (200 mins practice)',
-      '6-7 Full Technical & Architecture Rounds',
-      'Resume Defense & Target JD Parsing',
-      'Company-Specific Question Sets (Google, TCS, Amazon)',
-      'Detailed Turn-by-Turn Telemetry & Audio Replays',
-    ],
-    notIncluded: [],
-  },
-  {
-    name: 'Pro Mastery',
-    badge: 'BEST VALUE',
-    price: '₹199',
-    priceNum: 199,
-    credits: '200 Credits',
-    period: 'one-time pack',
-    description: 'Comprehensive preparation for high-stakes FAANG, startup, and campus hiring.',
-    popular: false,
-    buttonText: 'Get 200 Credits (₹199)',
-    buttonHref: '/candidate/wallet?pack=pack_199',
-    features: [
-      '200 AI Credits (400 mins practice)',
-      '13+ Full Technical, DSA & HR Mock Rounds',
-      'Full Multi-Modal Proctoring Simulation',
-      'Priority AI Voice & Video Response Latency',
-      'Lifetime Scorecard Dossier History',
-    ],
-    notIncluded: [],
-  },
-];
-
-const DEFAULT_RECRUITER_PLANS: PlanCard[] = [
-  {
-    name: 'Recruiter Trial',
-    badge: 'FREE TRIAL',
-    price: '₹0',
-    priceNum: 0,
-    credits: '10 Credits',
-    period: 'free trial on signup',
-    description: '10 welcome credits, granted one-time on signup to test AI technical screening.',
-    popular: false,
-    buttonText: 'Start Recruiter Trial',
-    buttonHref: '/register',
-    features: [
-      '10 Welcome Credits (20 mins, one-time on signup)',
-      '1 Full AI Screening Interview',
-      'Automated Candidate Dossiers & PDF Reports',
-      'Standard Role Rubric Templates',
-      '1 Team Member Seat',
-    ],
-    notIncluded: ['Custom ATS Sync'],
-  },
-  {
-    name: 'Starter Pack',
-    badge: 'FOR STARTUPS',
-    price: '₹499',
-    priceNum: 499,
-    credits: '500 Credits',
-    period: 'one-time pack',
-    description: 'Screen candidates automatically with AI technical lead interviews.',
-    popular: false,
-    buttonText: 'Buy Pack (₹499)',
-    buttonHref: '/recruiter/billing',
-    features: [
-      '500 Screening Credits (1,000 mins)',
-      'Up to 30-35 Candidate Interview Sessions',
-      'Automated Candidate Dossiers & PDF Reports',
-      'Standard Role Rubric Templates',
-      '3 Team Member Seats',
-    ],
-    notIncluded: ['Custom ATS Sync'],
-  },
-  {
-    name: 'Growth Scale',
-    badge: 'BEST FOR SCALING',
-    price: '₹999',
-    priceNum: 999,
-    credits: '1,000 Credits',
-    period: 'one-time pack',
-    description: 'For fast-growing hiring teams scaling their technical screening funnel.',
-    popular: true,
-    buttonText: 'Buy Pack (₹999)',
-    buttonHref: '/recruiter/billing',
-    features: [
-      '1,000 Screening Credits (2,000 mins)',
-      '65-70 Candidate Interview Sessions',
-      'Custom Role Rubric Templates & Weights',
-      'Full Video Proctoring Telemetry',
-      'Bulk CSV Candidate Scheduling',
-    ],
-    notIncluded: [],
-  },
-  {
-    name: 'Enterprise Scale',
-    badge: 'HIGH VOLUME',
-    price: '₹1,999',
-    priceNum: 1999,
-    credits: '2,500 Credits',
-    period: 'one-time pack',
-    description: 'High-volume hiring campaigns with custom ATS synchronization and compliance.',
-    popular: false,
-    buttonText: 'Buy Pack (₹1,999)',
-    buttonHref: '/recruiter/billing',
-    features: [
-      '2,500 Screening Credits (5,000 mins)',
-      '160+ Candidate Screenings',
-      'Dedicated AI Persona & Organization Branding',
-      'Priority Compute & Zero-Queue Capacity',
-      'Full Audit Trail & Compliance Export',
-    ],
-    notIncluded: [],
-  },
-];
-
 export default function PricingPage() {
   const [audience, setAudience] = useState<'candidate' | 'recruiter'>('candidate');
-  const [candidatePlans, setCandidatePlans] = useState<PlanCard[]>(DEFAULT_CANDIDATE_PLANS);
-  const [recruiterPlans, setRecruiterPlans] = useState<PlanCard[]>(DEFAULT_RECRUITER_PLANS);
+  // Never seed live pricing UI with invented plans. The API is authoritative.
+  const [candidatePlans, setCandidatePlans] = useState<PlanCard[]>([]);
+  const [recruiterPlans, setRecruiterPlans] = useState<PlanCard[]>([]);
+  const [packagesLoading, setPackagesLoading] = useState(true);
+  const [packagesError, setPackagesError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     async function loadPackages() {
+      setPackagesLoading(true);
+      setPackagesError(null);
       try {
-        const res = await fetch('/api/packages');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data && data.success && Array.isArray(data.packages) && data.packages.length > 0) {
-          const allPkgs = data.packages;
-
-          // 1. Candidate plans from Super Admin
-          const candPkgs = allPkgs.filter(
-            (p: any) => p.target_audience === 'individual' || p.target_audience === 'both'
-          );
-          if (candPkgs.length > 0 && isMounted) {
-            const mappedCand: PlanCard[] = candPkgs.map((pkg: any) => {
-              const priceNum = Number(pkg.price ?? pkg.monthlyPrice ?? 0);
-              const priceStr = priceNum === 0 ? '₹0' : `₹${priceNum.toLocaleString('en-IN')}`;
-              const periodStr =
-                priceNum === 0
-                  ? 'Free trial'
-                  : pkg.billing_period === 'monthly'
-                  ? 'month'
-                  : pkg.billing_period === 'yearly'
-                  ? 'year'
-                  : 'one-time pack';
-
-              const creditsStr = pkg.credits
-                ? `${pkg.credits} Credits`
-                : `${pkg.included_interviews || 1} Mock Trial${(pkg.included_interviews || 1) > 1 ? 's' : ''}`;
-
-              const defaultFeats = [
-                `${pkg.included_interviews || 1} Full AI Technical Mock Round${(pkg.included_interviews || 1) > 1 ? 's' : ''}`,
-                'Live Spoken Dialogue & Adaptive Follow-ups',
-                'Browser Code Execution (Python, C++, JS)',
-                'Instant Performance Scorecard & Dossier',
-              ];
-
-              const isPopular = Boolean(
-                pkg.popular ||
-                String(pkg.name || '').toLowerCase().includes('popular') ||
-                String(pkg.name || '').toLowerCase().includes('placement')
-              );
-
-              return {
-                name: pkg.name || 'Candidate Plan',
-                badge: priceNum === 0 ? 'INSTANT TRIAL' : isPopular ? 'TOP PICK' : 'PRACTICE PACK',
-                price: priceStr,
-                priceNum,
-                credits: creditsStr,
-                period: periodStr,
-                description: pkg.description || 'Targeted interview practice for engineering roles.',
-                popular: isPopular,
-                buttonText: priceNum === 0 ? 'Start Free Mock' : `Buy ${pkg.name} (${priceStr})`,
-                buttonHref: priceNum === 0 ? '/register' : '/candidate/wallet',
-                features: Array.isArray(pkg.features) && pkg.features.length > 0 ? pkg.features : defaultFeats,
-                notIncluded: [],
-              };
-            });
-            setCandidatePlans(mappedCand);
-          }
-
-          // 2. Recruiter plans from Super Admin
-          const recPkgs = allPkgs.filter(
-            (p: any) => p.target_audience === 'organization' || p.target_audience === 'both'
-          );
-          if (recPkgs.length > 0 && isMounted) {
-            const mappedRec: PlanCard[] = recPkgs.map((pkg: any) => {
-              const priceNum = Number(pkg.price ?? pkg.monthlyPrice ?? 0);
-              const priceStr = `₹${priceNum.toLocaleString('en-IN')}`;
-              const periodStr =
-                pkg.billing_period === 'monthly'
-                  ? 'month'
-                  : pkg.billing_period === 'yearly'
-                  ? 'year'
-                  : '₹1.00 = 1 Credit';
-
-              const creditsStr = pkg.credits
-                ? `${pkg.credits.toLocaleString('en-IN')} Credits`
-                : `${pkg.included_interviews || 20} Candidate Screenings`;
-
-              const defaultFeats = [
-                `${creditsStr} (~${Math.round((pkg.credits || 500) / 2)} mins)`,
-                `Up to ${pkg.included_interviews || 20} Candidate Interview Sessions`,
-                'Automated Candidate Dossiers & PDF Reports',
-                'Custom Role Rubric Templates & Weights',
-                `${pkg.included_recruiter_seats || 3} Team Member Seats`,
-              ];
-
-              const isPopular = Boolean(
-                pkg.popular ||
-                String(pkg.name || '').toLowerCase().includes('popular') ||
-                String(pkg.name || '').toLowerCase().includes('growth')
-              );
-
-              return {
-                name: pkg.name || 'Recruiter Pack',
-                badge: isPopular ? 'GROWTH SCALE' : (pkg.tier === 'enterprise' ? 'ENTERPRISE' : 'FOR TEAMS'),
-                price: priceStr,
-                priceNum,
-                credits: creditsStr,
-                period: periodStr,
-                description: pkg.description || 'Automated AI technical screening for hiring teams.',
-                popular: isPopular,
-                buttonText: `Choose Plan (${priceStr})`,
-                buttonHref: '/recruiter/billing',
-                features: Array.isArray(pkg.features) && pkg.features.length > 0 ? pkg.features : defaultFeats,
-                notIncluded: [],
-              };
-            });
-            setRecruiterPlans(mappedRec);
-          }
+        const data = await apiJson<{ success: boolean; packages: any[] }>('/api/packages');
+        if (!isMounted) return;
+        if (!data?.success || !Array.isArray(data.packages) || data.packages.length === 0) {
+          setPackagesError('Pricing could not be loaded right now. Please try again shortly.');
+          return;
         }
-      } catch (err) {
-        console.warn('[PricingPage] Fallback to default pricing due to fetch error:', err);
+
+        const allPkgs = data.packages;
+
+        // 1. Candidate plans from Super Admin
+        const candPkgs = allPkgs.filter(
+          (p: any) => p.target_audience === 'individual' || p.target_audience === 'both'
+        );
+        if (candPkgs.length > 0) {
+          const mappedCand: PlanCard[] = candPkgs.map((pkg: any) => {
+            const priceNum = Number(pkg.price ?? pkg.monthlyPrice ?? 0);
+            const priceStr = priceNum === 0 ? '₹0' : `₹${priceNum.toLocaleString('en-IN')}`;
+            const periodStr =
+              priceNum === 0
+                ? 'Free trial'
+                : pkg.billing_period === 'monthly'
+                ? 'month'
+                : pkg.billing_period === 'yearly'
+                ? 'year'
+                : 'one-time pack';
+
+            const creditsStr = pkg.credits
+              ? `${pkg.credits} Credits`
+              : `${pkg.included_interviews || 1} Mock Trial${(pkg.included_interviews || 1) > 1 ? 's' : ''}`;
+
+            const defaultFeats = [
+              `${pkg.included_interviews || 1} Full AI Technical Mock Round${(pkg.included_interviews || 1) > 1 ? 's' : ''}`,
+              'Live Spoken Dialogue & Adaptive Follow-ups',
+              'Browser Code Execution (Python, C++, JS)',
+              'Instant Performance Scorecard & Dossier',
+            ];
+
+            const isPopular = Boolean(
+              pkg.popular ||
+              String(pkg.name || '').toLowerCase().includes('popular') ||
+              String(pkg.name || '').toLowerCase().includes('placement')
+            );
+
+            return {
+              name: pkg.name || 'Candidate Plan',
+              badge: priceNum === 0 ? 'INSTANT TRIAL' : isPopular ? 'TOP PICK' : 'PRACTICE PACK',
+              price: priceStr,
+              priceNum,
+              credits: creditsStr,
+              period: periodStr,
+              description: pkg.description || 'Targeted interview practice for engineering roles.',
+              popular: isPopular,
+              buttonText: priceNum === 0 ? 'Start Free Mock' : `Buy ${pkg.name} (${priceStr})`,
+              buttonHref: priceNum === 0 ? '/register' : '/candidate/wallet',
+              features: Array.isArray(pkg.features) && pkg.features.length > 0 ? pkg.features : defaultFeats,
+              notIncluded: [],
+            };
+          });
+          setCandidatePlans(mappedCand);
+        }
+
+        // 2. Recruiter plans from Super Admin
+        const recPkgs = allPkgs.filter(
+          (p: any) => p.target_audience === 'organization' || p.target_audience === 'both'
+        );
+        if (recPkgs.length > 0) {
+          const mappedRec: PlanCard[] = recPkgs.map((pkg: any) => {
+            const priceNum = Number(pkg.price ?? pkg.monthlyPrice ?? 0);
+            const priceStr = `₹${priceNum.toLocaleString('en-IN')}`;
+            const periodStr =
+              pkg.billing_period === 'monthly'
+                ? 'month'
+                : pkg.billing_period === 'yearly'
+                ? 'year'
+                : '₹1.00 = 1 Credit';
+
+            const creditsStr = pkg.credits
+              ? `${pkg.credits.toLocaleString('en-IN')} Credits`
+              : `${pkg.included_interviews || 20} Candidate Screenings`;
+
+            const defaultFeats = [
+              `${creditsStr} (~${Math.round((pkg.credits || 500) / 2)} mins)`,
+              `Up to ${pkg.included_interviews || 20} Candidate Interview Sessions`,
+              'Automated Candidate Dossiers & PDF Reports',
+              'Custom Role Rubric Templates & Weights',
+              `${pkg.included_recruiter_seats || 3} Team Member Seats`,
+            ];
+
+            const isPopular = Boolean(
+              pkg.popular ||
+              String(pkg.name || '').toLowerCase().includes('popular') ||
+              String(pkg.name || '').toLowerCase().includes('growth')
+            );
+
+            return {
+              name: pkg.name || 'Recruiter Pack',
+              badge: isPopular ? 'GROWTH SCALE' : (pkg.tier === 'enterprise' ? 'ENTERPRISE' : 'FOR TEAMS'),
+              price: priceStr,
+              priceNum,
+              credits: creditsStr,
+              period: periodStr,
+              description: pkg.description || 'Automated AI technical screening for hiring teams.',
+              popular: isPopular,
+              buttonText: `Choose Plan (${priceStr})`,
+              buttonHref: '/recruiter/billing',
+              features: Array.isArray(pkg.features) && pkg.features.length > 0 ? pkg.features : defaultFeats,
+              notIncluded: [],
+            };
+          });
+          setRecruiterPlans(mappedRec);
+        }
+      } catch {
+        if (isMounted) {
+          setPackagesError('Pricing could not be loaded right now. Please try again shortly.');
+        }
+      } finally {
+        if (isMounted) setPackagesLoading(false);
       }
     }
     void loadPackages();
@@ -332,13 +174,14 @@ export default function PricingPage() {
 
   // Cheapest paid candidate pack — keeps the tab label and hero copy in sync
   // with whatever prices are actually set in Super Admin (no hard-coded ₹49).
-  const minCandidatePrice = Math.min(
-    ...candidatePlans.map((p) => p.priceNum).filter((n) => n > 0)
-  );
-  const hasPaidCandidatePack = Number.isFinite(minCandidatePrice) && minCandidatePrice > 0;
-  const candidateTabLabel = hasPaidCandidatePack
-    ? `Candidate Practice Packs · from ₹${minCandidatePrice.toLocaleString('en-IN')}`
-    : 'Candidate Practice Packs';
+  const paidPrices = candidatePlans.map((p) => p.priceNum).filter((n) => n > 0);
+  const minCandidatePrice = paidPrices.length > 0 ? Math.min(...paidPrices) : null;
+  const hasPaidCandidatePack = minCandidatePrice !== null;
+  const freePlan = candidatePlans.find((p) => p.priceNum === 0) || null;
+  const candidateTabLabel =
+    minCandidatePrice !== null
+      ? `Candidate Practice Packs · from ₹${minCandidatePrice.toLocaleString('en-IN')}`
+      : 'Candidate Practice Packs';
 
   // Card count decides the grid so 1-2 packs don't stretch full-width and
   // 4 packs always sit in one clean row on desktop.
@@ -372,7 +215,11 @@ export default function PricingPage() {
           </h1>
 
           <p className="max-w-2xl mx-auto text-sm sm:text-base text-ink-muted">
-            Start completely free with 10 credits. When you&apos;re ready to level up, choose simple one-time credit packs{hasPaidCandidatePack ? ` starting at just ₹${minCandidatePrice.toLocaleString('en-IN')}` : ''}.
+            {packagesLoading
+              ? 'Loading the latest practice packs…'
+              : packagesError
+              ? 'Pricing is temporarily unavailable. Please try again shortly.'
+              : `Start free${freePlan ? ` with ${freePlan.credits.toLowerCase()}` : ''}. When you're ready to level up, choose simple one-time packs${hasPaidCandidatePack ? ` starting at just ₹${minCandidatePrice?.toLocaleString('en-IN')}` : ''}.`}
           </p>
 
           {/* Candidate vs Recruiter Tab Switcher */}
@@ -410,8 +257,26 @@ export default function PricingPage() {
       {/* Pricing Cards Grid */}
       <section className="py-16 bg-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`grid gap-6 ${gridClassesFor(activePlans.length)}`}>
-            {activePlans.map((plan, i) => (
+          {packagesLoading ? (
+            <div className={`grid gap-6 ${gridClassesFor(3)}`} aria-label="Loading pricing plans">
+              {Array.from({ length: 3 }).map((_, idx) => (
+                <div key={idx} className="card-panel p-6 space-y-5">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-6 w-2/3" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-10 w-32" />
+                  <Skeleton className="h-6 w-28" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : packagesError || activePlans.length === 0 ? (
+            <div className="rounded-xl border border-line bg-surface-deep p-10 text-center text-sm text-ink-muted">
+              {packagesError || 'No plans are configured for this audience right now.'}
+            </div>
+          ) : (
+            <div className={`grid gap-6 ${gridClassesFor(activePlans.length)}`}>
+              {activePlans.map((plan, i) => (
               <div
                 key={i}
                 className={`p-6 rounded-xl border ${
@@ -472,8 +337,9 @@ export default function PricingPage() {
                   <span>{plan.buttonText}</span>
                   </Link>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* Guarantee / Free Trial Banner */}
           <div className="mt-14 p-6 sm:p-8 rounded-xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 via-surface to-surface-deep shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
@@ -483,17 +349,25 @@ export default function PricingPage() {
                 <span>100% Student Friendly · No Hidden Charges</span>
               </div>
               <h2 className="text-xl font-bold text-ink">
-                Start with 10 Free Credits upon Signup
+                {packagesLoading
+                  ? 'Loading free trial details…'
+                  : freePlan
+                  ? `Start with ${freePlan.credits} upon Signup`
+                  : 'Start your free trial upon Signup'}
               </h2>
               <p className="text-xs sm:text-sm text-ink-muted max-w-xl">
-                Every new user gets 10 credits after OTP verification. Practice your first live AI interview without entering any payment card.
+                {packagesLoading
+                  ? 'Checking the current free trial included with registration.'
+                  : freePlan
+                  ? `New users receive ${freePlan.credits.toLowerCase()} after OTP verification. Practice your first live AI interview without entering any payment card.`
+                  : 'Practice your first live AI interview without entering any payment card.'}
               </p>
             </div>
             <Link
               href="/register"
               className="px-6 py-3.5 rounded-xl bg-blue-600 text-white text-xs sm:text-sm font-bold shadow-md hover:bg-blue-700 transition shrink-0 whitespace-nowrap"
             >
-              Claim 10 Free Credits 
+              Claim Free Trial
             </Link>
           </div>
         </div>

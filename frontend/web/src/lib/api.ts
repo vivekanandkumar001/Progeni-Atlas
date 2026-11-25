@@ -685,6 +685,7 @@ function getTtlForPath(path: string): number {
     path.includes('/practice/drills') ||
     path.includes('/recruiter/dashboard') ||
     path.includes('/recruiter/dossiers') ||
+    path.includes('/packages') ||
     path.includes('/recruiter/rubrics') ||
     path.includes('/recruiter/integrations') ||
     path.includes('/recruiter/profile') ||
@@ -1119,6 +1120,7 @@ export interface PreflightReport {
   livekit_connected?: boolean;
   livekit_publishing?: boolean;
   fullscreen?: boolean;
+  disclosure_accepted?: boolean;
   face_detected?: boolean;
   face_count?: number | null;
   proctoring_model_loaded?: boolean;

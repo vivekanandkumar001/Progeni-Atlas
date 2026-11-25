@@ -1,162 +1,222 @@
 declare module 'lucide-react' {
-  const React: import("react").ReactNamespace;
-  export default React;
-  export {
-    Moon,
-    Sun,
-    Sunrise,
-    Sunset,
-    Snowflake,
-    Star,
-    Trophy,
-    Heart,
-    Shield,
-    Code,
-    Terminal,
-    Zap,
-    Lyric,
-    Menu,
-    More,
-    Search,
-    Globe,
-    Palette,
-    Image,
-    Layout,
-    List,
-    Link,
-    Loader,
-    Settings,
-    Settings2,
-    Mail,
-    MailCheck,
-    Phone,
-    PhoneForward,
-    PhoneRotate,
-    Plus,
-    Minus,
-    Equal,
-    divide,
-    Multiply,
-    PlusSquare,
-    MinusSquare,
-    Collapse,
-    Expand,
-    File,
-    Folder,
-    FolderOpen,
-    MoreVertical,
-    MoreHorizontal,
-    Archive,
-    Copy,
-    Link2,
-    Mail2,
-    Phone2,
-    PhoneForward2,
-    PhoneRotate2,
-    Plus2,
-    Minus2,
-    Equal2,
-    PlusCircle,
-    MinusCircle,
-    MoreVertical2,
-    MoreHorizontal2,
-    Search2,
-    Globe2,
-    Palette2,
-    Image2,
-    Layout2,
-    List2,
-    Link2,
-    Loader2,
-    Settings2,
-    Mail2,
-    Phone2,
-    PhoneForward2,
-    PhoneRotate2,
-    Plus2,
-    Minus2,
-    Equal2,
-    PlusCircle2,
-    MinusCircle2,
-    MoreVertical2,
-    MoreHorizontal2,
-    Sun,
-    Moon,
-    Sunrise,
-    Sunset,
-    Snowflake,
-    Star,
-    Trophy,
-    Heart,
-    Shield,
-    Code,
-    Terminal,
-    Zap,
-    Lyric,
-    Menu,
-    More,
-    Search,
-    Globe,
-    Palette,
-    Image,
-    Layout,
-    List,
-    Link,
-    Loader,
-    Settings,
-    Settings2,
-    Mail,
-    MailCheck,
-    Phone,
-    PhoneForward,
-    PhoneRotate,
-    Plus,
-    Minus,
-    Equal,
-    divide,
-    Multiply,
-    PlusSquare,
-    MinusSquare,
-    Collapse,
-    Expand,
-    File,
-    Folder,
-    FolderOpen,
-    MoreVertical,
-    MoreHorizontal,
-    Archive,
-    Copy,
-    Link2,
-    Mail2,
-    Phone2,
-    PhoneForward2,
-    PhoneRotate2,
-    Plus2,
-    Minus2,
-    Equal2,
-    PlusCircle,
-    MinusCircle,
-    MoreVertical,
-    MoreHorizontal,
-    Search2,
-    Globe2,
-    Palette2,
-    Image2,
-    Layout2,
-    List2,
-    Link2,
-    Loader2,
-    Settings2,
-    Mail2,
-    Phone2,
-    PhoneForward2,
-    PhoneRotate2,
-    Plus2,
-    Minus2,
-    Equal2,
-    PlusCircle2,
-    MinusCircle2,
-    MoreVertical2,
-    MoreHorizontal2,
-  };
+  /** Shared icon prop contract used across candidate, recruiter and admin portals. */
+  export type LucideIcon = import('react').ComponentType<
+    import('react').SVGProps<SVGSVGElement> & { size?: number | string }
+  >;
+
+  /** Every named icon used by the app. Declarations are values, not global aliases. */
+  export const Activity: LucideIcon;
+  export const AlertCircle: LucideIcon;
+  export const AlertOctagon: LucideIcon;
+  export const AlertTriangle: LucideIcon;
+  export const Archive: LucideIcon;
+  export const ArrowDownLeft: LucideIcon;
+  export const ArrowRight: LucideIcon;
+  export const ArrowUp: LucideIcon;
+  export const ArrowUpDown: LucideIcon;
+  export const ArrowUpRight: LucideIcon;
+  export const Award: LucideIcon;
+  export const BarChart3: LucideIcon;
+  export const Bell: LucideIcon;
+  export const Bookmark: LucideIcon;
+  export const BookOpen: LucideIcon;
+  export const Bot: LucideIcon;
+  export const Brain: LucideIcon;
+  export const BrainCircuit: LucideIcon;
+  export const Briefcase: LucideIcon;
+  export const Building: LucideIcon;
+  export const Building2: LucideIcon;
+  export const Cable: LucideIcon;
+  export const Calendar: LucideIcon;
+  export const CalendarClock: LucideIcon;
+  export const Camera: LucideIcon;
+  export const Check: LucideIcon;
+  export const CheckCircle: LucideIcon;
+  export const CheckCircle2: LucideIcon;
+  export const ChevronDown: LucideIcon;
+  export const ChevronRight: LucideIcon;
+  export const ChevronUp: LucideIcon;
+  export const Circle: LucideIcon;
+  export const CirclePlus: LucideIcon;
+  export const ClipboardList: LucideIcon;
+  export const Clock: LucideIcon;
+  export const Cloud: LucideIcon;
+  export const Code: LucideIcon;
+  export const Code2: LucideIcon;
+  export const Coins: LucideIcon;
+  export const Collapse: LucideIcon;
+  export const Compass: LucideIcon;
+  export const Copy: LucideIcon;
+  export const Cpu: LucideIcon;
+  export const CreditCard: LucideIcon;
+  export const Database: LucideIcon;
+  export const divide: LucideIcon;
+  export const Download: LucideIcon;
+  export const Edit: LucideIcon;
+  export const Edit2: LucideIcon;
+  export const Equal: LucideIcon;
+  export const Equal2: LucideIcon;
+  export const Expand: LucideIcon;
+  export const ExternalLink: LucideIcon;
+  export const Eye: LucideIcon;
+  export const EyeOff: LucideIcon;
+  export const File: LucideIcon;
+  export const FileCheck: LucideIcon;
+  export const FileCheck2: LucideIcon;
+  export const FileLock2: LucideIcon;
+  export const FileSpreadsheet: LucideIcon;
+  export const FileText: LucideIcon;
+  export const FileUp: LucideIcon;
+  export const FileWarning: LucideIcon;
+  export const Filter: LucideIcon;
+  export const Flag: LucideIcon;
+  export const Flame: LucideIcon;
+  export const FlaskConical: LucideIcon;
+  export const FlipHorizontal: LucideIcon;
+  export const Folder: LucideIcon;
+  export const FolderOpen: LucideIcon;
+  export const Gauge: LucideIcon;
+  export const Gift: LucideIcon;
+  export const Globe: LucideIcon;
+  export const Globe2: LucideIcon;
+  export const GraduationCap: LucideIcon;
+  export const HardDrive: LucideIcon;
+  export const Headphones: LucideIcon;
+  export const Heart: LucideIcon;
+  export const HelpCircle: LucideIcon;
+  export const History: LucideIcon;
+  export const Home: LucideIcon;
+  export const Image: LucideIcon;
+  export const Image2: LucideIcon;
+  export const Inbox: LucideIcon;
+  export const Info: LucideIcon;
+  export const KeyRound: LucideIcon;
+  export const Languages: LucideIcon;
+  export const Layers: LucideIcon;
+  export const Layers3: LucideIcon;
+  export const Layout: LucideIcon;
+  export const Layout2: LucideIcon;
+  export const LayoutDashboard: LucideIcon;
+  export const LifeBuoy: LucideIcon;
+  export const Lightbulb: LucideIcon;
+  export const Link: LucideIcon;
+  export const Link2: LucideIcon;
+  export const List: LucideIcon;
+  export const List2: LucideIcon;
+  export const Loader: LucideIcon;
+  export const Loader2: LucideIcon;
+  export const Lock: LucideIcon;
+  export const LogIn: LucideIcon;
+  export const LogOut: LucideIcon;
+  export const Lyric: LucideIcon;
+  export const Mail: LucideIcon;
+  export const Mail2: LucideIcon;
+  export const MailCheck: LucideIcon;
+  export const MapPin: LucideIcon;
+  export const Maximize2: LucideIcon;
+  export const Medal: LucideIcon;
+  export const Menu: LucideIcon;
+  export const MessageCircle: LucideIcon;
+  export const MessageSquare: LucideIcon;
+  export const Mic: LucideIcon;
+  export const Mic2: LucideIcon;
+  export const MicOff: LucideIcon;
+  export const Minimize2: LucideIcon;
+  export const Minus: LucideIcon;
+  export const Minus2: LucideIcon;
+  export const MinusCircle: LucideIcon;
+  export const MinusCircle2: LucideIcon;
+  export const MinusSquare: LucideIcon;
+  export const MonitorCheck: LucideIcon;
+  export const Moon: LucideIcon;
+  export const More: LucideIcon;
+  export const MoreHorizontal: LucideIcon;
+  export const MoreHorizontal2: LucideIcon;
+  export const MoreVertical: LucideIcon;
+  export const MoreVertical2: LucideIcon;
+  export const Move: LucideIcon;
+  export const Multiply: LucideIcon;
+  export const Palette: LucideIcon;
+  export const Palette2: LucideIcon;
+  export const Pause: LucideIcon;
+  export const Pencil: LucideIcon;
+  export const Phone: LucideIcon;
+  export const Phone2: LucideIcon;
+  export const PhoneCall: LucideIcon;
+  export const PhoneForward: LucideIcon;
+  export const PhoneForward2: LucideIcon;
+  export const PhoneOff: LucideIcon;
+  export const PhoneRotate: LucideIcon;
+  export const PhoneRotate2: LucideIcon;
+  export const Play: LucideIcon;
+  export const PlayCircle: LucideIcon;
+  export const Plus: LucideIcon;
+  export const Plus2: LucideIcon;
+  export const PlusCircle: LucideIcon;
+  export const PlusCircle2: LucideIcon;
+  export const PlusSquare: LucideIcon;
+  export const QrCode: LucideIcon;
+  export const Radio: LucideIcon;
+  export const Receipt: LucideIcon;
+  export const RefreshCw: LucideIcon;
+  export const Rocket: LucideIcon;
+  export const RotateCcw: LucideIcon;
+  export const Save: LucideIcon;
+  export const Scale: LucideIcon;
+  export const ScrollText: LucideIcon;
+  export const Search: LucideIcon;
+  export const Search2: LucideIcon;
+  export const Send: LucideIcon;
+  export const Server: LucideIcon;
+  export const ServerCog: LucideIcon;
+  export const Settings: LucideIcon;
+  export const Settings2: LucideIcon;
+  export const Share2: LucideIcon;
+  export const Shield: LucideIcon;
+  export const ShieldAlert: LucideIcon;
+  export const ShieldCheck: LucideIcon;
+  export const ShieldHalf: LucideIcon;
+  export const ShieldOff: LucideIcon;
+  export const Sliders: LucideIcon;
+  export const SlidersHorizontal: LucideIcon;
+  export const Smartphone: LucideIcon;
+  export const Snowflake: LucideIcon;
+  export const Sparkles: LucideIcon;
+  export const Star: LucideIcon;
+  export const Sun: LucideIcon;
+  export const Table2: LucideIcon;
+  export const Tags: LucideIcon;
+  export const Target: LucideIcon;
+  export const Terminal: LucideIcon;
+  export const Timer: LucideIcon;
+  export const ToggleLeft: LucideIcon;
+  export const ToggleRight: LucideIcon;
+  export const Trash2: LucideIcon;
+  export const TrendingUp: LucideIcon;
+  export const TriangleAlert: LucideIcon;
+  export const Trophy: LucideIcon;
+  export const Undo2: LucideIcon;
+  export const Upload: LucideIcon;
+  export const UploadCloud: LucideIcon;
+  export const User: LucideIcon;
+  export const UserCheck: LucideIcon;
+  export const UserCog: LucideIcon;
+  export const UserPlus: LucideIcon;
+  export const UserRound: LucideIcon;
+  export const Users: LucideIcon;
+  export const UserX: LucideIcon;
+  export const Video: LucideIcon;
+  export const VideoOff: LucideIcon;
+  export const Volume2: LucideIcon;
+  export const VolumeX: LucideIcon;
+  export const Wallet: LucideIcon;
+  export const Wand2: LucideIcon;
+  export const Webhook: LucideIcon;
+  export const Wifi: LucideIcon;
+  export const WifiOff: LucideIcon;
+  export const Workflow: LucideIcon;
+  export const Wrench: LucideIcon;
+  export const X: LucideIcon;
+  export const XCircle: LucideIcon;
+  export const Zap: LucideIcon;
 }
