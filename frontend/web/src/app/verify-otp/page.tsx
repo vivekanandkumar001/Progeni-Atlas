@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, RefreshCw, KeyRound, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { apiFetch, persistSession } from '@/lib/api';
 import { takePendingResume } from '@/lib/pending-resume';
-import { AuthCard, buttonClass, inputClass } from '@/components/ui';
+import { AuthCard, OtpInput, buttonClass } from '@/components/ui';
 import { RESEND_CODE } from '@/constants/ui_strings';
 
 function VerifyOtpContent() {
@@ -28,8 +28,8 @@ function VerifyOtpContent() {
     }
   }, [email, router]);
 
-  const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [otp, setOtp] = useState<string>('');
+  const [otpFocusTrigger, setOtpFocusTrigger] = useState<number>(0);
 
   const [countdown, setCountdown] = useState<number>(120); // synced from server on mount
   const [cooldown, setCooldown] = useState<number>(0);     // synced from server; resend allowed when 0
@@ -92,44 +92,9 @@ function VerifyOtpContent() {
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  // Handle single digit input and auto-advance
-  const handleChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return;
-    const newOtp = [...otp];
-    newOtp[index] = value.slice(-1);
-    setOtp(newOtp);
-
-    // Auto-advance to next input
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-
-    // Auto-verify if all 6 digits entered
-    if (newOtp.every((digit) => digit !== '')) {
-      handleVerify(newOtp.join(''));
-    }
-  };
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text').trim();
-    if (/^\d{6}$/.test(pasted)) {
-      const digits = pasted.split('');
-      setOtp(digits);
-      inputRefs.current[5]?.focus();
-      handleVerify(pasted);
-    }
-  };
-
   // Submit OTP Verification (code is user-typed only; never rendered by the app)
   const handleVerify = async (codeToVerify?: string) => {
-    const code = codeToVerify || otp.join('');
+    const code = codeToVerify ?? otp;
     if (!/^\d{6}$/.test(code)) {
       setErrorMsg('Please enter all 6 digits of the verification code.');
       return;
@@ -194,7 +159,7 @@ function VerifyOtpContent() {
           ? `Email verified! ${granted} free credits added to your wallet — start your first interview.`
           : 'Email verified successfully! Redirecting...',
       );
-      setOtp(Array(6).fill(''));
+      setOtp('');
       setTimeout(() => {
         const dest: string = typeof data.redirectUrl === 'string' &&
           data.redirectUrl.startsWith('/') &&
@@ -246,8 +211,8 @@ function VerifyOtpContent() {
       setCountdown(typeof data.expiresInSec === 'number' ? data.expiresInSec : 120);
       setCooldown(typeof data.cooldownSec === 'number' ? data.cooldownSec : 120);
       setIsExpired(false);
-      setOtp(Array(6).fill(''));
-      inputRefs.current[0]?.focus();
+      setOtp('');
+      setOtpFocusTrigger((prev) => prev + 1);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Could not resend code. Please try again.');
     } finally {
@@ -327,26 +292,14 @@ function VerifyOtpContent() {
 
         {/* 6-Digit PIN Inputs */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2" onPaste={handlePaste}>
-            {otp.map((digit, idx) => (
-              <input
-                key={idx}
-                ref={(el) => {
-                  inputRefs.current[idx] = el;
-                }}
-                type="text"
-                aria-label={`Verification code digit ${idx + 1} of 6`}
-                inputMode="numeric"
-                autoComplete={idx === 0 ? 'one-time-code' : 'off'}
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleChange(idx, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(idx, e)}
-                disabled={isExpired || countdown <= 0}
-                className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold font-mono bg-inset border border-line rounded-xl text-accent-cyan focus:outline-none focus:border-accent-cyan transition-all shadow-inner disabled:opacity-40"
-              />
-            ))}
-          </div>
+          <OtpInput
+            value={otp}
+            onChange={setOtp}
+            onComplete={(code) => handleVerify(code)}
+            disabled={isExpired || countdown <= 0}
+            hasError={Boolean(errorMsg)}
+            focusTrigger={otpFocusTrigger}
+          />
 
           {/* Timers Row */}
           <div className="flex items-center justify-between text-caption text-xs font-mono pt-1 text-ink-muted">
@@ -363,7 +316,7 @@ function VerifyOtpContent() {
         <button
           type="button"
           onClick={() => handleVerify()}
-          disabled={isVerifying || otp.some((d) => !d) || countdown <= 0 || isExpired}
+          disabled={isVerifying || otp.length !== 6 || countdown <= 0 || isExpired}
           className={buttonClass('primary', 'lg', 'pill', 'w-full disabled:opacity-50 disabled:cursor-not-allowed')}
         >
           {isVerifying ? (

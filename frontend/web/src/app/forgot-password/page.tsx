@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ShieldAlert, Mail, KeyRound, AlertCircle, CheckCircle2, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, KeyRound, AlertCircle, CheckCircle2, Lock, Eye, EyeOff } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
-import { AuthCard, buttonClass, inputClass } from '@/components/ui';
+import { AuthCard, OtpInput, buttonClass, inputClass } from '@/components/ui';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
 
   const [step, setStep] = useState<'email' | 'reset'>('email');
   const [email, setEmail] = useState<string>('');
@@ -76,8 +77,8 @@ export default function ForgotPasswordPage() {
   // Step 2: Reset Password with OTP
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpCode || !newPassword) {
-      setErrorMsg('OTP code and new password are required.');
+    if (!/^\d{6}$/.test(otpCode) || !newPassword) {
+      setErrorMsg('Please enter the 6-digit verification code and your new password.');
       return;
     }
 
@@ -181,19 +182,30 @@ export default function ForgotPasswordPage() {
         ) : (
           <form action="#" method="POST" onSubmit={handleResetPassword} className="space-y-4" noValidate>
             <div>
-              <label className="inline-flex items-center gap-1.5 text-body text-xs font-medium text-ink mb-1.5">
-                <KeyRound className="w-4 h-4 text-accent-cyan shrink-0" />
-                <span>6-Digit Verification Code</span>
-                <span className="text-accent-rose font-bold">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={6}
-                placeholder="Please enter 6-digit verification code"
+              <div className="flex items-center justify-between mb-2">
+                <label
+                  htmlFor="forgot-otp-input"
+                  className="inline-flex items-center gap-1.5 text-body text-xs font-medium text-ink"
+                >
+                  <KeyRound className="w-4 h-4 text-accent-cyan shrink-0" />
+                  <span>6-Digit Verification Code</span>
+                  <span className="text-accent-rose font-bold">*</span>
+                </label>
+                <span className="text-[11px] font-mono text-ink-faint tabular-nums">
+                  {otpCode.length}/6
+                </span>
+              </div>
+              <OtpInput
+                id="forgot-otp-input"
                 value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                className={inputClass(false, 'cyan', 'font-mono text-center tracking-widest text-lg')}
+                onChange={setOtpCode}
+                onComplete={() => {
+                  if (!newPassword) {
+                    passwordInputRef.current?.focus();
+                  }
+                }}
+                hasError={Boolean(errorMsg) && otpCode.length < 6}
+                autoFocus
               />
             </div>
 
@@ -203,8 +215,9 @@ export default function ForgotPasswordPage() {
                 <span>New Account Password</span>
                 <span className="text-accent-rose font-bold">*</span>
               </label>
-              <div className="relative">
+              <div className="group relative">
                 <input
+                  ref={passwordInputRef}
                   type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="Please enter your new password"
@@ -234,7 +247,7 @@ export default function ForgotPasswordPage() {
 
             <button
               type="submit"
-              disabled={isLoading || !otpCode || !newPassword}
+              disabled={isLoading || otpCode.length !== 6 || !newPassword}
               className={buttonClass('primary', 'lg', 'pill', 'w-full disabled:opacity-50 disabled:cursor-not-allowed')}
             >
               {isLoading ? (

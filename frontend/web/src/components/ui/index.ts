@@ -4,6 +4,9 @@ export type { ButtonProps, ButtonVariant, ButtonSize, ButtonShape } from './Butt
 export { Input, Textarea, inputClass } from './Input';
 export type { InputProps, TextareaProps, InputAccent } from './Input';
 
+export { OtpInput } from './OtpInput';
+export type { OtpInputProps } from './OtpInput';
+
 export { Card, AuthCard, cardClass } from './Card';
 export type { CardProps, AuthCardProps } from './Card';
 
