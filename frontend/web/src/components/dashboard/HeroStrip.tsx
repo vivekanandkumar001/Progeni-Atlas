@@ -7,17 +7,9 @@ import { Skeleton } from '@/components/ui';
 import { candidateDemoQuota } from '@/lib/api';
 import { useCandidateWorkspace } from './CandidateWorkspaceProvider';
 
-const MILESTONES = [
-  { key: 'resume', label: 'Resume' },
-  { key: 'skills', label: 'Skills' },
-  { key: 'profile', label: 'Profile' },
-  { key: 'demo', label: 'Demo interview' },
-  { key: 'scored', label: 'Scored interview' },
-];
-
 /**
- * Flat hero strip. No border, no card — dense type, inline meta,
- * real candidate progress track. Data comes from the shared workspace load.
+ * Flat hero strip. No border, no card — dense type, inline meta.
+ * Data comes from the shared workspace load.
  */
 export const HeroStrip: React.FC = () => {
   const { dashboard, profile, loading } = useCandidateWorkspace();
@@ -40,18 +32,8 @@ export const HeroStrip: React.FC = () => {
   const demoQuota = candidateDemoQuota(dashboard);
   const demosLeft = demoQuota?.remaining ?? 0;
   const demoTotal = demoQuota?.total ?? 0;
-  const recentInterviews = dashboard?.recent_interviews ?? [];
   const readinessScore = dashboard?.candidate?.readinessScore;
   const hasReadinessScore = typeof readinessScore === 'number' && Number.isFinite(readinessScore);
-
-  const hasProfileDetails = Boolean(
-    profile?.course || profile?.academic_year || profile?.academicYear || profile?.headline,
-  );
-  const hasDemoCompleted =
-    (demoQuota?.used ?? 0) > 0 || recentInterviews.some((s) => Boolean(s.isDemo));
-  const hasScoredCompleted =
-    hasReadinessScore ||
-    recentInterviews.some((s) => typeof s.total_score === 'number' && Number.isFinite(s.total_score));
 
   const eyebrowLabel =
     [profile?.course, profile?.academic_year || profile?.academicYear].filter(Boolean).join(' · ') ||
@@ -102,36 +84,6 @@ export const HeroStrip: React.FC = () => {
           <p className="mt-1.5 text-sm text-ink-muted max-w-lg leading-relaxed">
             Two tracks, one goal. Close the gap one interview at a time — and make every score count.
           </p>
-
-          {/* Prep milestone track — flat stepper. Never show unchecked chips as
-              "not done" until the underlying data has actually loaded. */}
-          <div className="mt-4 flex flex-wrap items-center gap-1.5 text-[11px]" aria-busy={loading}>
-            {loading
-              ? MILESTONES.map((m) => (
-                  <Skeleton key={m.key} className="h-6 w-20 rounded-full" />
-                ))
-              : MILESTONES.map((m, i) => {
-                  const done =
-                    (m.key === 'resume' && hasResume) ||
-                    (m.key === 'skills' && skillCount > 0) ||
-                    (m.key === 'profile' && hasProfileDetails) ||
-                    (m.key === 'demo' && hasDemoCompleted) ||
-                    (m.key === 'scored' && hasScoredCompleted);
-                  return (
-                    <React.Fragment key={m.key}>
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold border transition-colors ${
-                          done ? 'bg-emerald-500/10 text-accent-emerald border-emerald-500/30' : 'bg-surface text-ink-muted border-line-strong'
-                        }`}
-                      >
-                        {done && <CheckCircle2 className="w-3 h-3" />}
-                        {m.label}
-                      </span>
-                      {i < MILESTONES.length - 1 && <span className="text-ink-faint">/</span>}
-                    </React.Fragment>
-                  );
-                })}
-          </div>
         </div>
 
         <div className="flex flex-col items-start lg:items-end gap-3 shrink-0">
